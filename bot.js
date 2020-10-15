@@ -148,6 +148,7 @@ async function onMessageHandler (target, context, msg, self) {
 
           if (!monster) {
             queue.unshift({target, text: `${monsterName} is not a valid monster`});
+            return;
           }
 
           var index = 0;
@@ -231,9 +232,27 @@ async function onMessageHandler (target, context, msg, self) {
         case "!help":
           queue.unshift({target, text: "Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system."});
           break;
+        case "!refresh":
+          if (context.username !== BROADCASTER_NAME && !context.mod) {
+            queue.unshift({target, text: "Only a mod or broadcaster can refresh the tables"});
+            return;
+          }
+
+          itemTable    = await Xhr.getItemTable()
+          jobTable     = await Xhr.getJobTable();
+          monsterTable = await Xhr.getMonsterTable();
+          abilityTable = await Xhr.getAbilityTable();
+
+          console.log(`* All tables refreshed`);
+
+          queue.unshift({target, text: "All tables refreshed"});
+
+          break;
         // case "!abilities":
         //   queue.unshift({target, text: `Currently these are the available abilities: "focus-attack".`});
         //   break;
+        default:
+          queue.unshift({target, text: `${tokens[0]} is an invalid command.`});
       }
     }
 }
@@ -268,8 +287,10 @@ async function onConnectedHandler (addr, port) {
 
   // Advertising message
   setInterval(() => {
-    queue.unshift({target: "thetruekingofspace", text: "Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system."})
+    queue.unshift({target: "thetruekingofspace", text: "Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system."});
   }, 5 * 60 * 1000);
+
+  queue.unshift({target: "thetruekingofspace", text: "I have restarted.  All monsters that were active are now gone."})
 
   // Start redemption listener
   Redemption.startListener(queue);
