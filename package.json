@@ -1,0 +1,19 @@
+{
+  "name": "twitch-battle-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "bot.js",
+  "dependencies": {
+    "axios": "^0.20.0",
+    "tmi.js": "^1.5.0",
+    "twitch": "^4.2.5",
+    "twitch-pubsub-client": "^4.2.5"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "start": "node bot.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
