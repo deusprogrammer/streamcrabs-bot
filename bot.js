@@ -13,6 +13,7 @@ const BROADCASTER_NAME = "thetruekingofspace";
 
 let itemTable = {};
 let jobTable = {};
+let abilityTable = {};
 let encounterTable = {};
 
 /* 
@@ -75,10 +76,20 @@ async function onMessageHandler (target, context, msg, self) {
 
           queue.unshift({target, text: result.message});
 
-          console.log("RESULT: " + JSON.stringify(result, null, 5));
-
-          if (result.defender.hp <= 0) {
+          // Monster has died, remove from encounter table and reward the person who killed it.
+          if (result.defender.hp <= 0  && defenderName.startsWith("~")) {
             delete encounterTable[result.defender.encounterTableKey];
+
+            // Give drops to whoever delivered the final blow
+            for (var i in result.defender.drops) {
+              var drop = result.defender.drops[i];
+              var chanceRoll = Util.rollDice("1d100");
+              console.log("DROP CHANCE: " + chanceRoll + " vs " + drop.chance);
+              if (chanceRoll < drop.chance) {
+                await Commands.giveItem("", context.username, drop.itemId);
+                queue.unshift({target, text: `${context.username} found ${drop.itemId}`});
+              }
+            }
           }
 
           break;
