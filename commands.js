@@ -137,6 +137,7 @@ const attack = async (attackerName, defenderName, context) => {
         }
 
         defender.isMonster = true;
+        defender.maxHp = context.monsterTable[defender.id].hp;
         defender.currentJob = {
           str: defender.str,
           dex: defender.dex,
@@ -146,6 +147,7 @@ const attack = async (attackerName, defenderName, context) => {
         defender.encounterTableKey = defenderName;
       } else {
         defender = await Xhr.getUser(defenderName);
+        defender.maxHp = context.jobTable[defender.currentJob.id].hp;
 
         if (!defender) {
             return {
@@ -190,18 +192,23 @@ const attack = async (attackerName, defenderName, context) => {
 
       if (attackRoll === 20) {
         damageRoll *= 2;
-        message = `SMASSSSSSH!  ${attacker.name} hit ${defender.name} for ${damageRoll} damage!`;
+        //message = `SMASSSSSSH!  ${attacker.name} hit ${defender.name} for ${damageRoll} damage!`;
+        message = `${attacker.name} ==> ${defender.name} -${damageRoll}HP`;
       } else if (modifiedAttackRoll > defender.totalAC) {
-        message = `${attacker.name} swung at ${defender.name} and hit for ${damageRoll} damage.`;
+        //message = `${attacker.name} swung at ${defender.name} and hit for ${damageRoll} damage.`;
+        message = `${attacker.name} ==> ${defender.name} -${damageRoll}HP`;
       } else {
-        message = `${attacker.name} swung at ${defender.name} and missed!`;
+        //message = `${attacker.name} swung at ${defender.name} and missed!`;
+        message = `${attacker.name} ==> ${defender.name} MISS`;
         hit = false;
       }
   
       if (damageRoll >= defender.hp) {
-        endStatus = `${defender.name} is dead!`;
+        //endStatus = `${defender.name} is dead!`;
+        endStatus = `[DEAD]`;
       } else {
-        endStatus = `${defender.name} has ${defender.hp - damageRoll} HP left.`;
+        //endStatus = `${defender.name} has ${defender.hp - damageRoll} HP left.`;
+        endStatus = `[${defender.hp - damageRoll}/${defender.maxHp}HP]`;
       }
   
       // Get current, unexpanded version
@@ -230,7 +237,7 @@ const attack = async (attackerName, defenderName, context) => {
       }
   
       return {
-        message: `${message}  ${hit ? endStatus : ''}`,
+        message: `[BATTLE]: ${message}  ${hit ? endStatus : ''}`,
         attacker,
         defender
       }

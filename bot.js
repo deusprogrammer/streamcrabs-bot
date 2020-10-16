@@ -299,7 +299,8 @@ async function onConnectedHandler (addr, port) {
       if (message.text.startsWith("/")) {
         client.say(message.target, message.text);
       } else {
-        client.say(message.target, "/me " + message.text + " >> [" + Util.randomUuid() + "]");
+        //client.say(message.target, "/me " + message.text + " >> [" + Util.randomUuid() + "]");
+        client.say(message.target, "/me " + message.text);
       }
     }
   }, 2000);
