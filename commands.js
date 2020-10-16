@@ -77,7 +77,7 @@ const attack = async (attackerName, defenderName, context) => {
         attacker = context.encounterTable[attackerName];
         if (!attacker) {
           return {
-            error: `${attackerName}'s does not have a battle avatar`
+            error: `${attackerName} does not have a battle avatar`
           };
         }
 
@@ -132,7 +132,7 @@ const attack = async (attackerName, defenderName, context) => {
 
         if (!defender) {
           return {
-            error: `${defenderName}'s does not have a battle avatar`
+            error: `${defenderName} does not have a battle avatar`
           };
         }
 
@@ -147,14 +147,14 @@ const attack = async (attackerName, defenderName, context) => {
         defender.encounterTableKey = defenderName;
       } else {
         defender = await Xhr.getUser(defenderName);
-        defender.maxHp = context.jobTable[defender.currentJob.id].hp;
 
         if (!defender) {
             return {
-                error: `${defenderName}'s does not have a battle avatar`
+                error: `${defenderName} does not have a battle avatar`
               };
         }
 
+        defender.maxHp = context.jobTable[defender.currentJob.id].hp;
         defender.isMonster = false;
         defender = Util.expandUser(defender, context);
       }
