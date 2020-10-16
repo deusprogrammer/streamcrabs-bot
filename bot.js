@@ -17,6 +17,8 @@ let abilityTable = {};
 let encounterTable = {};
 let cooldownTable = {};
 
+let gameContext = {};
+
 /* 
 * CHAT BOT 
 */
@@ -48,6 +50,8 @@ client.connect();
 async function onMessageHandler (target, context, msg, self) {
     if (self) { return; } // Ignore messages from the bot
 
+    // let context = {itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable};
+
     // Remove whitespace from chat message
     const command = msg.trim();
 
@@ -73,7 +77,7 @@ async function onMessageHandler (target, context, msg, self) {
           }
 
           var defenderName = tokens[1];
-          var result = await Commands.attack(context.username, defenderName, encounterTable, itemTable, jobTable, abilityTable);
+          var result = await Commands.attack(context.username, defenderName, gameContext);
 
           if (result.error) {
             queue.unshift({target, text: result.error});
@@ -182,7 +186,7 @@ async function onMessageHandler (target, context, msg, self) {
           }
 
           var user = await Xhr.getUser(username);
-          user = Util.expandUser(user, itemTable, jobTable, abilityTable);
+          user = Util.expandUser(user, gameContext);
           queue.unshift({target, text: `[${user.name}] HP: ${user.hp} -- MP: ${user.mp} -- AP: ${user.ap} -- STR: ${user.currentJob.str} -- DEX: ${user.currentJob.dex} -- INT: ${user.currentJob.int} -- HIT: ${user.currentJob.hit + user.equipment.hand.mods.hit} -- AC: ${user.totalAC}.`});
           break;
         case "!targets":
@@ -203,7 +207,7 @@ async function onMessageHandler (target, context, msg, self) {
 
           // Give from inventory if not a mod
           if (context.username !== BROADCASTER_NAME && !context.mod) {
-            var results = await Commands.giveItemFromInventory(context.username, user, itemId, itemTable, jobTable);
+            var results = await Commands.giveItemFromInventory(context.username, user, itemId, gameContext);
 
             if (results.error) {
               queue.unshift({target, text: results.error});
@@ -259,6 +263,8 @@ async function onMessageHandler (target, context, msg, self) {
           monsterTable = await Xhr.getMonsterTable();
           abilityTable = await Xhr.getAbilityTable();
 
+          gameContext = {itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable};
+
           console.log(`* All tables refreshed`);
 
           queue.unshift({target, text: "All tables refreshed"});
@@ -281,6 +287,8 @@ async function onConnectedHandler (addr, port) {
   jobTable     = await Xhr.getJobTable();
   monsterTable = await Xhr.getMonsterTable();
   abilityTable = await Xhr.getAbilityTable();
+
+  gameContext = {itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable};
 
   console.log(`* All tables loaded`);
 
@@ -342,7 +350,7 @@ async function onConnectedHandler (addr, port) {
         }
 
         if (target !== null) {
-          var result = await Commands.attack("~" + encounterName, target, encounterTable, itemTable, jobTable, abilityTable);
+          var result = await Commands.attack("~" + encounterName, target, gameContext);
 
           if (result.error) {
             queue.unshift({target: "thetruekingofspace", text: result.error});

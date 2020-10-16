@@ -30,11 +30,12 @@ const rollDice = (dice) => {
     return total;
 }
 
-const expandUser = (userData, itemTable, jobTable, abilityTable) => {
+const expandUser = (userData, context) => {
+    console.log("CONTEXT: " + JSON.stringify(context, null, 5));
     let totalAC = 0;
     Object.keys(userData.equipment).forEach((slot) => {
       let item = userData.equipment[slot];
-      let itemData = itemTable[item.id];
+      let itemData = context.itemTable[item.id];
       if (itemData.type === "armor") {
         totalAC += itemData.ac;
       }
@@ -42,11 +43,11 @@ const expandUser = (userData, itemTable, jobTable, abilityTable) => {
     });
     let newInventoryList = [];
     userData.inventory.forEach((item) => {
-      newInventoryList.push(itemTable[item]);
+      newInventoryList.push(context.itemTable[item]);
     });
   
     userData.inventory = newInventoryList;
-    userData.currentJob = jobTable[userData.currentJob.id];
+    userData.currentJob = context.jobTable[userData.currentJob.id];
     userData.totalAC = totalAC + userData.currentJob.dex;
   
     return userData;

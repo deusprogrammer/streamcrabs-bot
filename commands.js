@@ -26,9 +26,9 @@ const giveItem = async (giverName, username, itemId) => {
     }
 }
 
-const giveItemFromInventory = async (giverName, username, itemId, itemTable, jobTable) => {
-    let giver = Util.expandUser(await Xhr.getUser(giverName), itemTable, jobTable);
-    let user  = Util.expandUser(await Xhr.getUser(username), itemTable, jobTable);
+const giveItemFromInventory = async (giverName, username, itemId, context) => {
+    let giver = Util.expandUser(await Xhr.getUser(giverName), context);
+    let user  = Util.expandUser(await Xhr.getUser(username), context);
     let item  = await Xhr.getItem(itemId);
   
     if (!giver) {
@@ -68,13 +68,13 @@ const giveItemFromInventory = async (giverName, username, itemId, itemTable, job
     }
 }
 
-const attack = async (attackerName, defenderName, encounterTable, itemTable, jobTable, abilityTable) => {
+const attack = async (attackerName, defenderName, context) => {
     try {
       let attacker = {};
       
       if (attackerName.startsWith("~")) {
         attackerName = attackerName.substring(1);
-        attacker = encounterTable[attackerName];
+        attacker = context.encounterTable[attackerName];
         if (!attacker) {
           return {
             error: `${attackerName}'s does not have a battle avatar`
@@ -105,9 +105,9 @@ const attack = async (attackerName, defenderName, encounterTable, itemTable, job
               error: `@${attackerName} doesn't have a battle avatar.`
           };
         }
-        
+
         attacker.isMonster = false;
-        attacker = Util.expandUser(attacker, itemTable, jobTable, abilityTable);
+        attacker = Util.expandUser(attacker, context);
       }
 
       console.log("ATTACKER: " + JSON.stringify(attacker, null, 5));
@@ -128,7 +128,7 @@ const attack = async (attackerName, defenderName, encounterTable, itemTable, job
   
       if (defenderName.startsWith("~")) {
         defenderName = defenderName.substring(1);
-        defender = encounterTable[defenderName];
+        defender = context.encounterTable[defenderName];
 
         if (!defender) {
           return {
@@ -154,12 +154,12 @@ const attack = async (attackerName, defenderName, encounterTable, itemTable, job
         }
 
         defender.isMonster = false;
-        defender = Util.expandUser(defender, itemTable, jobTable, abilityTable);
+        defender = Util.expandUser(defender, context);
       }
 
       console.log("DEFENDER: " + JSON.stringify(defender, null, 5));
   
-      if (defender && !targets.includes(defenderName) && !encounterTable[defenderName]) {
+      if (defender && !targets.includes(defenderName) && !context.encounterTable[defenderName]) {
         return {
           error: `@${defenderName}'s not here man!`
         };
@@ -222,11 +222,11 @@ const attack = async (attackerName, defenderName, encounterTable, itemTable, job
       // Update attacker and target stats
       if (!attacker.isMonster) {
         await Xhr.updateUser(attacker);
-        attacker = Util.expandUser(attacker, itemTable, jobTable, abilityTable);
+        attacker = Util.expandUser(attacker, context);
       }
       if (!defender.isMonster && hit) {
         await Xhr.updateUser(defender);
-        defender = Util.expandUser(defender, itemTable, jobTable, abilityTable);
+        defender = Util.expandUser(defender, context);
       }
   
       return {
