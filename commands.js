@@ -70,15 +70,45 @@ const giveItemFromInventory = async (giverName, username, itemId, itemTable, job
 
 const attack = async (attackerName, defenderName, encounterTable, itemTable, jobTable, abilityTable) => {
     try {
-      let attacker = await Xhr.getUser(attackerName);
+      let attacker = {};
+      
+      if (attackerName.startsWith("~")) {
+        attackerName = attackerName.substring(1);
+        attacker = encounterTable[attackerName];
+        if (!attacker) {
+          return {
+            error: `${attackerName}'s does not have a battle avatar`
+          };
+        }
 
-      if (!attacker) {
-        return {
-            error: `@${attackerName} doesn't have a battle avatar.`
+        attacker.isMonster = true;
+        attacker.currentJob = {
+          str: attacker.str,
+          dex: attacker.dex,
+          int: attacker.int
         };
-      }
+        attacker.equipment = {
+          hand: {
+            dmg: attacker.dmg || "1d6",
+            mods: {
+              hit: attacker.hit
+            }
+          }
+        };
+        attacker.totalAC = attacker.ac;
+        attacker.encounterTableKey = attackerName;
+      } else {
+        attacker = await Xhr.getUser(attackerName);
 
-      attacker = Util.expandUser(attacker, itemTable, jobTable, abilityTable);
+        if (!attacker) {
+          return {
+              error: `@${attackerName} doesn't have a battle avatar.`
+          };
+        }
+        
+        attacker.isMonster = false;
+        attacker = Util.expandUser(attacker, itemTable, jobTable, abilityTable);
+      }
 
       console.log("ATTACKER: " + JSON.stringify(attacker, null, 5));
   
@@ -95,12 +125,18 @@ const attack = async (attackerName, defenderName, encounterTable, itemTable, job
       let targets = await Xhr.getActiveUsers();
   
       let defender = {}
-      let isMonster = false;
   
       if (defenderName.startsWith("~")) {
         defenderName = defenderName.substring(1);
         defender = encounterTable[defenderName];
-        isMonster = true;
+
+        if (!defender) {
+          return {
+            error: `${defenderName}'s does not have a battle avatar`
+          };
+        }
+
+        defender.isMonster = true;
         defender.currentJob = {
           str: defender.str,
           dex: defender.dex,
@@ -113,10 +149,11 @@ const attack = async (attackerName, defenderName, encounterTable, itemTable, job
 
         if (!defender) {
             return {
-                error: `@${defenderName}'s does not have a battle avatar`
+                error: `${defenderName}'s does not have a battle avatar`
               };
         }
 
+        defender.isMonster = false;
         defender = Util.expandUser(defender, itemTable, jobTable, abilityTable);
       }
 
@@ -144,47 +181,57 @@ const attack = async (attackerName, defenderName, encounterTable, itemTable, job
       let endStatus = "";
   
       let weapon = attacker.equipment.hand;
+
+      let attackRollMod = attacker.currentJob.hit + attacker.equipment.hand.mods.hit;
       let attackRoll = Util.rollDice("1d20");
-      let modifiedAttackRoll = attackRoll + attacker.currentJob.str;
-      let damageRoll = Util.rollDice(weapon.dmg) + attacker.currentJob.str;
+      let modifiedAttackRoll = attackRoll + attackRollMod;
+      let damageRoll = Util.rollDice(weapon.dmg) + attacker.currentJob.str + attacker.equipment.hand.mods.str;
       let hit = true;
-  
+
       if (attackRoll === 20) {
         damageRoll *= 2;
-        message = `SMASSSSSSH!  ${attacker.name} hit ${defender.name} for ${damageRoll} damage!`
+        message = `SMASSSSSSH!  ${attacker.name} hit ${defender.name} for ${damageRoll} damage!`;
       } else if (modifiedAttackRoll > defender.totalAC) {
         message = `${attacker.name} swung at ${defender.name} and hit for ${damageRoll} damage.`;
       } else {
-        message = `${attacker.name} swung at ${defender.name} and whiffed!`;
+        message = `${attacker.name} swung at ${defender.name} and missed!`;
         hit = false;
       }
   
       if (damageRoll >= defender.hp) {
         endStatus = `${defender.name} is dead!`;
       } else {
-        endStatus = `${defender.name} has ${defender.hp - damageRoll} HP left.`
+        endStatus = `${defender.name} has ${defender.hp - damageRoll} HP left.`;
       }
   
       // Get current, unexpanded version
-      attacker = await Xhr.getUser(attacker.name);
-      if (!isMonster) {
+      if (!attacker.isMonster) {
+        attacker = await Xhr.getUser(attacker.name);
+        attacker.ap -= 1;
+      }
+      if (!defender.isMonster) {
         defender = await Xhr.getUser(defender.name);
+      } else {
+        defender.aggro[attackerName] = damageRoll;
       }
   
-      attacker.ap -= 1;
-
       if (hit) {
         defender.hp -= damageRoll;
       }
   
       // Update attacker and target stats
-      await Xhr.updateUser(attacker);
-      if (!isMonster && hit) {
+      if (!attacker.isMonster) {
+        await Xhr.updateUser(attacker);
+        attacker = Util.expandUser(attacker, itemTable, jobTable, abilityTable);
+      }
+      if (!defender.isMonster && hit) {
         await Xhr.updateUser(defender);
+        defender = Util.expandUser(defender, itemTable, jobTable, abilityTable);
       }
   
       return {
         message: `${message}  ${hit ? endStatus : ''}`,
+        attacker,
         defender
       }
     } catch (e) {

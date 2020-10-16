@@ -15,6 +15,7 @@ let itemTable = {};
 let jobTable = {};
 let abilityTable = {};
 let encounterTable = {};
+let cooldownTable = {};
 
 /* 
 * CHAT BOT 
@@ -60,11 +61,16 @@ async function onMessageHandler (target, context, msg, self) {
       switch(tokens[0]) {
         case "!attack":
           if (tokens.length < 2) {
-            queue.unshift({target, text: "You must have a target for your attack"});
+            queue.unshift({target, text: "You must have a target for your attack."});
             return;
           }
 
           tokens[1] = tokens[1].replace("@", "").toLowerCase()
+
+          if (cooldownTable[context.username]) {
+            queue.unshift({target, text: `${context.username} is on cooldown.`});
+            return;
+          }
 
           var defenderName = tokens[1];
           var result = await Commands.attack(context.username, defenderName, encounterTable, itemTable, jobTable, abilityTable);
@@ -74,7 +80,12 @@ async function onMessageHandler (target, context, msg, self) {
             return;
           }
 
-          queue.unshift({target, text: result.message});
+          // Set user cool down
+          var normalizedDex = Math.min(5, result.attacker.currentJob.dex);
+          var actionCooldown = Math.min(11, 6 - normalizedDex);
+          cooldownTable[context.username] = actionCooldown;
+
+          queue.unshift({target, text: `${result.message}`});
 
           // Monster has died, remove from encounter table and reward the person who killed it.
           if (result.defender.hp <= 0  && defenderName.startsWith("~")) {
@@ -84,7 +95,6 @@ async function onMessageHandler (target, context, msg, self) {
             for (var i in result.defender.drops) {
               var drop = result.defender.drops[i];
               var chanceRoll = Util.rollDice("1d100");
-              console.log("DROP CHANCE: " + chanceRoll + " vs " + drop.chance);
               if (chanceRoll < drop.chance) {
                 await Commands.giveItem("", context.username, drop.itemId);
                 queue.unshift({target, text: `${context.username} found ${drop.itemId}`});
@@ -95,7 +105,6 @@ async function onMessageHandler (target, context, msg, self) {
           break;
         case "!transmog":
           if (context.username !== BROADCASTER_NAME && !context.mod) {
-            queue.unshift({target, text: "Only a mod or broadcaster can transmogrify a chatter"});
             return;
           }
 
@@ -108,18 +117,16 @@ async function onMessageHandler (target, context, msg, self) {
           tokens[1] = tokens[1].replace("@", "").toLowerCase();
 
           if (tokens[1] === BROADCASTER_NAME) {
-            queue.unshift({target, text: "You can't transmog the broadcaster"});
             return;
           }
 
-          encounterTable[tokens[1].toLowerCase() + "_the_slime"] = {...monsterTable['SLIME'], transmogName};
+          encounterTable[tokens[1].toLowerCase() + "_the_slime"] = {...monsterTable['SLIME'], transmogName, aggro: {}};
 
           queue.unshift({target, text: `${tokens[1]} was turned into a slime and will be banned upon death`});
 
           break;
         case "!untransmog":
           if (context.username !== BROADCASTER_NAME && !context.mod) {
-            queue.unshift({target, text: "Only a mod or broadcaster can transmogrify a chatter"});
             return;
           }
 
@@ -145,7 +152,6 @@ async function onMessageHandler (target, context, msg, self) {
           break;
         case "!spawn":
           if (context.username !== BROADCASTER_NAME && !context.mod) {
-            queue.unshift({target, text: "Only a mod or broadcaster can spawn a monster"});
             return;
           }
 
@@ -164,7 +170,7 @@ async function onMessageHandler (target, context, msg, self) {
 
           var index = 0;
           while (encounterTable[monsterName + (++index)]);
-          encounterTable[monsterName + index] = {...monster};
+          encounterTable[monsterName + index] = {...monster, aggro: {}};
 
           queue.unshift({target, text: `${monster.name} has appeared!`});
 
@@ -177,8 +183,7 @@ async function onMessageHandler (target, context, msg, self) {
 
           var user = await Xhr.getUser(username);
           user = Util.expandUser(user, itemTable, jobTable, abilityTable);
-          queue.unshift({target, text: `[@${user.name} Stats] HP: ${user.hp} -- MP: ${user.mp} -- AP: ${user.ap} -- STR: ${user.currentJob.str} -- DEX: ${user.currentJob.dex} -- INT: ${user.currentJob.int} -- AC: ${user.totalAC + user.currentJob.dex}`});
-          queue.unshift({target, text: `You can also find stats for your user and change equipment at https://deusprogrammer.com/util/twitch/battlers/~self`}); 
+          queue.unshift({target, text: `[${user.name}] HP: ${user.hp} -- MP: ${user.mp} -- AP: ${user.ap} -- STR: ${user.currentJob.str} -- DEX: ${user.currentJob.dex} -- INT: ${user.currentJob.int} -- HIT: ${user.currentJob.hit + user.equipment.hand.mods.hit} -- AC: ${user.totalAC}.`});
           break;
         case "!targets":
           var activeUsers = await Xhr.getActiveUsers();
@@ -241,7 +246,7 @@ async function onMessageHandler (target, context, msg, self) {
           queue.unshift({target, text: `${found.name} is a ${found.type} and has a trade id of ${found.id}`});
           break;
         case "!help":
-          queue.unshift({target, text: "Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system."});
+          queue.unshift({target, text: `Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system and https://deusprogrammer.com/util/twitch/battlers/${context.username} for stats and equipment.`});
           break;
         case "!refresh":
           if (context.username !== BROADCASTER_NAME && !context.mod) {
@@ -293,8 +298,68 @@ async function onConnectedHandler (addr, port) {
 
   // Cooldown timer (all cooldowns have cool downs in increments of 15s)
   setInterval(() => {
-    console.log("Checking cool downs");
-  }, 15 * 1000);
+    // Tick down human cooldowns
+    Object.keys(cooldownTable).forEach(async (username) => {
+      cooldownTable[username] -= 1;
+      if (cooldownTable[username] <= 0) {
+        delete cooldownTable[username];
+        queue.unshift({target: "thetruekingofspace", text: `${username} can act again.`});
+        return;
+      }
+    });
+
+    // Do monster attacks
+    Object.keys(encounterTable).forEach(async (encounterName) => {
+      var encounter = encounterTable[encounterName];
+
+      if (encounter.tick === undefined) {
+        encounter.tick = 0;
+      }
+
+      var normalizedDex = Math.min(5, encounter.dex);
+      var actionCooldown = Math.min(11, 6 - normalizedDex);
+
+      if (encounter.tick === actionCooldown) {
+        encounter.tick = 0;
+
+        // Determine attack target.  If no aggro, pick randomly.  If aggro, pick highest damage dealt.
+        var target = null;
+        if (!encounter.aggro || Object.keys(encounter.aggro).length <= 0) {
+          let activeUsers = await Xhr.getActiveUsers();
+          target = activeUsers[Math.floor(Math.random() * Math.floor(activeUsers.length))];
+        } else {
+          Object.keys(encounter.aggro).forEach((attackerName) => {
+            var attackerAggro = encounter.aggro[attackerName];
+            if (target === null) {
+              target = attackerName;
+              return;
+            }
+
+            if (attackerAggro > encounter.aggro[target]) {
+              target = attackerName;
+            }
+          });
+        }
+
+        if (target !== null) {
+          var result = await Commands.attack("~" + encounterName, target, encounterTable, itemTable, jobTable, abilityTable);
+
+          if (result.error) {
+            queue.unshift({target: "thetruekingofspace", text: result.error});
+            return;
+          }
+
+          queue.unshift({target: "thetruekingofspace", text: `${result.message}`});
+          return;
+        }
+
+        // Reset aggro between attacks
+        encounter.aggro = {};
+      }
+
+      encounter.tick++;
+    });
+  }, 5 * 1000);
 
   // Advertising message
   setInterval(() => {

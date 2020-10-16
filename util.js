@@ -20,7 +20,7 @@ const randomUuid = () => {
     return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 }
   
-  // TODO Improve dice parser to include other math
+// TODO Improve dice parser to include other math
 const rollDice = (dice) => {
     let tokens = dice.split("d");
     let total = 0;
