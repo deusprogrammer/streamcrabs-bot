@@ -85,7 +85,7 @@ async function onMessageHandler (target, context, msg, self) {
           }
 
           // Set user cool down
-          var normalizedDex = Math.min(5, result.attacker.currentJob.dex);
+          var normalizedDex = Math.min(5, result.attacker.dex);
           var actionCooldown = Math.min(11, 6 - normalizedDex);
           cooldownTable[context.username] = actionCooldown;
 
@@ -174,7 +174,7 @@ async function onMessageHandler (target, context, msg, self) {
 
           var index = 0;
           while (encounterTable[monsterName + (++index)]);
-          encounterTable[monsterName + index] = {...monster, aggro: {}};
+          encounterTable[monsterName + index] = {...monster, aggro: {}, actionCooldown: Math.min(11, 6 - Math.min(5, monster.dex))};
 
           queue.unshift({target, text: `${monster.name} has appeared!`});
 
@@ -187,7 +187,7 @@ async function onMessageHandler (target, context, msg, self) {
 
           var user = await Xhr.getUser(username);
           user = Util.expandUser(user, gameContext);
-          queue.unshift({target, text: `[${user.name}] HP: ${user.hp} -- MP: ${user.mp} -- AP: ${user.ap} -- STR: ${user.currentJob.str} -- DEX: ${user.currentJob.dex} -- INT: ${user.currentJob.int} -- HIT: ${user.currentJob.hit + user.equipment.hand.mods.hit} -- AC: ${user.totalAC}.`});
+          queue.unshift({target, text: `[${user.name}] HP: ${user.hp} -- MP: ${user.mp} -- AP: ${user.ap} -- STR: ${user.str} -- DEX: ${user.dex} -- INT: ${user.int} -- HIT: ${user.hit} -- AC: ${user.totalAC}.`});
           break;
         case "!targets":
           var activeUsers = await Xhr.getActiveUsers();
@@ -325,10 +325,7 @@ async function onConnectedHandler (addr, port) {
         encounter.tick = 0;
       }
 
-      var normalizedDex = Math.min(5, encounter.dex);
-      var actionCooldown = Math.min(11, 6 - normalizedDex);
-
-      if (encounter.tick === actionCooldown) {
+      if (encounter.tick === encounter.actionCooldown) {
         encounter.tick = 0;
 
         // Determine attack target.  If no aggro, pick randomly.  If aggro, pick highest damage dealt.

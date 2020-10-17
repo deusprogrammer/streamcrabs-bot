@@ -27,8 +27,8 @@ const giveItem = async (giverName, username, itemId) => {
 }
 
 const giveItemFromInventory = async (giverName, username, itemId, context) => {
-    let giver = Util.expandUser(await Xhr.getUser(giverName), context);
-    let user  = Util.expandUser(await Xhr.getUser(username), context);
+    let giver = await Xhr.getUser(giverName);
+    let user  = await Xhr.getUser(username);
     let item  = await Xhr.getItem(itemId);
   
     if (!giver) {
@@ -64,7 +64,7 @@ const giveItemFromInventory = async (giverName, username, itemId, context) => {
     await Xhr.updateUser(user);
 
     return {
-        message: `${giver} gave ${username} a ${item.name}`
+        message: `${giverName} gave ${username} a ${item.name}`
     }
 }
 
@@ -82,11 +82,6 @@ const attack = async (attackerName, defenderName, context) => {
         }
 
         attacker.isMonster = true;
-        attacker.currentJob = {
-          str: attacker.str,
-          dex: attacker.dex,
-          int: attacker.int
-        };
         attacker.equipment = {
           hand: {
             dmg: attacker.dmg || "1d6",
@@ -138,11 +133,6 @@ const attack = async (attackerName, defenderName, context) => {
 
         defender.isMonster = true;
         defender.maxHp = context.monsterTable[defender.id].hp;
-        defender.currentJob = {
-          str: defender.str,
-          dex: defender.dex,
-          int: defender.int
-        }
         defender.totalAC = defender.ac;
         defender.encounterTableKey = defenderName;
       } else {
@@ -154,7 +144,6 @@ const attack = async (attackerName, defenderName, context) => {
               };
         }
 
-        defender.maxHp = context.jobTable[defender.currentJob.id].hp;
         defender.isMonster = false;
         defender = Util.expandUser(defender, context);
       }
@@ -184,10 +173,9 @@ const attack = async (attackerName, defenderName, context) => {
   
       let weapon = attacker.equipment.hand;
 
-      let attackRollMod = attacker.currentJob.hit + attacker.equipment.hand.mods.hit;
       let attackRoll = Util.rollDice("1d20");
-      let modifiedAttackRoll = attackRoll + attackRollMod;
-      let damageRoll = Util.rollDice(weapon.dmg) + attacker.currentJob.str + attacker.equipment.hand.mods.str;
+      let modifiedAttackRoll = attackRoll + attacker.hit;
+      let damageRoll = Util.rollDice(weapon.dmg) + attacker.str;
       let hit = true;
 
       if (attackRoll === 20) {
