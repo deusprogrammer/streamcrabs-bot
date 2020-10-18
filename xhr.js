@@ -49,18 +49,9 @@ const getAbilityTable = () => {
       })
 }
   
-const getChatters = async () => {
-    let chatters = []
-    let r = await axios.get("https://tmi.twitch.tv/group/user/thetruekingofspace/chatters")
-    Object.keys(r.data.chatters).forEach((category) => {
-      chatters.push(...r.data.chatters[category]);
-    });
-  
-    return chatters;
-}
-  
-const getActiveUsers = async () => {
-    let chatters = await getChatters();
+const getActiveUsers = async (context) => {
+    let chatters = Object.keys(context.chattersActive);
+
     let r = await axios.get(`${BATTLE_API_URL}/users`, {
       headers: {
         Authorization: `Bearer ${BATTLE_BOT_JWT}`
@@ -199,7 +190,6 @@ module.exports = {
     getUser,
     getItem,
     getActiveUsers,
-    getChatters,
     getItemTable,
     getJobTable,
     getMonsterTable,

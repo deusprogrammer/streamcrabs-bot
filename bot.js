@@ -1,4 +1,5 @@
 const tmi = require('tmi.js');
+const WebSocket = require('ws');
 
 const Util = require('./util');
 const Xhr = require('./xhr');
@@ -11,19 +12,45 @@ const BROADCASTER_NAME = "thetruekingofspace";
  * INDEXES
  */
 
+// Tables for caches of game data
 let itemTable = {};
 let jobTable = {};
 let abilityTable = {};
 let encounterTable = {};
 let cooldownTable = {};
+let chattersActive = {};
 
+// Combined game context of all of the above tables
 let gameContext = {};
+
+// Queue for messages to avoid flooding
+let queue = [];
 
 /* 
 * CHAT BOT 
 */
 
-let queue = [];
+// Setup websocket server for communicating with the panel
+const wss = new WebSocket.Server({ port: 8090 });
+ 
+wss.on('connection', function connection(ws) {
+  let initEvent = {
+    type: "INIT",
+    eventData: {
+      results: {},
+      encounterTable
+    }
+  }
+  ws.send(JSON.stringify(initEvent, null, 5));
+});
+
+const sendEventToPanels = async(event) => {
+  wss.clients.forEach(function each(client) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(event));
+    }
+  });
+}
 
 // Define configuration options for chat bot
 const opts = {
@@ -50,7 +77,10 @@ client.connect();
 async function onMessageHandler (target, context, msg, self) {
     if (self) { return; } // Ignore messages from the bot
 
-    // let context = {itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable};
+    // Reset a players activity tick to a full 10 minutes before we check again
+    if (chattersActive[context.username]) {
+      chattersActive[context.username] = 10 * 12;
+    }
 
     // Remove whitespace from chat message
     const command = msg.trim();
@@ -62,219 +92,244 @@ async function onMessageHandler (target, context, msg, self) {
       console.log("Received command!")
       console.log("Tokens: " + tokens);
 
-      switch(tokens[0]) {
-        case "!attack":
-          if (tokens.length < 2) {
-            queue.unshift({target, text: "You must have a target for your attack."});
-            return;
-          }
-
-          tokens[1] = tokens[1].replace("@", "").toLowerCase()
-
-          if (cooldownTable[context.username]) {
-            queue.unshift({target, text: `${context.username} is on cooldown.`});
-            return;
-          }
-
-          var defenderName = tokens[1];
-          var result = await Commands.attack(context.username, defenderName, gameContext);
-
-          if (result.error) {
-            queue.unshift({target, text: result.error});
-            return;
-          }
-
-          // Set user cool down
-          var normalizedDex = Math.min(5, result.attacker.dex);
-          var actionCooldown = Math.min(11, 6 - normalizedDex);
-          cooldownTable[context.username] = actionCooldown;
-
-          queue.unshift({target, text: `${result.message}`});
-
-          // Monster has died, remove from encounter table and reward the person who killed it.
-          if (result.defender.hp <= 0  && defenderName.startsWith("~")) {
-            delete encounterTable[result.defender.encounterTableKey];
-
-            // Give drops to whoever delivered the final blow
-            for (var i in result.defender.drops) {
-              var drop = result.defender.drops[i];
-              var chanceRoll = Util.rollDice("1d100");
-              if (chanceRoll < drop.chance) {
-                await Commands.giveItem("", context.username, drop.itemId);
-                queue.unshift({target, text: `${context.username} found ${drop.itemId}`});
+      try {
+          switch(tokens[0]) {
+            case "!ready":
+              if (!chattersActive[context.username]) {
+                chattersActive[context.username] = 10 * 12;
+                queue.unshift({target, text: `${context.username} is ready to battle!`});
+                sendEventToPanels({
+                  type: "JOIN",
+                  eventData: {
+                    results: {
+                      attacker: {
+                        name: context.username
+                      },
+                      message: `${context.username} joins the brawl!`
+                    },
+                    encounterTable
+                  }
+                });
               }
-            }
-          }
+              break;
+            case "!attack":
+              if (tokens.length < 2) {
+                throw "You must have a target for your attack.";
+              }
 
-          break;
-        case "!transmog":
-          if (context.username !== BROADCASTER_NAME && !context.mod) {
-            return;
-          }
+              var defenderName = tokens[1].replace("@", "").toUpperCase();
 
-          if (tokens.length < 2) {
-            queue.unshift({target, text: "You must specify a target to turn into a slime"});
-            return;
-          }
+              if (cooldownTable[context.username]) {
+                queue.unshift({target, text: `${context.username} is on cooldown.`});
+                return;
+              }
 
-          var transmogName = tokens[1];
-          tokens[1] = tokens[1].replace("@", "").toLowerCase();
+              var results = await Commands.attack(context.username, defenderName, gameContext);
 
-          if (tokens[1] === BROADCASTER_NAME) {
-            return;
-          }
+              // Set user cool down
+              cooldownTable[context.username] = results.attacker.actionCooldown;
 
-          encounterTable[tokens[1].toLowerCase() + "_the_slime"] = {...monsterTable['SLIME'], transmogName, aggro: {}};
+              // Set user active if they attack
+              if (!chattersActive[context.username]) {
+                chattersActive[context.username] = 10 * 12;
+                queue.unshift({target, text: `${context.username} comes out of the shadows and unsheathes his ${results.attacker.equipment.hand.name}!`});
+              }
 
-          queue.unshift({target, text: `${tokens[1]} was turned into a slime and will be banned upon death`});
+              // Announce results of attack
+              queue.unshift({target, text: `${results.message}`});
+              sendEventToPanels({
+                type: "ATTACKED",
+                eventData: {
+                  results,
+                  encounterTable
+                }
+              });
 
-          break;
-        case "!untransmog":
-          if (context.username !== BROADCASTER_NAME && !context.mod) {
-            return;
-          }
+              // Monster has died, remove from encounter table and reward the person who killed it.
+              if (results.defender.hp <= 0  && defenderName.startsWith("~")) {
+                delete encounterTable[results.defender.encounterTableKey];
 
-          if (tokens.length < 2) {
-            queue.unshift({target, text: "You must specify a target to revert from a slime"});
-            return;
-          }
+                sendEventToPanels({
+                  type: "DIED",
+                  eventData: {
+                    results,
+                    encounterTable
+                  }
+                });
 
-          var transmogName = tokens[1];
-          tokens[1] = tokens[1].replace("@", "").toLowerCase();
+                // Give drops to everyone who attacked the monster
+                for (var attacker in results.defender.aggro) {
+                  for (var i in results.defender.drops) {
+                    var drop = results.defender.drops[i];
+                    var chanceRoll = Util.rollDice("1d100");
+                    if (chanceRoll < drop.chance) {
+                      await Commands.giveItem("", attacker, drop.itemId);
+                      queue.unshift({target, text: `${attacker} found ${drop.itemId}!`});
+                      sendEventToPanels({
+                        type: "ITEM_GET",
+                        eventData: {
+                          results: {
+                            receiver: attacker,
+                            item: itemTable[drop.itemId],
+                            message: `${attacker} found ${drop.itemId}!`
+                          },
+                          encounterTable
+                        }
+                      });
+                      break;
+                    }
+                  }
+                }
+              }
 
-          var monsterName = tokens[1].toLowerCase() + "_the_slime";
+              break;
+            case "!transmog":
+              if (context.username !== BROADCASTER_NAME && !context.mod) {
+                throw "Only a broadcaster or mod can turn a viewer into a slime";
+              }
 
-          if (!encounterTable[monsterName]) {
-            queue.unshift({target, text: `${tokens[1]} isn't a slime`});
-            return;
-          }
+              if (tokens.length < 2) {
+                throw "You must specify a target to turn into a slime";
+              }
 
-          delete encounterTable[monsterName];
+              var transmogName = tokens[1];
+              tokens[1] = tokens[1].replace("@", "").toLowerCase();
 
-          queue.unshift({target, text: `${tokens[1]} was reverted from a slime`});
+              if (tokens[1] === BROADCASTER_NAME) {
+                throw "You can't turn the broadcaster into a slime";
+              }
 
-          break;
-        case "!spawn":
-          if (context.username !== BROADCASTER_NAME && !context.mod) {
-            return;
-          }
+              var slimeName = tokens[1].toLowerCase() + "_the_slime";
+              var monster = Commands.spawnMonster(monsterName, slimeName, gameContext);
+              monster.transmogName = transmogName;
+              encounterTable[monster.spawnKey] = monster;
 
-          if (tokens.length < 2) {
-            queue.unshift({target, text: "You must specify a monster to spawn"});
-            return;
-          }
+              queue.unshift({target, text: `${tokens[1]} was turned into a slime and will be banned upon death.  Target name: ~${monster.spawnKey}.`});
+              sendEventToPanels({
+                type: "SPAWN",
+                eventData: {
+                  results: {
+                    attacker: monster,
+                    message: `${tokens[1]} was turned into a slime and will be banned upon death.  Target name: ~${monster.spawnKey}.`
+                  },
+                  encounterTable
+                }
+              });
 
-          var monsterName = tokens[1].toLowerCase();
-          var monster = monsterTable[monsterName.toUpperCase()];
+              break;
+            case "!untransmog":
+              if (context.username !== BROADCASTER_NAME && !context.mod) {
+                throw "Only a broadcaster or mod can revert a slime";
+              }
 
-          if (!monster) {
-            queue.unshift({target, text: `${monsterName} is not a valid monster`});
-            return;
-          }
+              if (tokens.length < 2) {
+                throw "You must specify a target to revert from a slime";
+              }
 
-          var index = 0;
-          while (encounterTable[monsterName + (++index)]);
-          encounterTable[monsterName + index] = {...monster, aggro: {}, actionCooldown: Math.min(11, 6 - Math.min(5, monster.dex))};
+              tokens[1] = tokens[1].replace("@", "").toLowerCase();
 
-          queue.unshift({target, text: `${monster.name} has appeared!`});
+              var monsterName = tokens[1].toLowerCase() + "_the_slime";
 
-          break;
-        case "!stats":
-          var username = context.username;
-          if (tokens[1]) {
-            username = tokens[1].replace("@", "").toLowerCase();
-          }
+              if (!encounterTable[monsterName]) {
+                throw `${tokens[1]} isn't a slime`;
+              }
 
-          var user = await Xhr.getUser(username);
-          user = Util.expandUser(user, gameContext);
-          queue.unshift({target, text: `[${user.name}] HP: ${user.hp} -- MP: ${user.mp} -- AP: ${user.ap} -- STR: ${user.str} -- DEX: ${user.dex} -- INT: ${user.int} -- HIT: ${user.hit} -- AC: ${user.totalAC}.`});
-          break;
-        case "!targets":
-          var activeUsers = await Xhr.getActiveUsers();
-          var monsterList = Object.keys(encounterTable).map((name) => {
-            return `~${name}`;
-          });
-          queue.unshift({target, text: `Available targets are: ${[...activeUsers, ...monsterList]}`});
-          break;
-        case "!give":
-          if (tokens.length < 3) {
-            queue.unshift({target, text: "Must provide a target and an item id to give"});
-            return;
-          }
+              delete encounterTable[monsterName];
 
-          user = tokens[1].replace("@", "").toLowerCase();
-          var itemId = tokens[2];
+              queue.unshift({target, text: `${tokens[1]} was reverted from a slime`});
 
-          // Give from inventory if not a mod
-          if (context.username !== BROADCASTER_NAME && !context.mod) {
-            var results = await Commands.giveItemFromInventory(context.username, user, itemId, gameContext);
+              break;
+            case "!spawn":
+              if (context.username !== BROADCASTER_NAME && !context.mod) {
+                throw "Only a broadcaster or mod can spawn monsters";
+              }
 
-            if (results.error) {
-              queue.unshift({target, text: results.error});
-              return;
-            }
+              if (tokens.length < 2) {
+                throw "You must specify a monster to spawn";
+              }
 
-            queue.unshift({target, text: results.message});
-            return;
-          }
+              // Retrieve monster from monster table
+              var monsterName = tokens[1];
+              var monster = await Commands.spawnMonster(monsterName, null, gameContext);
+              encounterTable[monster.spawnKey] = monster;
 
-          // Give as mod
-          var results = await Commands.giveItem(context.username, user, itemId, target);
+              queue.unshift({target, text: `${monster.name} has appeared!  Target name: ~${monster.spawnKey}.`});
+              sendEventToPanels({
+                type: "SPAWN",
+                eventData: {
+                  results: {
+                    attacker: monster,
+                    message: `${monster.name} has appeared!  Target name: ~${monster.spawnKey}.`
+                  },
+                  encounterTable
+                }
+              });
 
-          if (results.error) {
-            queue.unshift({target, text: results.error});
-            return;
-          }
+              break;
+            case "!stats":
+              var username = context.username;
+              if (tokens[1]) {
+                username = tokens[1].replace("@", "").toLowerCase();
+              }
 
-          queue.unshift({target, text: results.message});
+              var user = await Xhr.getUser(username);
+              user = Util.expandUser(user, gameContext);
+              queue.unshift({target, text: `[${user.name}] HP: ${user.hp} -- MP: ${user.mp} -- AP: ${user.ap} -- STR: ${user.str} -- DEX: ${user.dex} -- INT: ${user.int} -- HIT: ${user.hit} -- AC: ${user.totalAC}.`});
+              break;
+            case "!targets":
+              var activeUsers = await Xhr.getActiveUsers(gameContext);
+              var monsterList = Object.keys(encounterTable).map((name) => {
+                return `~${name}`;
+              });
+              queue.unshift({target, text: `Available targets are: ${[...activeUsers, ...monsterList]}`});
+              break;
+            case "!give":
+              if (tokens.length < 3) {
+                throw "Must provide a target and an item id to give";
+              }
 
-          break;
-        case "!describe":
-          if (tokens.length < 2) {
-            queue.unshift({target, text: "Must provide an item name"});
-            return;
-          }
+              user = tokens[1].replace("@", "").toLowerCase();
+              var itemId = tokens[2];
 
-          tokens[1] = command.substring(Util.nthIndex(command, ' ', 1));
-          var found = Object.keys(itemTable).filter((element) => {
-            var item = itemTable[element];
-            return item.name === tokens[1];
-          });
+              // Give from inventory if not a mod
+              if (context.username !== BROADCASTER_NAME && !context.mod) {
+                var results = await Commands.giveItemFromInventory(context.username, user, itemId, gameContext);
 
-          if (found.length < 1) {
-            queue.unshift({target, text: `Cannot find item ${tokens[1]}`});
-            return;
-          }
+                queue.unshift({target, text: results.message});
+                return;
+              }
 
-          found = itemTable[found[0]];
-          queue.unshift({target, text: `${found.name} is a ${found.type} and has a trade id of ${found.id}`});
-          break;
-        case "!help":
-          queue.unshift({target, text: `Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system and https://deusprogrammer.com/util/twitch/battlers/${context.username} for stats and equipment.`});
-          break;
-        case "!refresh":
-          if (context.username !== BROADCASTER_NAME && !context.mod) {
-            queue.unshift({target, text: "Only a mod or broadcaster can refresh the tables"});
-            return;
-          }
+              // Give as mod
+              var results = await Commands.giveItem(context.username, user, itemId, target);
 
-          itemTable    = await Xhr.getItemTable()
-          jobTable     = await Xhr.getJobTable();
-          monsterTable = await Xhr.getMonsterTable();
-          abilityTable = await Xhr.getAbilityTable();
+              queue.unshift({target, text: results.message});
 
-          gameContext = {itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable};
+              break;
+            case "!help":
+              queue.unshift({target, text: `Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system and https://deusprogrammer.com/util/twitch/battlers/${context.username} for stats and equipment.`});
+              break;
+            case "!refresh":
+              if (context.username !== BROADCASTER_NAME && !context.mod) {
+                throw "Only a mod or broadcaster can refresh the tables";
+              }
 
-          console.log(`* All tables refreshed`);
+              itemTable    = await Xhr.getItemTable()
+              jobTable     = await Xhr.getJobTable();
+              monsterTable = await Xhr.getMonsterTable();
+              abilityTable = await Xhr.getAbilityTable();
 
-          queue.unshift({target, text: "All tables refreshed"});
+              gameContext = {itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, chattersActive};
 
-          break;
-        // case "!abilities":
-        //   queue.unshift({target, text: `Currently these are the available abilities: "focus-attack".`});
-        //   break;
-        default:
-          queue.unshift({target, text: `${tokens[0]} is an invalid command.`});
+              console.log(`* All tables refreshed`);
+
+              queue.unshift({target, text: "All tables refreshed"});
+
+              break;
+            default:
+              throw `${tokens[0]} is an invalid command.`;
+        }
+      } catch (e) {
+        queue.unshift({target, text: `ERROR: ${e}`});
       }
     }
 }
@@ -288,91 +343,108 @@ async function onConnectedHandler (addr, port) {
   monsterTable = await Xhr.getMonsterTable();
   abilityTable = await Xhr.getAbilityTable();
 
-  gameContext = {itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable};
+  gameContext = {itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, chattersActive};
 
   console.log(`* All tables loaded`);
 
-  // Queue consumer
+  // QUEUE CUSTOMER
   setInterval(() => {
     let message = queue.pop();
     if (message) {
       if (message.text.startsWith("/")) {
         client.say(message.target, message.text);
       } else {
-        //client.say(message.target, "/me " + message.text + " >> [" + Util.randomUuid() + "]");
         client.say(message.target, "/me " + message.text);
       }
     }
   }, 2000);
 
-  // Cooldown timer (all cooldowns have cool downs in increments of 15s)
-  setInterval(() => {
-    // Tick down human cooldowns
-    Object.keys(cooldownTable).forEach(async (username) => {
-      cooldownTable[username] -= 1;
-      if (cooldownTable[username] <= 0) {
-        delete cooldownTable[username];
-        queue.unshift({target: "thetruekingofspace", text: `${username} can act again.`});
-        return;
-      }
-    });
+  // MAIN LOOP
+  try {
+    setInterval(() => {
+      // Check for chatter activity timeouts
+      Object.keys(chattersActive).forEach(async (username) => {
+        chattersActive[username] -= 1;
+        if (chattersActive[username] === 0) {
+          delete chattersActive[username];
+          queue.unshift({target: "thetruekingofspace", text: `${username} has stepped back into the shadows.`});
+        }
+      });
 
-    // Do monster attacks
-    Object.keys(encounterTable).forEach(async (encounterName) => {
-      var encounter = encounterTable[encounterName];
+      // Tick down human cooldowns
+      Object.keys(cooldownTable).forEach(async (username) => {
+        cooldownTable[username] -= 1;
+        if (cooldownTable[username] <= 0) {
+          delete cooldownTable[username];
+          queue.unshift({target: "thetruekingofspace", text: `${username} can act again.`});
+        }
+      });
 
-      if (encounter.tick === undefined) {
-        encounter.tick = 0;
-      }
+      // Do monster attacks
+      Object.keys(encounterTable).forEach(async (encounterName) => {
+        var encounter = encounterTable[encounterName];
 
-      if (encounter.tick === encounter.actionCooldown) {
-        encounter.tick = 0;
-
-        // Determine attack target.  If no aggro, pick randomly.  If aggro, pick highest damage dealt.
-        var target = null;
-        if (!encounter.aggro || Object.keys(encounter.aggro).length <= 0) {
-          let activeUsers = await Xhr.getActiveUsers();
-          target = activeUsers[Math.floor(Math.random() * Math.floor(activeUsers.length))];
-        } else {
-          Object.keys(encounter.aggro).forEach((attackerName) => {
-            var attackerAggro = encounter.aggro[attackerName];
-            if (target === null) {
-              target = attackerName;
-              return;
-            }
-
-            if (attackerAggro > encounter.aggro[target]) {
-              target = attackerName;
-            }
-          });
+        // If the monster has no tick, reset it.
+        if (encounter.tick === undefined) {
+          encounter.tick = encounter.actionCooldown;
         }
 
-        if (target !== null) {
-          var result = await Commands.attack("~" + encounterName, target, gameContext);
+        // If cooldown timer for monster is now zero, do an attack.
+        if (encounter.tick === 0) {
+          encounter.tick = encounter.actionCooldown;
 
-          if (result.error) {
-            queue.unshift({target: "thetruekingofspace", text: result.error});
-            return;
+          // If no aggro, pick randomly.  If aggro, pick highest damage dealt.
+          var target = null;
+          if (!encounter.aggro || Object.keys(encounter.aggro).length <= 0) {
+            let activeUsers = await Xhr.getActiveUsers(gameContext);
+
+            if (activeUsers.length > 0) {
+              target = activeUsers[Math.floor(Math.random() * Math.floor(activeUsers.length))];              
+            }
+          } else {
+            Object.keys(encounter.aggro).forEach((attackerName) => {
+              var attackerAggro = encounter.aggro[attackerName];
+              if (target === null) {
+                target = attackerName;
+                return;
+              }
+
+              if (attackerAggro > encounter.aggro[target]) {
+                target = attackerName;
+              }
+            });
           }
 
-          queue.unshift({target: "thetruekingofspace", text: `${result.message}`});
-          return;
+          // If a target was found
+          if (target !== null) {
+            var results = await Commands.attack("~" + encounterName, target, gameContext);
+            queue.unshift({target: "thetruekingofspace", text: `${results.message}`});
+                sendEventToPanels({
+                  type: "ATTACK",
+                  eventData: {
+                    results,
+                    encounterTable
+                  }
+                });
+
+            return;
+          }
         }
 
-        // Reset aggro between attacks
-        encounter.aggro = {};
-      }
-
-      encounter.tick++;
-    });
-  }, 5 * 1000);
+        encounter.tick--;
+      });
+    }, 5 * 1000);
+  } catch(e) {
+    queue.unshift({target: "thetruekingofspace", e});
+  };
 
   // Advertising message
   setInterval(() => {
     queue.unshift({target: "thetruekingofspace", text: "Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system."});
   }, 5 * 60 * 1000);
 
-  queue.unshift({target: "thetruekingofspace", text: "I have restarted.  All monsters that were active are now gone."})
+  // Announce restart
+  queue.unshift({target: "thetruekingofspace", text: "I have restarted.  All monsters that were active are now gone."});
 
   // Start redemption listener
   Redemption.startListener(queue);

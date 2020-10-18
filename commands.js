@@ -6,15 +6,11 @@ const giveItem = async (giverName, username, itemId) => {
     let item = await Xhr.getItem(itemId);
   
     if (!user) {
-      return {
-          error: `No user named ${username} found`
-      };
+      throw `No user named ${username} found`;
     }
   
     if (!item) {
-      return {
-          error: `No item with item id ${itemId} found`
-      };
+      throw `No item with item id ${itemId} found`;
     }
   
     user.inventory.push(itemId);
@@ -26,35 +22,27 @@ const giveItem = async (giverName, username, itemId) => {
     }
 }
 
-const giveItemFromInventory = async (giverName, username, itemId, context) => {
+const giveItemFromInventory = async (giverName, username, itemId) => {
     let giver = await Xhr.getUser(giverName);
     let user  = await Xhr.getUser(username);
     let item  = await Xhr.getItem(itemId);
   
     if (!giver) {
-      return {
-          error: `No user named ${username} found`
-      };
+      throw `No user named ${username} found`;
     }
   
     if (!user) {
-      return {
-        error: `No user named ${username} found`
-      };
+      throw `No user named ${username} found`;
     }
   
     if (!item) {
-      return {
-        error: `No item with item id ${itemId} found`
-      };
+      throw `No item with item id ${itemId} found`;
     }
   
     let index = giver.inventory.indexOf(itemId);
   
     if (index < 0) {
-      return {
-        error: `${giverName} has no ${item.name} to give`
-      };
+      throw `${giverName} has no ${item.name} to give`;
     }
   
     giver.inventory.splice(index, 1);
@@ -70,15 +58,16 @@ const giveItemFromInventory = async (giverName, username, itemId, context) => {
 
 const attack = async (attackerName, defenderName, context) => {
     try {
+      // Get active users
+      let targets = await Xhr.getActiveUsers(context);
+
+      // ATTACKER
       let attacker = {};
-      
       if (attackerName.startsWith("~")) {
         attackerName = attackerName.substring(1);
         attacker = context.encounterTable[attackerName];
         if (!attacker) {
-          return {
-            error: `${attackerName} does not have a battle avatar`
-          };
+          throw `${attackerName} is not a valid monster`;
         }
 
         attacker.isMonster = true;
@@ -96,76 +85,55 @@ const attack = async (attackerName, defenderName, context) => {
         attacker = await Xhr.getUser(attackerName);
 
         if (!attacker) {
-          return {
-              error: `@${attackerName} doesn't have a battle avatar.`
-          };
+          throw `@${attackerName} doesn't have a battle avatar.`;
         }
 
         attacker.isMonster = false;
         attacker = Util.expandUser(attacker, context);
       }
-
-      console.log("ATTACKER: " + JSON.stringify(attacker, null, 5));
   
       if (attacker.hp <= 0) {
-        return {
-          error: `@${attackerName} is dead and cannot perform any actions.`
-        };
-      } else if (attacker.ap <= 0) {
-        return {
-          error: `@${attackerName} is out of action points and cannot perform any actions.`
-        };
+        throw `@${attackerName} is dead and cannot perform any actions.`;
+      } 
+      
+      if (attacker.ap <= 0) {
+        throw `@${attackerName} is out of action points and cannot perform any actions.`;
       }
   
-      let targets = await Xhr.getActiveUsers();
-  
+      // DEFENDER
       let defender = {}
-  
       if (defenderName.startsWith("~")) {
         defenderName = defenderName.substring(1);
         defender = context.encounterTable[defenderName];
 
         if (!defender) {
-          return {
-            error: `${defenderName} does not have a battle avatar`
-          };
+          throw `${defenderName} is not a valid monster to target`;
         }
 
         defender.isMonster = true;
-        defender.maxHp = context.monsterTable[defender.id].hp;
         defender.totalAC = defender.ac;
         defender.encounterTableKey = defenderName;
       } else {
         defender = await Xhr.getUser(defenderName);
 
         if (!defender) {
-            return {
-                error: `${defenderName} does not have a battle avatar`
-              };
+          throw `${defenderName} does not have a battle avatar`;
         }
 
         defender.isMonster = false;
         defender = Util.expandUser(defender, context);
       }
-
-      console.log("DEFENDER: " + JSON.stringify(defender, null, 5));
   
       if (defender && !targets.includes(defenderName) && !context.encounterTable[defenderName]) {
-        return {
-          error: `@${defenderName}'s not here man!`
-        };
+        throw `@${defenderName}'s not here man!`;
       }
       
       if (!defender) {
-        return {
-          error: `There is no such target ${defenderName}`
-        }
+        throw `There is no such target ${defenderName}`;
       }
   
       if (defender.hp <= 0) {
-        return {
-          error: `@${defenderName} is already dead.`
-        };
+        throw `@${defenderName} is already dead.`;
       }
   
       let message = "";
@@ -177,25 +145,24 @@ const attack = async (attackerName, defenderName, context) => {
       let modifiedAttackRoll = attackRoll + attacker.hit;
       let damageRoll = Util.rollDice(weapon.dmg) + attacker.str;
       let hit = true;
+      let crit = false;
+      let dead = false;
 
       if (attackRoll === 20) {
         damageRoll *= 2;
-        //message = `SMASSSSSSH!  ${attacker.name} hit ${defender.name} for ${damageRoll} damage!`;
+        crit = true;
         message = `${attacker.name} ==> ${defender.name} -${damageRoll}HP`;
       } else if (modifiedAttackRoll > defender.totalAC) {
-        //message = `${attacker.name} swung at ${defender.name} and hit for ${damageRoll} damage.`;
         message = `${attacker.name} ==> ${defender.name} -${damageRoll}HP`;
       } else {
-        //message = `${attacker.name} swung at ${defender.name} and missed!`;
         message = `${attacker.name} ==> ${defender.name} MISS`;
         hit = false;
       }
   
       if (damageRoll >= defender.hp) {
-        //endStatus = `${defender.name} is dead!`;
         endStatus = `[DEAD]`;
+        dead = true;
       } else {
-        //endStatus = `${defender.name} has ${defender.hp - damageRoll} HP left.`;
         endStatus = `[${defender.hp - damageRoll}/${defender.maxHp}HP]`;
       }
   
@@ -207,7 +174,7 @@ const attack = async (attackerName, defenderName, context) => {
       if (!defender.isMonster) {
         defender = await Xhr.getUser(defender.name);
       } else {
-        defender.aggro[attackerName] = damageRoll;
+        defender.aggro[attackerName] += damageRoll;
       }
   
       if (hit) {
@@ -226,18 +193,49 @@ const attack = async (attackerName, defenderName, context) => {
   
       return {
         message: `[BATTLE]: ${message}  ${hit ? endStatus : ''}`,
+        damage: damageRoll,
+        flags: {
+          crit,
+          hit,
+          dead
+        },
         attacker,
         defender
       }
     } catch (e) {
-      return {
-        error: "Failed to run battle: " + e
-      }
+      throw "Failed to run battle: " + e;
     }
+}
+
+const spawnMonster = async (monsterName, personalName, context) => {
+  // Retrieve monster from monster table
+  var monster = context.monsterTable[monsterName.toUpperCase()];
+
+  if (!monster) {
+    throw `${monsterName} is not a valid monster`;
+  }
+
+  // Pick either the provided name or the default name
+  var name = personalName || monster.name;
+
+  // Copy monster into it's own object
+  var index = 0;
+  while (context.encounterTable[monsterName.toUpperCase() + (++index)]);
+  let spawn = {
+    ...monster, 
+    aggro: {},
+    name,
+    maxHp: monster.hp,  
+    actionCooldown: Math.min(11, 6 - Math.min(5, monster.dex))
+  };
+  spawn.spawnKey = monsterName.toUpperCase() + index;
+
+  return spawn;
 }
 
 module.exports = {
     attack,
+    spawnMonster,
     giveItem,
     giveItemFromInventory
 }

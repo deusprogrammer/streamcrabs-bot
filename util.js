@@ -31,7 +31,6 @@ const rollDice = (dice) => {
 }
 
 const expandUser = (userData, context) => {
-    console.log("CONTEXT: " + JSON.stringify(context, null, 5));
     userData.totalAC = 0;
     userData.currentJob = context.jobTable[userData.currentJob.id];
     userData.str = userData.currentJob.str;
@@ -47,7 +46,7 @@ const expandUser = (userData, context) => {
       }
       userData.totalAC += itemData.mods.ac;
       userData.maxHp += itemData.mods.hp;
-      userData.str += itemData.mods.hit;
+      userData.str += itemData.mods.str;
       userData.dex += itemData.mods.dex;
       userData.int += itemData.mods.int;
       userData.hit += itemData.mods.hit;

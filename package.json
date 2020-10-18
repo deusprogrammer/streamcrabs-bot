@@ -7,7 +7,8 @@
     "axios": "^0.20.0",
     "tmi.js": "^1.5.0",
     "twitch": "^4.2.5",
-    "twitch-pubsub-client": "^4.2.5"
+    "twitch-pubsub-client": "^4.2.5",
+    "ws": "^7.3.1"
   },
   "devDependencies": {},
   "scripts": {
