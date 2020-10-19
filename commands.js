@@ -209,10 +209,28 @@ const attack = async (attackerName, defenderName, context) => {
 
 const spawnMonster = async (monsterName, personalName, context) => {
   // Retrieve monster from monster table
-  var monster = context.monsterTable[monsterName.toUpperCase()];
+  let monster = context.monsterTable[monsterName.toUpperCase()];
 
   if (!monster) {
     throw `${monsterName} is not a valid monster`;
+  }
+
+  // Set type here temporarily until we add to DB
+  let type = monster.type || "MOB";
+  let abbrev = "";
+  switch (type) {
+    case "MOB":
+      abbrev = "M";
+      break;
+    case "ELITE":
+      abbrev = "E";
+      break;
+    case "BOSS":
+      abbrev = "B";
+      break;
+    case "RARE":
+      abbrev = "R";
+      break;
   }
 
   // Pick either the provided name or the default name
@@ -220,15 +238,15 @@ const spawnMonster = async (monsterName, personalName, context) => {
 
   // Copy monster into it's own object
   var index = 0;
-  while (context.encounterTable[monsterName.toUpperCase() + (++index)]);
+  while (context.encounterTable[abbrev + (++index)]);
   let spawn = {
     ...monster, 
     aggro: {},
     name,
+    spawnKey: abbrev + index,
     maxHp: monster.hp,  
     actionCooldown: Math.min(11, 6 - Math.min(5, monster.dex))
   };
-  spawn.spawnKey = monsterName.toUpperCase() + index;
 
   return spawn;
 }

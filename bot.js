@@ -18,6 +18,13 @@ let jobTable = {};
 let abilityTable = {};
 let encounterTable = {};
 let cooldownTable = {};
+
+// Various config values that can be changed on the fly
+let configTable = {
+  verbosity: "simple"
+};
+
+// Chatters that are available for battle
 let chattersActive = {};
 
 // Combined game context of all of the above tables
@@ -97,7 +104,7 @@ async function onMessageHandler (target, context, msg, self) {
             case "!ready":
               if (!chattersActive[context.username]) {
                 chattersActive[context.username] = 10 * 12;
-                queue.unshift({target, text: `${context.username} is ready to battle!`});
+                queue.unshift({target, text: `${context.username} is ready to battle!`, level: "simple"});
                 sendEventToPanels({
                   type: "JOIN",
                   eventData: {
@@ -132,11 +139,11 @@ async function onMessageHandler (target, context, msg, self) {
               // Set user active if they attack
               if (!chattersActive[context.username]) {
                 chattersActive[context.username] = 10 * 12;
-                queue.unshift({target, text: `${context.username} comes out of the shadows and unsheathes his ${results.attacker.equipment.hand.name}!`});
+                queue.unshift({target, text: `${context.username} comes out of the shadows and unsheathes his ${results.attacker.equipment.hand.name}!`, level: "verbose"});
               }
 
               // Announce results of attack
-              queue.unshift({target, text: `${results.message}`});
+              queue.unshift({target, text: `${results.message}`, level: "verbose"});
               sendEventToPanels({
                 type: "ATTACKED",
                 eventData: {
@@ -164,7 +171,7 @@ async function onMessageHandler (target, context, msg, self) {
                     var chanceRoll = Util.rollDice("1d100");
                     if (chanceRoll < drop.chance) {
                       await Commands.giveItem("", attacker, drop.itemId);
-                      queue.unshift({target, text: `${attacker} found ${drop.itemId}!`});
+                      queue.unshift({target, text: `${attacker} found ${drop.itemId}!`, level: "simple"});
                       sendEventToPanels({
                         type: "ITEM_GET",
                         eventData: {
@@ -200,11 +207,11 @@ async function onMessageHandler (target, context, msg, self) {
               }
 
               var slimeName = tokens[1].toLowerCase() + "_the_slime";
-              var monster = Commands.spawnMonster(monsterName, slimeName, gameContext);
+              var monster = Commands.spawnMonster("SLIME", slimeName, gameContext);
               monster.transmogName = transmogName;
               encounterTable[monster.spawnKey] = monster;
 
-              queue.unshift({target, text: `${tokens[1]} was turned into a slime and will be banned upon death.  Target name: ~${monster.spawnKey}.`});
+              queue.unshift({target, text: `${tokens[1]} was turned into a slime and will be banned upon death.  Target name: ~${monster.spawnKey}.`, level: "simple"});
               sendEventToPanels({
                 type: "SPAWN",
                 eventData: {
@@ -236,7 +243,7 @@ async function onMessageHandler (target, context, msg, self) {
 
               delete encounterTable[monsterName];
 
-              queue.unshift({target, text: `${tokens[1]} was reverted from a slime`});
+              queue.unshift({target, text: `${tokens[1]} was reverted from a slime`, level: "simple"});
 
               break;
             case "!spawn":
@@ -253,7 +260,7 @@ async function onMessageHandler (target, context, msg, self) {
               var monster = await Commands.spawnMonster(monsterName, null, gameContext);
               encounterTable[monster.spawnKey] = monster;
 
-              queue.unshift({target, text: `${monster.name} has appeared!  Target name: ~${monster.spawnKey}.`});
+              queue.unshift({target, text: `${monster.name} has appeared!  Target name: ~${monster.spawnKey}.`, level: "simple"});
               sendEventToPanels({
                 type: "SPAWN",
                 eventData: {
@@ -274,14 +281,14 @@ async function onMessageHandler (target, context, msg, self) {
 
               var user = await Xhr.getUser(username);
               user = Util.expandUser(user, gameContext);
-              queue.unshift({target, text: `[${user.name}] HP: ${user.hp} -- MP: ${user.mp} -- AP: ${user.ap} -- STR: ${user.str} -- DEX: ${user.dex} -- INT: ${user.int} -- HIT: ${user.hit} -- AC: ${user.totalAC}.`});
+              queue.unshift({target, text: `[${user.name}] HP: ${user.hp} -- MP: ${user.mp} -- AP: ${user.ap} -- STR: ${user.str} -- DEX: ${user.dex} -- INT: ${user.int} -- HIT: ${user.hit} -- AC: ${user.totalAC}.`, level: "simple"});
               break;
             case "!targets":
               var activeUsers = await Xhr.getActiveUsers(gameContext);
               var monsterList = Object.keys(encounterTable).map((name) => {
                 return `~${name}`;
               });
-              queue.unshift({target, text: `Available targets are: ${[...activeUsers, ...monsterList]}`});
+              queue.unshift({target, text: `Available targets are: ${[...activeUsers, ...monsterList]}`, level: "simple"});
               break;
             case "!give":
               if (tokens.length < 3) {
@@ -295,18 +302,21 @@ async function onMessageHandler (target, context, msg, self) {
               if (context.username !== BROADCASTER_NAME && !context.mod) {
                 var results = await Commands.giveItemFromInventory(context.username, user, itemId, gameContext);
 
-                queue.unshift({target, text: results.message});
+                queue.unshift({target, text: results.message, level: "simple"});
                 return;
               }
 
               // Give as mod
               var results = await Commands.giveItem(context.username, user, itemId, target);
 
-              queue.unshift({target, text: results.message});
+              queue.unshift({target, text: results.message, level: "simple"});
 
               break;
             case "!help":
-              queue.unshift({target, text: `Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system and https://deusprogrammer.com/util/twitch/battlers/${context.username} for stats and equipment.`});
+              queue.unshift({target, text: `Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system.`, level: "simple"});
+              break;
+            case "!inventory":
+              queue.unshift({target, text: `${context.username} Visit https://deusprogrammer.com/util/twitch/battlers/${context.username} to view your inventory and stats.`, level: "simple"});
               break;
             case "!refresh":
               if (context.username !== BROADCASTER_NAME && !context.mod) {
@@ -318,18 +328,35 @@ async function onMessageHandler (target, context, msg, self) {
               monsterTable = await Xhr.getMonsterTable();
               abilityTable = await Xhr.getAbilityTable();
 
-              gameContext = {itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, chattersActive};
+              gameContext = {itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, chattersActive, configTable};
 
               console.log(`* All tables refreshed`);
 
-              queue.unshift({target, text: "All tables refreshed"});
+              queue.unshift({target, text: "All tables refreshed", level: "simple"});
+
+              break;
+            case "!config":
+              if (context.username !== BROADCASTER_NAME && !context.mod) {
+                throw "Only a mod or broadcaster can change config values";
+              }
+
+              if (tokens.length < 3) {
+                throw "Must provide a config value and a value";
+              }
+
+              var configElement = tokens[1];
+              var configValue = tokens[2];
+
+              configTable[configElement] = configValue;
+
+              // TODO Eventually save this to config file
 
               break;
             default:
               throw `${tokens[0]} is an invalid command.`;
         }
       } catch (e) {
-        queue.unshift({target, text: `ERROR: ${e}`});
+        queue.unshift({target, text: `ERROR: ${e}`, level: "simple"});
       }
     }
 }
@@ -342,15 +369,21 @@ async function onConnectedHandler (addr, port) {
   jobTable     = await Xhr.getJobTable();
   monsterTable = await Xhr.getMonsterTable();
   abilityTable = await Xhr.getAbilityTable();
+  // TODO Load config table from file
 
-  gameContext = {itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, chattersActive};
+  gameContext = {itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, chattersActive, configTable};
 
   console.log(`* All tables loaded`);
 
   // QUEUE CUSTOMER
   setInterval(() => {
     let message = queue.pop();
+
     if (message) {
+      if (message.level !== configTable.verbosity && message.level !== "simple") {
+        return;
+      }
+
       if (message.text.startsWith("/")) {
         client.say(message.target, message.text);
       } else {
@@ -367,7 +400,7 @@ async function onConnectedHandler (addr, port) {
         chattersActive[username] -= 1;
         if (chattersActive[username] === 0) {
           delete chattersActive[username];
-          queue.unshift({target: "thetruekingofspace", text: `${username} has stepped back into the shadows.`});
+          queue.unshift({target: "thetruekingofspace", text: `${username} has stepped back into the shadows.`, level: "simple"});
         }
       });
 
@@ -376,7 +409,7 @@ async function onConnectedHandler (addr, port) {
         cooldownTable[username] -= 1;
         if (cooldownTable[username] <= 0) {
           delete cooldownTable[username];
-          queue.unshift({target: "thetruekingofspace", text: `${username} can act again.`});
+          queue.unshift({target: "thetruekingofspace", text: `${username} can act again.`, level: "simple"});
         }
       });
 
@@ -418,7 +451,7 @@ async function onConnectedHandler (addr, port) {
           // If a target was found
           if (target !== null) {
             var results = await Commands.attack("~" + encounterName, target, gameContext);
-            queue.unshift({target: "thetruekingofspace", text: `${results.message}`});
+            queue.unshift({target: "thetruekingofspace", text: `${results.message}`, level: "verbose"});
                 sendEventToPanels({
                   type: "ATTACK",
                   eventData: {
@@ -435,16 +468,16 @@ async function onConnectedHandler (addr, port) {
       });
     }, 5 * 1000);
   } catch(e) {
-    queue.unshift({target: "thetruekingofspace", e});
+    queue.unshift({target: "thetruekingofspace", text: e, level: "simple"});
   };
 
   // Advertising message
   setInterval(() => {
-    queue.unshift({target: "thetruekingofspace", text: "Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system."});
+    queue.unshift({target: "thetruekingofspace", text: "Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system.", level: "simple"});
   }, 5 * 60 * 1000);
 
   // Announce restart
-  queue.unshift({target: "thetruekingofspace", text: "I have restarted.  All monsters that were active are now gone."});
+  queue.unshift({target: "thetruekingofspace", text: "I have restarted.  All monsters that were active are now gone.", level: "simple"});
 
   // Start redemption listener
   Redemption.startListener(queue);
