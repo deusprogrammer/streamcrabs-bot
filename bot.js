@@ -144,22 +144,38 @@ async function onMessageHandler(target, context, msg, self) {
 
                     // Announce results of attack
                     queue.unshift({ target, text: `${results.message}`, level: "verbose" });
-                    sendEventToPanels({
-                        type: "ATTACKED",
-                        eventData: {
-                            results: {
-                                attacker: results.attacker,
-                                defender: results.defender,
-                                message: `${results.attacker.name} hit ${results.defender.name} for ${results.damage} damage.`
-                            },
-                            encounterTable
+                    if (results.flags.hit) {
+                        let message = `${results.attacker.name} hit ${results.defender.name} for ${results.damage} damage.`;
+                        if (results.flags.crit) {
+                            message = `${results.attacker.name} scored a critical hit on ${results.defender.name} for ${results.damage} damage.`;
                         }
-                    });
 
-                    // Monster has died, remove from encounter table and reward the person who killed it.
-                    if (results.defender.hp <= 0 && defenderName.startsWith("~")) {
-                        //delete encounterTable[results.defender.encounterTableKey];
+                        sendEventToPanels({
+                            type: "ATTACKED",
+                            eventData: {
+                                results: {
+                                    attacker: results.attacker,
+                                    defender: results.defender,
+                                    message
+                                },
+                                encounterTable
+                            }
+                        });
+                    } else {
+                        sendEventToPanels({
+                            type: "ATTACKED",
+                            eventData: {
+                                results: {
+                                    attacker: results.attacker,
+                                    defender: results.defender,
+                                    message: `${results.attacker.name} swings at ${results.defender.name} and misses.`
+                                },
+                                encounterTable
+                            }
+                        });
+                    }
 
+                    if (results.flags.dead) {
                         sendEventToPanels({
                             type: "DIED",
                             eventData: {
@@ -170,7 +186,10 @@ async function onMessageHandler(target, context, msg, self) {
                                 encounterTable
                             }
                         });
+                    }
 
+                    // Monster has died, give everyone loot
+                    if (results.dead <= 0 && defenderName.startsWith("~")) {
                         // Give drops to everyone who attacked the monster
                         for (var attacker in results.defender.aggro) {
                             for (var i in results.defender.drops) {
