@@ -21,7 +21,8 @@ let cooldownTable = {};
 
 // Various config values that can be changed on the fly
 let configTable = {
-    verbosity: "simple"
+    verbosity: "verbose",
+    maxEncounters: 4
 };
 
 // Chatters that are available for battle
@@ -127,8 +128,7 @@ async function onMessageHandler(target, context, msg, self) {
                     var defenderName = tokens[1].replace("@", "").toUpperCase();
 
                     if (cooldownTable[context.username]) {
-                        queue.unshift({ target, text: `${context.username} is on cooldown.` });
-                        return;
+                        throw `${context.username} is on cooldown.`;
                     }
 
                     var results = await Commands.attack(context.username, defenderName, gameContext);
@@ -147,7 +147,11 @@ async function onMessageHandler(target, context, msg, self) {
                     sendEventToPanels({
                         type: "ATTACKED",
                         eventData: {
-                            results,
+                            results: {
+                                attacker: results.attacker,
+                                defender: results.defender,
+                                message: `${results.attacker.name} hit ${results.defender.name} for ${results.damage} damage.`
+                            },
                             encounterTable
                         }
                     });
@@ -159,7 +163,10 @@ async function onMessageHandler(target, context, msg, self) {
                         sendEventToPanels({
                             type: "DIED",
                             eventData: {
-                                results,
+                                results: {
+                                    defender: results.defender,
+                                    message: `${results.defender.name} was slain by ${results.attacker.name}.`
+                                },
                                 encounterTable
                             }
                         });
@@ -171,14 +178,14 @@ async function onMessageHandler(target, context, msg, self) {
                                 var chanceRoll = Util.rollDice("1d100");
                                 if (chanceRoll < drop.chance) {
                                     await Commands.giveItem("", attacker, drop.itemId);
-                                    queue.unshift({ target, text: `${attacker} found ${drop.itemId}!`, level: "simple" });
+                                    queue.unshift({ target, text: `${attacker} found ${itemTable[drop.itemId].name}!`, level: "simple" });
                                     sendEventToPanels({
                                         type: "ITEM_GET",
                                         eventData: {
                                             results: {
                                                 receiver: attacker,
                                                 item: itemTable[drop.itemId],
-                                                message: `${attacker} found ${drop.itemId}!`
+                                                message: `${attacker} found ${itemTable[drop.itemId].name}!`
                                             },
                                             encounterTable
                                         }
@@ -197,6 +204,10 @@ async function onMessageHandler(target, context, msg, self) {
 
                     if (tokens.length < 2) {
                         throw "You must specify a target to turn into a slime";
+                    }
+
+                    if (Object.keys(encounterTable).length >= configTable.maxEncounters) {
+                        throw `Only ${configTable.maxEncounters} monster spawns allowed at a time`;
                     }
 
                     var transmogName = tokens[1];
@@ -253,6 +264,10 @@ async function onMessageHandler(target, context, msg, self) {
 
                     if (tokens.length < 2) {
                         throw "You must specify a monster to spawn";
+                    }
+
+                    if (Object.keys(encounterTable).length >= configTable.maxEncounters) {
+                        throw `Only ${configTable.maxEncounters} monster spawns allowed at a time`;
                     }
 
                     // Retrieve monster from monster table
@@ -356,7 +371,7 @@ async function onMessageHandler(target, context, msg, self) {
                     throw `${tokens[0]} is an invalid command.`;
             }
         } catch (e) {
-            queue.unshift({ target, text: `ERROR: ${e}`, level: "simple" });
+            queue.unshift({ target, text: `${e}`, level: "simple" });
         }
     }
 }

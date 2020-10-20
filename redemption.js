@@ -38,27 +38,27 @@ let startListener = async (messageQueue) => {
         switch (message.rewardId) {
             case commands.battleAvatarCreate:
                 console.log("BATTLE AVATAR CREATED FOR " + message.userName);
-                messageQueue.unshift({ target: "thetruekingofspace", text: `@${message.userName} created their battle avatar.` });
+                messageQueue.unshift({ target: "thetruekingofspace", text: `@${message.userName} created their battle avatar.`, level: "simple" });
                 Xhr.createUser(message);
                 break;
             case commands.battleAPCharge1:
-                console.log("AP + 1 FOR " + message.userName);
-                messageQueue.unshift({ target: "thetruekingofspace", text: `@${message.userName} charged 1 AP.` });
-                Xhr.chargeAP(message, 1);
+                console.log("AP + 5 FOR " + message.userName);
+                messageQueue.unshift({ target: "thetruekingofspace", text: `@${message.userName} charged 5 AP.`, level: "simple" });
+                Xhr.chargeAP(message, 5);
                 break;
             case commands.battleAPCharge10:
-                console.log("AP + 10 FOR " + message.userName);
-                messageQueue.unshift({ target: "thetruekingofspace", text: `@${message.userName} charged 10 AP.` });
-                Xhr.chargeAP(message, 10);
+                console.log("AP + 50 FOR " + message.userName);
+                messageQueue.unshift({ target: "thetruekingofspace", text: `@${message.userName} charged 50 AP.`, level: "simple" });
+                Xhr.chargeAP(message, 50);
                 break;
             case commands.battleAPCharge100:
                 console.log("AP + 100 FOR " + message.userName);
-                messageQueue.unshift({ target: "thetruekingofspace", text: `@${message.userName} charged 100 AP.` });
+                messageQueue.unshift({ target: "thetruekingofspace", text: `@${message.userName} charged 100 AP.`, level: "simple" });
                 Xhr.chargeAP(message, 100);
                 break;
             case commands.battleAvatarRevive:
                 console.log("REVIVE REQUESTED FOR " + message.userName);
-                messageQueue.unshift({ target: "thetruekingofspace", text: `@${message.userName} revived.` });
+                messageQueue.unshift({ target: "thetruekingofspace", text: `@${message.userName} revived.`, level: "simple" });
                 Xhr.reviveAvatar(message);
                 break;
         }
