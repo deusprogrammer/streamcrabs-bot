@@ -158,7 +158,7 @@ async function onMessageHandler(target, context, msg, self) {
 
                     // Monster has died, remove from encounter table and reward the person who killed it.
                     if (results.defender.hp <= 0 && defenderName.startsWith("~")) {
-                        delete encounterTable[results.defender.encounterTableKey];
+                        //delete encounterTable[results.defender.encounterTableKey];
 
                         sendEventToPanels({
                             type: "DIED",
@@ -266,8 +266,21 @@ async function onMessageHandler(target, context, msg, self) {
                         throw "You must specify a monster to spawn";
                     }
 
+                    // If the encounter table is full, try to clean it up first
                     if (Object.keys(encounterTable).length >= configTable.maxEncounters) {
-                        throw `Only ${configTable.maxEncounters} monster spawns allowed at a time`;
+                        
+                        // Do clean up of encounter table
+                        Object.keys(encounterTable).forEach((name) => {
+                            var monster = encounterTable[name];
+                            if (monster.hp <= 0) {
+                                delete encounterTable[name];                            
+                            }
+                        });
+
+                        //If there are still too many, clean up
+                        if (Object.keys(encounterTable).length >= configTable.maxEncounters) {
+                            throw `Only ${configTable.maxEncounters} monster spawns allowed at a time`;
+                        }
                     }
 
                     // Retrieve monster from monster table
@@ -301,7 +314,10 @@ async function onMessageHandler(target, context, msg, self) {
                 case "!targets":
                     var activeUsers = await Xhr.getActiveUsers(gameContext);
                     var monsterList = Object.keys(encounterTable).map((name) => {
-                        return `~${name}`;
+                        var monster = encounterTable[name];
+                        if (monster.hp >= 0) {
+                            return `${monster.name} (~${name})`;
+                        }
                     });
                     queue.unshift({ target, text: `Available targets are: ${[...activeUsers, ...monsterList]}`, level: "simple" });
                     break;
@@ -432,6 +448,10 @@ async function onConnectedHandler(addr, port) {
             Object.keys(encounterTable).forEach(async (encounterName) => {
                 var encounter = encounterTable[encounterName];
 
+                if (encounter.hp <= 0) {
+                    return;
+                }
+
                 // If the monster has no tick, reset it.
                 if (encounter.tick === undefined) {
                     encounter.tick = encounter.actionCooldown;
@@ -470,10 +490,28 @@ async function onConnectedHandler(addr, port) {
                         sendEventToPanels({
                             type: "ATTACK",
                             eventData: {
-                                results,
+                                results: {
+                                    attacker: results.attacker,
+                                    defender: results.defender,
+                                    message: `${results.attacker.name} hit ${results.defender.name} for ${results.damage} damage.`
+                                },
                                 encounterTable
                             }
                         });
+
+                        if (results.defender.hp <= 0) {
+                            sendEventToPanels({
+                                type: "DIED",
+                                eventData: {
+                                    results: {
+                                        attacker: results.attacker,
+                                        defender: results.defender,
+                                        message: `${results.defender.name} was slain by ${results.attacker.name}.`
+                                    },
+                                    encounterTable
+                                }
+                            });
+                        }
 
                         return;
                     }
