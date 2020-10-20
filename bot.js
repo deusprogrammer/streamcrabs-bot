@@ -206,8 +206,21 @@ async function onMessageHandler(target, context, msg, self) {
                         throw "You must specify a target to turn into a slime";
                     }
 
+                    // If the encounter table is full, try to clean it up first
                     if (Object.keys(encounterTable).length >= configTable.maxEncounters) {
-                        throw `Only ${configTable.maxEncounters} monster spawns allowed at a time`;
+                        
+                        // Do clean up of encounter table
+                        Object.keys(encounterTable).forEach((name) => {
+                            var monster = encounterTable[name];
+                            if (monster.hp <= 0) {
+                                delete encounterTable[name];                            
+                            }
+                        });
+
+                        //If there are still too many, clean up
+                        if (Object.keys(encounterTable).length >= configTable.maxEncounters) {
+                            throw `Only ${configTable.maxEncounters} monster spawns allowed at a time`;
+                        }
                     }
 
                     var transmogName = tokens[1];
