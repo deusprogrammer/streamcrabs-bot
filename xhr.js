@@ -7,182 +7,182 @@ const PROFILE_API_URL = process.env.PROFILE_API_URL;
 
 const getItemTable = () => {
     return axios.get(`${BATTLE_API_URL}/items`, {
-      headers: {
-        Authorization: `Bearer ${BATTLE_BOT_JWT}`
-      }
+        headers: {
+            Authorization: `Bearer ${BATTLE_BOT_JWT}`
+        }
     })
-      .then((response) => {
-        return Util.indexArrayToMap(response.data);
-      })
+        .then((response) => {
+            return Util.indexArrayToMap(response.data);
+        })
 }
-  
+
 const getJobTable = () => {
     return axios.get(`${BATTLE_API_URL}/jobs`, {
-      headers: {
-        Authorization: `Bearer ${BATTLE_BOT_JWT}`
-      }
+        headers: {
+            Authorization: `Bearer ${BATTLE_BOT_JWT}`
+        }
     })
-      .then((response) => {
-        return Util.indexArrayToMap(response.data);
-      })
+        .then((response) => {
+            return Util.indexArrayToMap(response.data);
+        })
 }
-  
+
 const getMonsterTable = () => {
     return axios.get(`${BATTLE_API_URL}/monsters`, {
-      headers: {
-        Authorization: `Bearer ${BATTLE_BOT_JWT}`
-      }
+        headers: {
+            Authorization: `Bearer ${BATTLE_BOT_JWT}`
+        }
     })
-      .then((response) => {
-        return Util.indexArrayToMap(response.data);
-      })
+        .then((response) => {
+            return Util.indexArrayToMap(response.data);
+        })
 }
-  
+
 const getAbilityTable = () => {
     return axios.get(`${BATTLE_API_URL}/abilities`, {
-      headers: {
-        Authorization: `Bearer ${BATTLE_BOT_JWT}`
-      }
+        headers: {
+            Authorization: `Bearer ${BATTLE_BOT_JWT}`
+        }
     })
-      .then((response) => {
-        return Util.indexArrayToMap(response.data);
-      })
+        .then((response) => {
+            return Util.indexArrayToMap(response.data);
+        })
 }
-  
+
 const getActiveUsers = async (context) => {
     let chatters = Object.keys(context.chattersActive);
 
     let r = await axios.get(`${BATTLE_API_URL}/users`, {
-      headers: {
-        Authorization: `Bearer ${BATTLE_BOT_JWT}`
-      }
+        headers: {
+            Authorization: `Bearer ${BATTLE_BOT_JWT}`
+        }
     });
-  
+
     let users = r.data.map((user) => {
-      return user.name;
+        return user.name;
     });
-  
+
     return chatters.filter((chatter) => {
-      return users.includes(chatter);
+        return users.includes(chatter);
     });
 }
-  
+
 const getUser = async (username) => {
     try {
-      let userResponse = await axios.get(`${BATTLE_API_URL}/users/${username}`, {
-        headers: {
-          Authorization: `Bearer ${BATTLE_BOT_JWT}`
-        }
-      })
-  
-      return userResponse.data;
+        let userResponse = await axios.get(`${BATTLE_API_URL}/users/${username}`, {
+            headers: {
+                Authorization: `Bearer ${BATTLE_BOT_JWT}`
+            }
+        })
+
+        return userResponse.data;
     } catch (e) {
-      console.error(e);
-      return null;
+        console.error(e);
+        return null;
     }
 }
-  
+
 const getItem = async (itemId) => {
     try {
-      let itemResponse = await axios.get(`${BATTLE_API_URL}/items/${itemId}`, {
-        headers: {
-          Authorization: `Bearer ${BATTLE_BOT_JWT}`
-        }
-      })
-  
-      return itemResponse.data;
+        let itemResponse = await axios.get(`${BATTLE_API_URL}/items/${itemId}`, {
+            headers: {
+                Authorization: `Bearer ${BATTLE_BOT_JWT}`
+            }
+        })
+
+        return itemResponse.data;
     } catch (e) {
-      console.error(e);
-      return null;
+        console.error(e);
+        return null;
     }
 }
-  
+
 const updateUser = async (user) => {
     await axios.put(`${BATTLE_API_URL}/users/${user.name}`, user, {
-      headers: {
-        contentType: "application/json",
-        Authorization: `Bearer ${BATTLE_BOT_JWT}`
-      }
+        headers: {
+            contentType: "application/json",
+            Authorization: `Bearer ${BATTLE_BOT_JWT}`
+        }
     })
 }
-  
+
 const createUser = async (message) => {
     try {
-      await axios.post(`${PROFILE_API_URL}/users`, {
-        username: message.userName,
-        password: Util.randomUuid(),
-        connected: {
-          twitch: {
-            userId: message.userId,
-            name: message.userName
-          }
-        }
-      }, {
-        headers: {
-          contentType: "application/json",
-          Authorization: `Bearer ${BATTLE_BOT_JWT}`
-        }
-      });
-  
-      await axios.post(`${BATTLE_API_URL}/users`, {
-        id: message.userId,
-        name: message.userName,
-        currentJob: {
-          id: "SQUIRE"
-        },
-        ap: 2,
-        hp: 100,
-        mp: 10,
-        equipment: {
-            hand: {
-                id: "LONG_SWORD"
-            },
-            offhand: {},
-            head: {
-                id: "LEATHER_CAP"
-            }, 
-            body: {
-                id: "LEATHER_CURIASS"
-            },
-            arms: {
-                id: "LEATHER_GAUNTLETS"
-            },
-            legs: {
-                id: "LEATHER_PANTS"
+        await axios.post(`${PROFILE_API_URL}/users`, {
+            username: message.userName,
+            password: Util.randomUuid(),
+            connected: {
+                twitch: {
+                    userId: message.userId,
+                    name: message.userName
+                }
             }
-        }, inventory: [
-            "POTION",
-            "POTION"
-        ],
-        gold: 100
-      }, {
-        headers: {
-          contentType: "application/json",
-          Authorization: `Bearer ${BATTLE_BOT_JWT}`
-        }
-      });
-    } catch(e) {
-      
+        }, {
+            headers: {
+                contentType: "application/json",
+                Authorization: `Bearer ${BATTLE_BOT_JWT}`
+            }
+        });
+
+        await axios.post(`${BATTLE_API_URL}/users`, {
+            id: message.userId,
+            name: message.userName,
+            currentJob: {
+                id: "SQUIRE"
+            },
+            ap: 2,
+            hp: 100,
+            mp: 10,
+            equipment: {
+                hand: {
+                    id: "LONG_SWORD"
+                },
+                offhand: {},
+                head: {
+                    id: "LEATHER_CAP"
+                },
+                body: {
+                    id: "LEATHER_CURIASS"
+                },
+                arms: {
+                    id: "LEATHER_GAUNTLETS"
+                },
+                legs: {
+                    id: "LEATHER_PANTS"
+                }
+            }, inventory: [
+                "POTION",
+                "POTION"
+            ],
+            gold: 100
+        }, {
+            headers: {
+                contentType: "application/json",
+                Authorization: `Bearer ${BATTLE_BOT_JWT}`
+            }
+        });
+    } catch (e) {
+
     }
 }
-  
+
 const chargeAP = async (message, amount) => {
     let user = await getUser(message.userName, false);
-  
+
     user.ap += amount;
-  
+
     await updateUser(user);
 }
-  
+
 const reviveAvatar = async (message) => {
     let user = await getUser(message.userName, false);
-  
+
     if (user.hp > 0) {
-      return;
+        return;
     }
-  
+
     user.hp = 100;
-  
+
     await updateUser(user);
 }
 
