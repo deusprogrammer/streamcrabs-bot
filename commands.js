@@ -56,155 +56,261 @@ const giveItemFromInventory = async (giverName, username, itemId) => {
     }
 }
 
-const attack = async (attackerName, defenderName, context) => {
-    try {
-        // Get active users
-        let targets = await Xhr.getActiveUsers(context);
+const getTarget = async (targetName, context) => {
+    let target = {};
+    if (targetName.startsWith("~")) {
+        targetName = targetName.substring(1).toUpperCase();
+        target = context.encounterTable[targetName];
+        if (!target) {
+            throw `${targetName} is not a valid monster`;
+        }
 
-        // ATTACKER
-        let attacker = {};
-        if (attackerName.startsWith("~")) {
-            attackerName = attackerName.substring(1);
-            attacker = context.encounterTable[attackerName];
-            if (!attacker) {
-                throw `${attackerName} is not a valid monster`;
-            }
-
-            attacker.isMonster = true;
-            attacker.equipment = {
-                hand: {
-                    dmg: attacker.dmg || "1d6",
-                    mods: {
-                        hit: attacker.hit
-                    }
+        target.isMonster = true;
+        target.equipment = {
+            hand: {
+                dmg: target.dmg || "1d6",
+                mods: {
+                    hit: target.hit
                 }
-            };
-            attacker.totalAC = attacker.ac;
-            attacker.encounterTableKey = attackerName;
-        } else {
-            attacker = await Xhr.getUser(attackerName);
-
-            if (!attacker) {
-                throw `@${attackerName} doesn't have a battle avatar.`;
             }
+        };
+        target.totalAC = target.ac;
+        target.encounterTableKey = targetName;
+    } else {
+        target = await Xhr.getUser(targetName);
 
-            attacker.isMonster = false;
-            attacker = Util.expandUser(attacker, context);
+        if (!target) {
+            throw `@${targetName} doesn't have a battle avatar.`;
         }
 
-        if (attacker.hp <= 0) {
-            throw `@${attackerName} is dead and cannot perform any actions.`;
-        }
-
-        if (attacker.ap <= 0) {
-            throw `@${attackerName} is out of action points and cannot perform any actions.`;
-        }
-
-        // DEFENDER
-        let defender = {}
-        if (defenderName.startsWith("~")) {
-            defenderName = defenderName.substring(1);
-            defender = context.encounterTable[defenderName];
-
-            if (!defender) {
-                throw `${defenderName} is not a valid monster to target`;
-            }
-
-            defender.isMonster = true;
-            defender.totalAC = defender.ac;
-            defender.encounterTableKey = defenderName;
-        } else {
-            defender = await Xhr.getUser(defenderName);
-
-            if (!defender) {
-                throw `${defenderName} does not have a battle avatar`;
-            }
-
-            defender.isMonster = false;
-            defender = Util.expandUser(defender, context);
-        }
-
-        if (defender && !targets.includes(defenderName) && !context.encounterTable[defenderName]) {
-            throw `@${defenderName}'s not here man!`;
-        }
-
-        if (!defender) {
-            throw `There is no such target ${defenderName}`;
-        }
-
-        if (defender.hp <= 0) {
-            throw `@${defenderName} is already dead.`;
-        }
-
-        let message = "";
-        let endStatus = "";
-
-        let weapon = attacker.equipment.hand;
-
-        let attackRoll = Util.rollDice("1d20");
-        let modifiedAttackRoll = attackRoll + attacker.hit;
-        let damageRoll = Util.rollDice(weapon.dmg) + attacker.str;
-        let hit = true;
-        let crit = false;
-        let dead = false;
-
-        if (attackRoll === 20) {
-            damageRoll *= 2;
-            crit = true;
-            message = `${attacker.name} ==> ${defender.name} -${damageRoll}HP`;
-        } else if (modifiedAttackRoll > defender.totalAC) {
-            message = `${attacker.name} ==> ${defender.name} -${damageRoll}HP`;
-        } else {
-            message = `${attacker.name} ==> ${defender.name} MISS`;
-            hit = false;
-        }
-
-        if (damageRoll >= defender.hp) {
-            endStatus = `[DEAD]`;
-            dead = true;
-        } else {
-            endStatus = `[${defender.hp - damageRoll}/${defender.maxHp}HP]`;
-        }
-
-        // Get current, unexpanded version
-        if (!attacker.isMonster) {
-            attacker = await Xhr.getUser(attacker.name);
-            attacker.ap -= 1;
-        }
-        if (!defender.isMonster) {
-            defender = await Xhr.getUser(defender.name);
-        } else {
-            defender.aggro[attackerName] += damageRoll;
-        }
-
-        if (hit) {
-            defender.hp -= damageRoll;
-        }
-
-        // Update attacker and target stats
-        if (!attacker.isMonster) {
-            await Xhr.updateUser(attacker);
-            attacker = Util.expandUser(attacker, context);
-        }
-        if (!defender.isMonster && hit) {
-            await Xhr.updateUser(defender);
-            defender = Util.expandUser(defender, context);
-        }
-
-        return {
-            message: `[BATTLE]: ${message}  ${hit ? endStatus : ''}`,
-            damage: damageRoll,
-            flags: {
-                crit,
-                hit,
-                dead
-            },
-            attacker,
-            defender
-        }
-    } catch (e) {
-        throw "Failed to run battle: " + e;
+        target.isMonster = false;
+        target = Util.expandUser(target, context);
     }
+
+    return target;
+}
+
+const distributeLoot = async (monster, context) => {
+    // Give drops to everyone who attacked the monster
+    for (var attacker in monster.aggro) {
+        for (var i in monster.drops) {
+            var drop = monster.drops[i];
+            var chanceRoll = Util.rollDice("1d100");
+            if (chanceRoll < drop.chance && !(drop.onlyOne && drop.taken)) {
+                drop.taken = true;
+                await Commands.giveItem("", attacker, drop.itemId);
+                queue.unshift({ target, text: `${attacker} found ${itemTable[drop.itemId].name}!`, level: "simple" });
+                sendEventToPanels({
+                    type: "ITEM_GET",
+                    eventData: {
+                        results: {
+                            receiver: attacker,
+                            item: itemTable[drop.itemId],
+                            message: `${attacker} found ${itemTable[drop.itemId].name}!`
+                        },
+                        encounterTable: context.encounterTable
+                    }
+                });
+                break;
+            }
+        }
+    }
+}
+
+const hurt = async (attackerName, defenderName, ability, context) => {
+    if (ability.element === "HEALING") {
+        throw `@${ability.name} is not an attack ability`;
+    }
+
+    let targets = await Xhr.getActiveUsers(context);
+
+    let attacker = await getTarget(attackerName, context);
+
+    if (attacker.hp <= 0) {
+        throw `@${attackerName} is dead and cannot perform any actions.`;
+    }
+
+    if (Math.max(0, attacker.ap) <= ability.ap) {
+        throw `@${attackerName} needs ${ability.ap} AP to use this ability.`;
+    }
+
+    let defender = await getTarget(defenderName, context);
+
+    if (defender && !targets.includes(defenderName) && !defender.isMonster) {
+        throw `@${defenderName}'s not here man!`;
+    }
+
+    if (defender.hp <= 0) {
+        throw `@${defenderName} is already dead.`;
+    }
+
+    if (ability.target === "ENEMY" && !defender.isMonster) {
+        throw `${ability.name} cannot target battlers`;
+    } else if (ability.target === "CHAT" && defender.isMonster) {
+        throw `${ability.name} cannot target monsters`;
+    }
+
+    let attackRoll = Util.rollDice("1d20");
+    let modifiedAttackRoll = attackRoll + attacker.hit + ability.mods.hit;
+    let damageRoll = Util.rollDice(ability.dmg) + attacker.str + ability.mods.str;
+    let hit = true;
+    let crit = false;
+    let dead = false;
+
+    if (attackRoll === 20) {
+        damageRoll *= 2;
+        crit = true;
+        message = `${attacker.name} ==> ${defender.name} -${damageRoll}HP`;
+    } else if (modifiedAttackRoll > defender.totalAC) {
+        message = `${attacker.name} ==> ${defender.name} -${damageRoll}HP`;
+    } else {
+        message = `${attacker.name} ==> ${defender.name} MISS`;
+        hit = false;
+    }
+
+    if (damageRoll >= defender.hp) {
+        endStatus = `[DEAD]`;
+        dead = true;
+    } else {
+        endStatus = `[${defender.hp - damageRoll}/${defender.maxHp}HP]`;
+    }
+
+    // Get current, unexpanded version
+    if (!attacker.isMonster) {
+        attacker = await Xhr.getUser(attacker.name);
+        attacker.ap -= ability.ap;
+    }
+    if (!defender.isMonster) {
+        defender = await Xhr.getUser(defender.name);
+    } else {
+        if (!defender.aggro[attackerName]) {
+            defender.aggro[attackerName] = 0;
+        }
+        defender.aggro[attackerName] += damageRoll;
+    }
+
+    if (hit) {
+        defender.hp -= damageRoll;
+    }
+
+    // Update attacker and target stats
+    if (!attacker.isMonster) {
+        await Xhr.updateUser(attacker);
+        attacker = Util.expandUser(attacker, context);
+    }
+    if (!defender.isMonster && hit) {
+        await Xhr.updateUser(defender);
+        defender = Util.expandUser(defender, context);
+    }
+
+    return {
+        message: `[BATTLE]: ${message}  ${hit ? endStatus : ''}`,
+        damage: damageRoll,
+        flags: {
+            crit,
+            hit,
+            dead
+        },
+        attacker,
+        defender,
+        damageType: ability.element
+    }
+}
+
+const heal = async (attackerName, defenderName, ability, context) => {
+    if (ability.element !== "HEALING") {
+        throw `@${ability.name} is not a healing ability`;
+    }
+
+    let targets = await Xhr.getActiveUsers(context);
+
+    let attacker = await getTarget(attackerName, context);
+
+    if (attacker.hp <= 0) {
+        throw `@${attackerName} is dead and cannot perform any actions.`;
+    }
+
+    if (Math.max(0, attacker.ap) <= ability.ap) {
+        throw `@${attackerName} needs ${ability.ap} AP to use this ability.`;
+    }
+
+    let defender = await getTarget(defenderName, context);
+
+    if (defender && !targets.includes(defenderName) && !defender.isMonster) {
+        throw `@${defenderName}'s not here man!`;
+    }
+
+    if (ability.target === "ENEMY" && !defender.isMonster) {
+        throw `${ability.name} cannot target battlers`;
+    } else if (ability.target === "CHAT" && defender.isMonster) {
+        throw `${ability.name} cannot target monsters`;
+    }
+
+    var healingAmount = Util.rollDice(ability.dmg);
+
+    let newHp = Math.min(defender.maxHp, defender.hp + healingAmount);
+
+    // Get current, unexpanded version
+    if (!attacker.isMonster) {
+        attacker = await Xhr.getUser(attacker.name);
+        attacker.ap -= ability.ap;
+    }
+    if (!defender.isMonster) {
+        defender = await Xhr.getUser(defender.name);
+    } else {
+        defender.aggro[attackerName] += damageRoll;
+    }
+
+    defender.hp = newHp;
+
+    // Update attacker and target stats
+    if (!attacker.isMonster) {
+        await Xhr.updateUser(attacker);
+        attacker = Util.expandUser(attacker, context);
+    }
+    if (!defender.isMonster) {
+        await Xhr.updateUser(defender);
+        defender = Util.expandUser(defender, context);
+    }
+
+    return {
+        attacker,
+        defender,
+        flags: {
+            crit: false,
+            hit: false,
+            dead: false
+        },
+        message: `${attacker.name} healed ${defender.name} for ${healingAmount} HP`,
+        damage: healingAmount,
+        damageType: "HEALING"
+    };
+}
+
+const attack = async (attackerName, defenderName, context) => {
+    let attacker = await getTarget(attackerName, context);
+
+    if (attacker.hp <= 0) {
+        throw `@${attackerName} is dead and cannot perform any actions.`;
+    }
+
+    if (attacker.ap <= 0) {
+        throw `@${attackerName} is out of action points and cannot perform any actions.`;
+    }
+
+    let weapon = attacker.equipment.hand;
+
+    return await hurt(attackerName, defenderName, {
+        name: "attack",
+        dmg: weapon.dmg,
+        ap: 1,
+        target: "ANY",
+        area: "ONE",
+        mods: {
+            hit: 0,
+            str: 0
+        }
+    }, context);
 }
 
 const spawnMonster = async (monsterName, personalName, context) => {
@@ -252,7 +358,11 @@ const spawnMonster = async (monsterName, personalName, context) => {
 }
 
 module.exports = {
+    getTarget,
+    distributeLoot,
     attack,
+    heal,
+    hurt,
     spawnMonster,
     giveItem,
     giveItemFromInventory

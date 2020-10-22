@@ -20,12 +20,22 @@ const randomUuid = () => {
     return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 }
 
+const randomNumber = (max) => {
+    return Math.floor(Math.random() * Math.floor(max)) + 1;
+}
+
 // TODO Improve dice parser to include other math
 const rollDice = (dice) => {
     let tokens = dice.split("d");
+
+    // If it's just a hard coded number, just return the number
+    if (tokens.length === 1) {
+        return parseInt(tokens[0]);
+    }
+
     let total = 0;
-    for (var i = 0; i < tokens[0]; i++) {
-        total += Math.floor(Math.random() * Math.floor(tokens[1])) + 1;
+    for (var i = 0; i < parseInt(tokens[0]); i++) {
+        total += Math.floor(Math.random() * Math.floor(parseInt(tokens[1]))) + 1;
     }
     return total;
 }
@@ -38,6 +48,7 @@ const expandUser = (userData, context) => {
     userData.int = userData.currentJob.int;
     userData.hit = userData.currentJob.hit;
     userData.maxHp = userData.currentJob.hp;
+    userData.abilities = {};
     Object.keys(userData.equipment).forEach((slot) => {
         let item = userData.equipment[slot];
         let itemData = context.itemTable[item.id];
@@ -50,6 +61,9 @@ const expandUser = (userData, context) => {
         userData.dex += itemData.mods.dex;
         userData.int += itemData.mods.int;
         userData.hit += itemData.mods.hit;
+        itemData.abilities.forEach((abilityId) => {
+            userData.abilities[abilityId] = context.abilityTable[abilityId];
+        });
         userData.equipment[slot] = itemData;
     });
     let newInventoryList = [];
@@ -68,5 +82,6 @@ module.exports = {
     nthIndex,
     rollDice,
     expandUser,
-    randomUuid
+    randomUuid,
+    randomNumber
 }
