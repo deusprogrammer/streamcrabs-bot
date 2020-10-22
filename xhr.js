@@ -39,7 +39,7 @@ const getMonsterTable = () => {
 }
 
 const updateMonster = async (monster) => {
-    return axios.put(`${BATTLE_API_URL}/monsters/${monster.id}`, {
+    return axios.put(`${BATTLE_API_URL}/monsters/${monster.id}`, monster, {
         headers: {
             Authorization: `Bearer ${BATTLE_BOT_JWT}`
         }

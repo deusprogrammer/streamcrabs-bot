@@ -709,7 +709,7 @@ async function onMessageHandler(target, context, msg, self) {
                 type: "ERROR",
                 eventData: {
                     results: {
-                        message: e
+                        message: new Error(e)
                     },
                     encounterTable
                 }
@@ -740,6 +740,10 @@ async function onConnectedHandler(addr, port) {
             let event = message.event;
             let text = event.eventData.results.message;
 
+            if (typeof text === "object") {
+                text = text.message;
+            }
+
             if (message.level !== configTable.verbosity && message.level !== "simple") {
                 return;
             }
@@ -754,8 +758,12 @@ async function onConnectedHandler(addr, port) {
             }
 
             // Send event to panel via web socket
-            if (event.type !== "CHAT_ONLY") {
+            if (event.type !== "CHAT_ONLY" && event.type !== "WHISPER_ONLY") {
                 sendEventToPanels(event);
+            }
+
+            if (event.type === "ITEM_GET" && event.eventData.results.item.name.startsWith("Miku's")) {
+                client.say(BROADCASTER_NAME, `/me W...wait!  Give back my ${event.eventData.results.item.name.replace("Miku's", "").toLowerCase()} >//<!`);
             }
         }
     }, 500);

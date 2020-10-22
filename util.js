@@ -71,6 +71,14 @@ const expandUser = (userData, context) => {
         newInventoryList.push(context.itemTable[item]);
     });
 
+    if (userData.maxHp < 0) {
+        userData.maxHp = 1;
+    }
+
+    if (userData.hp > userData.maxHp) {
+        userData.hp = userData.maxHp;
+    }
+
     userData.inventory = newInventoryList;
     userData.actionCooldown = Math.min(11, 6 - Math.min(5, userData.dex));
 

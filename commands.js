@@ -246,9 +246,9 @@ const heal = async (attackerName, defenderName, ability, context) => {
 
     let defender = await getTarget(defenderName, context);
 
-    if (defender && !targets.includes(defenderName) && !defender.isMonster) {
-        throw `@${defenderName}'s not here man!`;
-    }
+    // if (defender && !targets.includes(defenderName) && !defender.isMonster) {
+    //     throw `@${defenderName}'s not here man!`;
+    // }
 
     if (ability.target === "ENEMY" && !defender.isMonster) {
         throw `${ability.name} cannot target battlers`;
