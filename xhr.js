@@ -38,6 +38,14 @@ const getMonsterTable = () => {
         })
 }
 
+const updateMonster = async (monster) => {
+    return axios.put(`${BATTLE_API_URL}/monsters/${monster.id}`, {
+        headers: {
+            Authorization: `Bearer ${BATTLE_BOT_JWT}`
+        }
+    })
+}
+
 const getAbilityTable = () => {
     return axios.get(`${BATTLE_API_URL}/abilities`, {
         headers: {
@@ -195,6 +203,7 @@ module.exports = {
     getMonsterTable,
     getAbilityTable,
     updateUser,
+    updateMonster,
     createUser,
     chargeAP,
     reviveAvatar

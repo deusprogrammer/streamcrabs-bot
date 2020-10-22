@@ -2,7 +2,7 @@ var Xhr = require('./xhr');
 var Util = require('./util');
 
 const giveItem = async (giverName, username, itemId) => {
-    let user = await Xhr.getUser(username, false);
+    let user = await Xhr.getUser(username);
     let item = await Xhr.getItem(itemId);
 
     if (!user) {
@@ -14,7 +14,6 @@ const giveItem = async (giverName, username, itemId) => {
     }
 
     user.inventory.push(itemId);
-
     await Xhr.updateUser(user);
 
     return {
@@ -91,22 +90,39 @@ const getTarget = async (targetName, context) => {
 }
 
 const distributeLoot = async (monster, context) => {
-    // Give drops to everyone who attacked the monster
+    let events = [];
     for (var attacker in monster.aggro) {
         for (var i in monster.drops) {
-            var drop = monster.drops[i];
-            var chanceRoll = Util.rollDice("1d100");
+            let drop = monster.drops[i];
+            let chanceRoll = Util.rollDice("1d100");
             if (chanceRoll < drop.chance && !(drop.onlyOne && drop.taken)) {
                 drop.taken = true;
-                await Commands.giveItem("", attacker, drop.itemId);
-                queue.unshift({ target, text: `${attacker} found ${itemTable[drop.itemId].name}!`, level: "simple" });
-                sendEventToPanels({
+                await giveItem("", attacker, drop.itemId);
+
+                // If exclusive, mark the drop as permanently taken
+                if (drop.exclusive) {
+                    console.log("EXCLUSIVE LOOT");
+                    let updatedMonster = context.monsterTable[monster.id];
+                    console.log("BEFORE: " + JSON.stringify(updatedMonster));
+                    updatedDrop = updatedMonster.drops.find((search) => search.itemId === drop.itemId && drop.exclusive && !drop.exclusiveTaken);
+
+                    if (!updatedDrop) {
+                        throw "Cannot find exclusive drop";
+                    }
+
+                    updatedDrop.exclusiveTaken = true;
+                    console.log("AFTER: " + JSON.stringify(updatedMonster));
+                    await Xhr.updateMonster(updatedMonster);
+                    console.log("UPDATED (PROBABLY)");
+                    // context.monsterTable[monster.id] = updatedMonster;
+                }
+                events.push({
                     type: "ITEM_GET",
                     eventData: {
                         results: {
                             receiver: attacker,
-                            item: itemTable[drop.itemId],
-                            message: `${attacker} found ${itemTable[drop.itemId].name}!`
+                            item: context.itemTable[drop.itemId],
+                            message: `${attacker} found ${context.itemTable[drop.itemId].name}!`
                         },
                         encounterTable: context.encounterTable
                     }
@@ -115,6 +131,8 @@ const distributeLoot = async (monster, context) => {
             }
         }
     }
+
+    return events;
 }
 
 const hurt = async (attackerName, defenderName, ability, context) => {
@@ -128,10 +146,6 @@ const hurt = async (attackerName, defenderName, ability, context) => {
 
     if (attacker.hp <= 0) {
         throw `@${attackerName} is dead and cannot perform any actions.`;
-    }
-
-    if (Math.max(0, attacker.ap) <= ability.ap) {
-        throw `@${attackerName} needs ${ability.ap} AP to use this ability.`;
     }
 
     let defender = await getTarget(defenderName, context);
@@ -152,7 +166,7 @@ const hurt = async (attackerName, defenderName, ability, context) => {
 
     let attackRoll = Util.rollDice("1d20");
     let modifiedAttackRoll = attackRoll + attacker.hit + ability.mods.hit;
-    let damageRoll = Util.rollDice(ability.dmg) + attacker.str + ability.mods.str;
+    let damageRoll = Math.max(1, Util.rollDice(ability.dmg) + attacker.str + ability.mods.str);
     let hit = true;
     let crit = false;
     let dead = false;
@@ -230,10 +244,6 @@ const heal = async (attackerName, defenderName, ability, context) => {
         throw `@${attackerName} is dead and cannot perform any actions.`;
     }
 
-    if (Math.max(0, attacker.ap) <= ability.ap) {
-        throw `@${attackerName} needs ${ability.ap} AP to use this ability.`;
-    }
-
     let defender = await getTarget(defenderName, context);
 
     if (defender && !targets.includes(defenderName) && !defender.isMonster) {
@@ -246,14 +256,13 @@ const heal = async (attackerName, defenderName, ability, context) => {
         throw `${ability.name} cannot target monsters`;
     }
 
-    var healingAmount = Util.rollDice(ability.dmg);
+    var healingAmount = Math.max(1, Util.rollDice(ability.dmg));
 
     let newHp = Math.min(defender.maxHp, defender.hp + healingAmount);
 
     // Get current, unexpanded version
     if (!attacker.isMonster) {
         attacker = await Xhr.getUser(attacker.name);
-        attacker.ap -= ability.ap;
     }
     if (!defender.isMonster) {
         defender = await Xhr.getUser(defender.name);
@@ -290,17 +299,13 @@ const heal = async (attackerName, defenderName, ability, context) => {
 const attack = async (attackerName, defenderName, context) => {
     let attacker = await getTarget(attackerName, context);
 
-    if (attacker.hp <= 0) {
-        throw `@${attackerName} is dead and cannot perform any actions.`;
-    }
-
-    if (attacker.ap <= 0) {
-        throw `@${attackerName} is out of action points and cannot perform any actions.`;
+    if (Math.max(0, attacker.ap) <= 1) {
+        throw `@${attackerName} needs 1 AP to use this ability.`;
     }
 
     let weapon = attacker.equipment.hand;
 
-    return await hurt(attackerName, defenderName, {
+    let results = await hurt(attackerName, defenderName, {
         name: "attack",
         dmg: weapon.dmg,
         ap: 1,
@@ -311,15 +316,36 @@ const attack = async (attackerName, defenderName, context) => {
             str: 0
         }
     }, context);
+
+    if (!attacker.isMonster) {
+        let basicUser = Xhr.getUser(attackerName);
+        basicUser.ap -= 1;
+        Xhr.updateUser(basicUser);
+    }
+
+    return results;
 }
 
 const spawnMonster = async (monsterName, personalName, context) => {
     // Retrieve monster from monster table
-    let monster = context.monsterTable[monsterName.toUpperCase()];
+    let monsterCopy = context.monsterTable[monsterName.toUpperCase()];
 
-    if (!monster) {
+    if (!monsterCopy) {
         throw `${monsterName} is not a valid monster`;
     }
+
+    // Make deep copy
+    let monster = {...monsterCopy};
+    monster.drops = monsterCopy.drops.filter((drop) => {
+        return !drop.exclusiveTaken;
+    }).map((drop) => {  
+        return {...drop};
+    });
+    monster.actions = monsterCopy.actions.map((action) => {
+        return {...action};
+    })
+
+    console.log("SPAWNED: " + JSON.stringify(monster, null, 5));
 
     // Set type here temporarily until we add to DB
     let type = monster.type || "MOB";
