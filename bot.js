@@ -19,6 +19,7 @@ let jobTable = {};
 let abilityTable = {};
 let encounterTable = {};
 let cooldownTable = {};
+let buffTable = {};
 
 // Various config values that can be changed on the fly
 let configTable = {
@@ -112,6 +113,7 @@ async function onMessageHandler(target, context, msg, self) {
                         chattersActive[context.username] = 10 * 12;
                         sendEvent({
                             type: "JOIN",
+                            targets: ["chat", "panel"],
                             eventData: {
                                 results: {
                                     attacker: {
@@ -211,6 +213,7 @@ async function onMessageHandler(target, context, msg, self) {
                     if (!isItem) {
                         sendEvent({
                             type: "INFO",
+                            targets: ["chat", "panel"],
                             eventData: {
                                 results: {
                                     attacker,
@@ -222,6 +225,7 @@ async function onMessageHandler(target, context, msg, self) {
                     } else {
                         sendEvent({
                             type: "INFO",
+                            targets: ["chat", "panel"],
                             eventData: {
                                 results: {
                                     attacker,
@@ -240,6 +244,8 @@ async function onMessageHandler(target, context, msg, self) {
 
                         if (ability.element === "HEALING") {
                             results = await Commands.heal(attackerName, abilityTarget, ability, gameContext);
+                        } else if (ability.element === "BUFFING") {
+                            results = await Commands.buff(attackerName, abilityTarget, ability, gameContext);
                         } else {
                             results = await Commands.hurt(attackerName, abilityTarget, ability, gameContext);
                         }
@@ -248,6 +254,20 @@ async function onMessageHandler(target, context, msg, self) {
                         if (results.damageType === "HEALING") {
                             sendEvent({
                                 type: "HEALING",
+                                targets: ["chat", "panel"],
+                                eventData: {
+                                    results: {
+                                        attacker: results.attacker,
+                                        defender: results.defender,
+                                        message: results.message
+                                    },
+                                    encounterTable
+                                }
+                            });
+                        } else if (results.damageType === "BUFFING") {
+                            sendEvent({
+                                type: "BUFFING",
+                                targets: ["chat", "panel"],
                                 eventData: {
                                     results: {
                                         attacker: results.attacker,
@@ -265,6 +285,7 @@ async function onMessageHandler(target, context, msg, self) {
 
                             sendEvent({
                                 type: "ATTACKED",
+                                targets: ["chat", "panel"],
                                 eventData: {
                                     results: {
                                         attacker: results.attacker,
@@ -277,6 +298,7 @@ async function onMessageHandler(target, context, msg, self) {
                         } else {
                             sendEvent({
                                 type: "ATTACKED",
+                                targets: ["chat", "panel"],
                                 eventData: {
                                     results: {
                                         attacker: results.attacker,
@@ -300,6 +322,7 @@ async function onMessageHandler(target, context, msg, self) {
                             
                             sendEvent({
                                 type: "DIED",
+                                targets: ["chat", "panel"],
                                 eventData: {
                                     results: {
                                         defender: results.defender,
@@ -364,6 +387,7 @@ async function onMessageHandler(target, context, msg, self) {
 
                         sendEvent({
                             type: "ATTACKED",
+                            targets: ["chat", "panel"],
                             eventData: {
                                 results: {
                                     attacker: results.attacker,
@@ -376,6 +400,7 @@ async function onMessageHandler(target, context, msg, self) {
                     } else {
                         sendEvent({
                             type: "ATTACKED",
+                            targets: ["chat", "panel"],
                             eventData: {
                                 results: {
                                     attacker: results.attacker,
@@ -399,6 +424,7 @@ async function onMessageHandler(target, context, msg, self) {
 
                         sendEvent({
                             type: "DIED",
+                            targets: ["chat", "panel"],
                             eventData: {
                                 results: {
                                     defender: results.defender,
@@ -450,6 +476,7 @@ async function onMessageHandler(target, context, msg, self) {
 
                     sendEvent({
                         type: "SPAWN",
+                        targets: ["chat", "panel"],
                         eventData: {
                             results: {
                                 message: `${tokens[1]} was turned into a slime and will be banned upon death.  Target name: ~${monster.spawnKey}.`
@@ -495,6 +522,7 @@ async function onMessageHandler(target, context, msg, self) {
 
                     sendEvent({
                         type: "SPAWN",
+                        targets: ["chat", "panel"],
                         eventData: {
                             results: {
                                 message: `${monster.name} has appeared!  Target name: ~${monster.spawnKey}.`
@@ -525,6 +553,7 @@ async function onMessageHandler(target, context, msg, self) {
 
                     sendEvent({
                         type: "SPAWN",
+                        targets: ["chat", "panel"],
                         eventData: {
                             results: {
                                 message: `${monster.name} has appeared!  Target name: ~${monster.spawnKey}.`
@@ -543,7 +572,8 @@ async function onMessageHandler(target, context, msg, self) {
                     var user = await Xhr.getUser(username);
                     user = Util.expandUser(user, gameContext);
                     sendEvent({
-                        type: "CHAT_ONLY",
+                        type: "INFO",
+                        targets: ["chat"],
                         eventData: {
                             results: {
                                 message: `[${user.name}] HP: ${user.hp} -- MP: ${user.mp} -- AP: ${user.ap} -- STR: ${user.str} -- DEX: ${user.dex} -- INT: ${user.int} -- HIT: ${user.hit} -- AC: ${user.totalAC}.`
@@ -561,7 +591,8 @@ async function onMessageHandler(target, context, msg, self) {
                         }
                     });
                     sendEvent({
-                        type: "CHAT_ONLY",
+                        type: "INFO",
+                        targets: ["chat"],
                         eventData: {
                             results: {
                                 message: `Available targets are: ${[...activeUsers, ...monsterList]}`
@@ -578,32 +609,39 @@ async function onMessageHandler(target, context, msg, self) {
                     user = tokens[1].replace("@", "").toLowerCase();
                     var itemId = tokens[2];
 
+                    var results = await Commands.giveItemFromInventory(context.username, user, itemId, gameContext);
+
+                    sendEvent({
+                        type: "ITEM_GIVE",
+                        targets: ["chat"],
+                        eventData: {
+                            results,
+                            encounterTable
+                        }
+                    });
+
+                    break;
+                case "!gift":
+                    if (tokens.length < 3) {
+                        throw "Must provide a target and an item id to give";
+                    }
+
+                    user = tokens[1].replace("@", "").toLowerCase();
+                    var itemId = tokens[2];
+
                     // Give from inventory if not a mod
                     if (context.username !== BROADCASTER_NAME && !context.mod) {
-                        var results = await Commands.giveItemFromInventory(context.username, user, itemId, gameContext);
-
-                        sendEvent({
-                            type: "CHAT_ONLY",
-                            eventData: {
-                                results: {
-                                    message: results.message
-                                },
-                                encounterTable
-                            }
-                        });
-                        
-                        return;
+                        throw "Only a mod can gift an item to someone";
                     }
 
                     // Give as mod
                     var results = await Commands.giveItem(context.username, user, itemId, target);
 
                     sendEvent({
-                        type: "CHAT_ONLY",
+                        type: "ITEM_GIFT",
+                        targets: ["chat"],
                         eventData: {
-                            results: {
-                                message: results.message
-                            },
+                            results,
                             encounterTable
                         }
                     });
@@ -611,7 +649,8 @@ async function onMessageHandler(target, context, msg, self) {
                     break;
                 case "!help":
                     sendEvent({
-                        type: "CHAT_ONLY",
+                        type: "INFO",
+                        targets: ["chat"],
                         eventData: {
                             results: {
                                 message: `Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system.`
@@ -623,7 +662,8 @@ async function onMessageHandler(target, context, msg, self) {
                 case "!inventory":
                 case "!abilities":
                     sendEvent({
-                        type: "CHAT_ONLY",
+                        type: "INFO",
+                        targets: ["chat"],
                         eventData: {
                             results: {
                                 message: `${context.username} Visit https://deusprogrammer.com/util/twitch/battlers/${context.username} to view your inventory, abilities and stats.`
@@ -647,7 +687,8 @@ async function onMessageHandler(target, context, msg, self) {
                     console.log(`* All tables refreshed`);
 
                     sendEvent({
-                        type: "CHAT_ONLY",
+                        type: "INFO",
+                        targets: ["chat"],
                         eventData: {
                             results: {
                                 message: "All tables refreshed"
@@ -677,7 +718,8 @@ async function onMessageHandler(target, context, msg, self) {
                 case "!reset":
                     gameContext.encounterTable = {};
                     sendEvent({
-                        type: "CHAT_ONLY",
+                        type: "INFO",
+                        targets: ["chat"],
                         eventData: {
                             results: {
                                 message: "Clearing encounter table."
@@ -689,7 +731,8 @@ async function onMessageHandler(target, context, msg, self) {
                 case "!goodnight":
                 case "!shutdown":
                     sendEvent({
-                        type: "CHAT_ONLY",
+                        type: "INFO",
+                        targets: ["chat"],
                         eventData: {
                             results: {
                                 message: "Miku going offline.  Oyasumi."
@@ -707,6 +750,7 @@ async function onMessageHandler(target, context, msg, self) {
         } catch (e) {
             sendEvent({
                 type: "ERROR",
+                targets: ["chat"],
                 eventData: {
                     results: {
                         message: new Error(e)
@@ -728,56 +772,62 @@ async function onConnectedHandler(addr, port) {
     abilityTable = await Xhr.getAbilityTable();
     // TODO Load config table from file
 
-    gameContext = { itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, chattersActive, configTable };
+    gameContext = { itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, buffTable, chattersActive, configTable };
 
     console.log(`* All tables loaded`);
 
     // QUEUE CUSTOMER
-    setInterval(() => {
+    setInterval(async () => {
         let message = queue.pop();
 
         if (message) {
             let event = message.event;
             let text = event.eventData.results.message;
 
-            if (typeof text === "object") {
+            if (!event.targets) {
+                event.targets = ["chat"];
+            }
+
+            if (typeof text === "object" && text.stack) {
+                console.error("ERROR: " + text.message + ":\n" + text.stack);
                 text = text.message;
+            } else {
+                console.log("TEXT: " + text);
             }
 
             if (message.level !== configTable.verbosity && message.level !== "simple") {
                 return;
             }
 
-            console.log("TEXT: " + text);
-
             // Send event to chat
-            if (text.startsWith("/")) {
-                client.say(BROADCASTER_NAME, text);
-            } else {
-                client.say(BROADCASTER_NAME, "/me " + text);
+            if (event.targets.includes("chat")) {
+                if (text.startsWith("/")) {
+                    client.say(BROADCASTER_NAME, text);
+                } else {
+                    client.say(BROADCASTER_NAME, "/me " + text);
+                }
             }
-
             // Send event to panel via web socket
-            if (event.type !== "CHAT_ONLY" && event.type !== "WHISPER_ONLY") {
+            if (event.targets.includes("panel")) {
                 sendEventToPanels(event);
             }
 
-            if (event.type === "ITEM_GET" && event.eventData.results.item.name.startsWith("Miku's")) {
-                client.say(BROADCASTER_NAME, `/me W...wait!  Give back my ${event.eventData.results.item.name.replace("Miku's", "").toLowerCase()} >//<!`);
-            }
+            // Handle different events that pertain to the bot's personality
+            await mikuEventHandler(client, event);
         }
     }, 500);
 
     // MAIN LOOP
     try {
-        setInterval(() => {
+        setInterval(async () => {
             // Check for chatter activity timeouts
             Object.keys(chattersActive).forEach(async (username) => {
                 chattersActive[username] -= 1;
                 if (chattersActive[username] === 0) {
                     delete chattersActive[username];
                     sendEvent({
-                        type: "CHAT_ONLY",
+                        type: "INFO",
+                        targets: ["chat"],
                         eventData: {
                             results: {
                                 message:  `${username} has stepped back into the shadows.`
@@ -794,7 +844,8 @@ async function onConnectedHandler(addr, port) {
                 if (cooldownTable[username] <= 0) {
                     delete cooldownTable[username];
                     sendEvent({
-                        type: "CHAT_ONLY",
+                        type: "INFO",
+                        targets: ["chat"],
                         eventData: {
                             results: {
                                 message:  `${username} can act again.`
@@ -804,6 +855,16 @@ async function onConnectedHandler(addr, port) {
                     });
                 }
             });
+
+            // Tick down buff timers
+            Object.keys(buffTable).forEach(async (username) => {
+                var buffs = buffTable[username];
+                console.log(`${username} buffs:\n${JSON.stringify(buffTable, null, 5)}`);
+                buffs.forEach((buff) => {
+                    buff.duration--;
+                })
+                buffs = buffs.filter(buff => buff.duration <= 0);
+            })
 
             // Do monster attacks
             Object.keys(encounterTable).forEach(async (encounterName) => {
@@ -849,6 +910,7 @@ async function onConnectedHandler(addr, port) {
                         var results = await Commands.attack("~" + encounterName, target, gameContext);
                         sendEvent({
                             type: "ATTACK",
+                            targets: ["chat", "panel"],
                             eventData: {
                                 results: {
                                     attacker: results.attacker,
@@ -862,6 +924,7 @@ async function onConnectedHandler(addr, port) {
                         if (results.defender.hp <= 0) {
                             sendEvent({
                                 type: "DIED",
+                                targets: ["chat", "panel"],
                                 eventData: {
                                     results: {
                                         attacker: results.attacker,
@@ -883,6 +946,7 @@ async function onConnectedHandler(addr, port) {
     } catch (e) {
         sendEvent({
             type: "ERROR",
+            targets: ["chat"],
             eventData: {
                 results: {
                     message: e
@@ -893,9 +957,10 @@ async function onConnectedHandler(addr, port) {
     };
 
     // Advertising message
-    setInterval(() => {
+    setInterval(async () => {
         sendEvent({
-            type: "CHAT_ONLY",
+            type: "INFO",
+            targets: ["chat"],
             eventData: {
                 results: {
                     message: "Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system."
@@ -907,7 +972,8 @@ async function onConnectedHandler(addr, port) {
 
     // Announce restart
     sendEvent({
-        type: "CHAT_ONLY",
+        type: "INFO",
+        targets: ["chat"],
         eventData: {
             results: {
                 message: "Miku is online.  All systems nominal."
@@ -918,4 +984,51 @@ async function onConnectedHandler(addr, port) {
 
     // Start redemption listener
     Redemption.startListener(queue);
+}
+
+// MIKU'S HEART
+
+const flaggedUsers = {};
+
+const gatherMikusThings = async (username) => {
+    let user = await Commands.getTarget(username, gameContext);
+    let mikusItems = Object.keys(user.inventory).map(key => user.inventory[key].name).filter(itemName => itemName.startsWith("Miku's"));
+    let mikusEquip = Object.keys(user.equipment).map(key => user.equipment[key].name).filter(itemName => itemName.startsWith("Miku's"));
+    let mikusItemsAll = [...mikusItems, ...mikusEquip];
+    
+    return mikusItemsAll;
+}
+ 
+const mikuEventHandler = async (client, event) => {
+    // If the user get's an item that belong's to Miku, have her react
+    if (event.type === "ITEM_GET" && event.eventData.results.item.name.startsWith("Miku's")) {
+        client.say(BROADCASTER_NAME, `W...wait!  Give back my ${event.eventData.results.item.name.replace("Miku's", "").toLowerCase()} >//<!`);
+        flaggedUsers[event.eventData.results.receiver.name] = true;
+    } else if (event.type === "ITEM_GIVE" && event.eventData.results.item.name.startsWith("Miku's")) {
+        if (event.eventData.results.receiver.name !== "miku_the_space_bot") {
+            client.say(BROADCASTER_NAME, `WHY ARE YOU TRADING THOSE?!  My ${event.eventData.results.item.name.replace("Miku's", "").toLowerCase()} aren't Pokemon cards >_<!`);
+            flaggedUsers[event.eventData.results.receiver.name] = true;
+            flaggedUsers[event.eventData.results.giver.name] = true;
+        } else {
+            let username = event.eventData.results.giver.name;
+            let mikusThings = await gatherMikusThings(username);
+            if (mikusThings.length > 0) {
+                client.say(BROADCASTER_NAME, `Oh, ${username}...you're giving these back?  Hmmmmm...are you sure you don't have something else of mine...like my ${mikusThings.map(name => name.replace("Miku's", "").toLowerCase())[0]}.`);
+            } else {
+                client.say(BROADCASTER_NAME, `Oh, ${username}...you're giving these back?  Hmmmmm...I guess I forgive you...baka.`);
+                flaggedUsers[event.eventData.results.giver.name] = false;
+            }
+        }
+    } else if (event.type === "ITEM_GIFT" && event.eventData.results.item.name.startsWith("Miku's")) {
+        client.say(BROADCASTER_NAME, `WHERE DID YOU GET THOSE?!  I don't think I'm missing my ${event.eventData.results.item.name.replace("Miku's", "").toLowerCase()}...OMFG...WHERE DID THEY GO O//O;?`);
+        flaggedUsers[event.eventData.results.receiver.name] = true;
+        flaggedUsers[event.eventData.results.giver.name] = true;
+    } else if (event.type === "JOIN") {
+        let username = event.eventData.results.attacker.name;
+        let mikusThings = await gatherMikusThings(username);
+        if (mikusThings.length > 0) {
+            client.say(BROADCASTER_NAME, `I see you still have my ${mikusThings.map(name => name.replace("Miku's", "").toLowerCase())[0]} and probably other things...hentai.`);
+            flaggedUsers[username] = true;
+        }
+    }
 }

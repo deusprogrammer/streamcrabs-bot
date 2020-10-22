@@ -1,6 +1,22 @@
 var Xhr = require('./xhr');
 var Util = require('./util');
 
+const createBuffMap = (username, context) => {
+    let buffs = context.buffTable[username] || [];
+    let buffMap = {
+        str: 0,
+        dex: 0,
+        int: 0,
+        hit: 0,
+        ac: 0
+    };
+    buffs.forEach((buff) => {
+        buffMap[buff.stat.toLowerCase()] += buff.amount;
+    })
+    
+    return buffMap;
+}
+
 const giveItem = async (giverName, username, itemId) => {
     let user = await Xhr.getUser(username);
     let item = await Xhr.getItem(itemId);
@@ -17,6 +33,13 @@ const giveItem = async (giverName, username, itemId) => {
     await Xhr.updateUser(user);
 
     return {
+        item,
+        giver: {
+            name: giverName
+        },
+        receiver: {
+            name: username
+        },
         message: `${giverName} gave ${username} a ${item.name}`
     }
 }
@@ -30,7 +53,7 @@ const giveItemFromInventory = async (giverName, username, itemId) => {
         throw `No user named ${username} found`;
     }
 
-    if (!user) {
+    if (!user && username !== "miku_the_space_bot") {
         throw `No user named ${username} found`;
     }
 
@@ -45,12 +68,21 @@ const giveItemFromInventory = async (giverName, username, itemId) => {
     }
 
     giver.inventory.splice(index, 1);
-    user.inventory.push(itemId);
+    if (username !== "miku_the_space_bot") {
+        user.inventory.push(itemId);
+    }
 
     await Xhr.updateUser(giver);
-    await Xhr.updateUser(user);
+    if (username !== "miku_the_space_bot") {
+        await Xhr.updateUser(user);
+    }
 
     return {
+        item,
+        giver,
+        receiver: {
+            name: username
+        },
         message: `${giverName} gave ${username} a ${item.name}`
     }
 }
@@ -68,6 +100,8 @@ const getTarget = async (targetName, context) => {
         target.equipment = {
             hand: {
                 dmg: target.dmg || "1d6",
+                dmgStat: target.dmgStat || "HP",
+                toHitStat: target.toHitStat || "HIT",
                 mods: {
                     hit: target.hit
                 }
@@ -118,6 +152,7 @@ const distributeLoot = async (monster, context) => {
                 }
                 events.push({
                     type: "ITEM_GET",
+                    targets: ["chat", "panel"],
                     eventData: {
                         results: {
                             receiver: attacker,
@@ -136,7 +171,7 @@ const distributeLoot = async (monster, context) => {
 }
 
 const hurt = async (attackerName, defenderName, ability, context) => {
-    if (ability.element === "HEALING") {
+    if (ability.element === "HEALING" || ability.element === "BUFFING") {
         throw `@${ability.name} is not an attack ability`;
     }
 
@@ -164,9 +199,12 @@ const hurt = async (attackerName, defenderName, ability, context) => {
         throw `${ability.name} cannot target monsters`;
     }
 
+    let attackerBuffs = createBuffMap(attackerName, context);
+    let defenderBuffs = createBuffMap(defenderName, context);
+
     let attackRoll = Util.rollDice("1d20");
-    let modifiedAttackRoll = attackRoll + attacker.hit + ability.mods.hit;
-    let damageRoll = Math.max(1, Util.rollDice(ability.dmg) + attacker.str + ability.mods.str);
+    let modifiedAttackRoll = attackRoll + attacker[ability.toHitStat.toLowerCase()] + ability.mods[ability.toHitStat.toLowerCase()] + attackerBuffs[ability.toHitStat.toLowerCase()];
+    let damageRoll = Math.max(1, Util.rollDice(ability.dmg) + attacker.str + ability.mods.str + attackerBuffs.str);
     let hit = true;
     let crit = false;
     let dead = false;
@@ -175,7 +213,7 @@ const hurt = async (attackerName, defenderName, ability, context) => {
         damageRoll *= 2;
         crit = true;
         message = `${attacker.name} ==> ${defender.name} -${damageRoll}HP`;
-    } else if (modifiedAttackRoll > defender.totalAC) {
+    } else if (modifiedAttackRoll > defender.totalAC + defenderBuffs.ac) {
         message = `${attacker.name} ==> ${defender.name} -${damageRoll}HP`;
     } else {
         message = `${attacker.name} ==> ${defender.name} MISS`;
@@ -231,12 +269,10 @@ const hurt = async (attackerName, defenderName, ability, context) => {
     }
 }
 
-const heal = async (attackerName, defenderName, ability, context) => {
-    if (ability.element !== "HEALING") {
-        throw `@${ability.name} is not a healing ability`;
+const buff = async (attackerName, defenderName, ability, context) => {
+    if (ability.element !== "BUFFING") {
+        throw `@${ability.name} is not a buffing ability`;
     }
-
-    let targets = await Xhr.getActiveUsers(context);
 
     let attacker = await getTarget(attackerName, context);
 
@@ -246,9 +282,60 @@ const heal = async (attackerName, defenderName, ability, context) => {
 
     let defender = await getTarget(defenderName, context);
 
-    // if (defender && !targets.includes(defenderName) && !defender.isMonster) {
-    //     throw `@${defenderName}'s not here man!`;
-    // }
+    if (ability.target === "ENEMY" && !defender.isMonster) {
+        throw `${ability.name} cannot target battlers`;
+    } else if (ability.target === "CHAT" && defender.isMonster) {
+        throw `${ability.name} cannot target monsters`;
+    }
+
+    let tokens  = ability.buffs.split(";");
+
+    let buffs = tokens.map((token) => {
+        let groups = token.match(/(STR|DEX|INT|HIT|AC)\+*(\-*[0-9]+)/);
+
+        if (!groups && groups.length < 3) {
+            throw `Bad buff string on ability ${ability.name}`;
+        }
+
+        return {
+            stat: groups[1],
+            amount: parseInt(groups[2]),
+            duration: ability.buffsDuration
+        }
+    })
+
+    console.log("BUFF TABLE: " + JSON.stringify(context.buffTable, null, 5));
+
+    // Combine with other buffs
+    let existingBuffs = context.buffTable[attackerName] || [];
+    context.buffTable[attackerName] = [...buffs, ...existingBuffs];
+
+    return {
+        attacker,
+        defender,
+        flags: {
+            crit: false,
+            hit: false,
+            dead: false
+        },
+        message: `${attacker.name} strengthened ${defender.name}.`,
+        damage: 0,
+        damageType: "BUFFING"
+    }
+}
+
+const heal = async (attackerName, defenderName, ability, context) => {
+    if (ability.element !== "HEALING") {
+        throw `@${ability.name} is not a healing ability`;
+    }
+
+    let attacker = await getTarget(attackerName, context);
+
+    if (attacker.hp <= 0) {
+        throw `@${attackerName} is dead and cannot perform any actions.`;
+    }
+
+    let defender = await getTarget(defenderName, context);
 
     if (ability.target === "ENEMY" && !defender.isMonster) {
         throw `${ability.name} cannot target battlers`;
@@ -258,7 +345,15 @@ const heal = async (attackerName, defenderName, ability, context) => {
 
     var healingAmount = Math.max(1, Util.rollDice(ability.dmg));
 
-    let newHp = Math.min(defender.maxHp, defender.hp + healingAmount);
+    let newValue = 0;
+    
+    if (ability.dmgStat === "AP") {
+        newValue = defender.ap + healingAmount;
+    } else if (ability.dmgStat === "Gold") {
+        newValue = defender.gold + healingAmount;
+    } else {
+        newValue = Math.min(defender.maxHp, defender.hp + healingAmount);
+    }
 
     // Get current, unexpanded version
     if (!attacker.isMonster) {
@@ -270,7 +365,7 @@ const heal = async (attackerName, defenderName, ability, context) => {
         defender.aggro[attackerName] += damageRoll;
     }
 
-    defender.hp = newHp;
+    defender[ability.dmgStat.toLowerCase()] = newValue;
 
     // Update attacker and target stats
     if (!attacker.isMonster) {
@@ -290,7 +385,7 @@ const heal = async (attackerName, defenderName, ability, context) => {
             hit: false,
             dead: false
         },
-        message: `${attacker.name} healed ${defender.name} for ${healingAmount} HP`,
+        message: `${attacker.name} healed ${defender.name} for ${healingAmount} ${ability.dmgStat}`,
         damage: healingAmount,
         damageType: "HEALING"
     };
@@ -308,6 +403,8 @@ const attack = async (attackerName, defenderName, context) => {
     let results = await hurt(attackerName, defenderName, {
         name: "attack",
         dmg: weapon.dmg,
+        dmgStat: weapon.dmgStat,
+        toHitStat: weapon.toHitStat,
         ap: 1,
         target: "ANY",
         area: "ONE",
@@ -388,6 +485,7 @@ module.exports = {
     distributeLoot,
     attack,
     heal,
+    buff,
     hurt,
     spawnMonster,
     giveItem,
