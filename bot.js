@@ -778,6 +778,21 @@ async function onMessageHandler(target, context, msg, self) {
                         }
                     });
                     break;
+                case "!restart":
+                    sendEvent({
+                        type: "INFO",
+                        targets: ["chat"],
+                        eventData: {
+                            results: {
+                                message: "Miku will be right back ^_-!."
+                            },
+                            encounterTable
+                        }
+                    });
+                    setTimeout(() => {
+                        Util.restartProcess();
+                    }, 1000);
+                    break;
                 case "!goodnight":
                 case "!shutdown":
                     sendEvent({
@@ -912,6 +927,18 @@ async function onConnectedHandler(addr, port) {
                 var buffTicksTable = buffTicks[username] || [];
                 buffTicksTable.forEach((buffTick) => {
                     buffTick.duration--;
+
+                    if (buffTick.duration <= 0) {
+                        sendEvent({
+                            type: "INFO",
+                            targets: ["chat"],
+                            eventData: {
+                                results: {
+                                    message: `${username}'s ${buffTick.name} buff has worn off.`
+                                }
+                            }
+                        });
+                    }
                 })
                 buffs.forEach((buff) => {
                     buff.duration--;

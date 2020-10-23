@@ -1,3 +1,5 @@
+const {spawn} = require('child_process');
+
 const indexArrayToMap = (array) => {
     let table = {};
     array.forEach((element) => {
@@ -92,6 +94,14 @@ const expandUser = (userData, context) => {
     return userData;
 }
 
+const restartProcess = () => {
+    spawn(process.argv[0], process.argv.slice(1), {
+        detached: true,
+        stdio: ['ignore', process.stdout, process.stderr]
+    }).unref()
+    process.exit()
+}
+
 module.exports = {
     indexArrayToMap,
     nthIndex,
@@ -99,5 +109,6 @@ module.exports = {
     sign,
     expandUser,
     randomUuid,
-    randomNumber
+    randomNumber,
+    restartProcess
 }
