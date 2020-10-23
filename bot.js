@@ -355,14 +355,15 @@ async function onMessageHandler(target, context, msg, self) {
                     }
 
                     // Set user cool down
-                    cooldownTable[context.username] = attacker.actionCooldown;
+                    var currBuffs = Commands.createBuffMap(context.username, gameContext);
+                    cooldownTable[context.username] = Math.min(11, 6 - Math.min(5, attacker.dex + currBuffs.dex));
 
                     break;
                 case "!attack":
                     if (tokens.length < 2) {
                         throw "You must have a target for your attack.";
                     }
-
+                    var attacker = await Commands.getTarget(context.username, gameContext);
                     var defenderName = tokens[1].replace("@", "").toLowerCase();
 
                     if (cooldownTable[context.username]) {
@@ -372,7 +373,8 @@ async function onMessageHandler(target, context, msg, self) {
                     var results = await Commands.attack(context.username, defenderName, gameContext);
 
                     // Set user cool down
-                    cooldownTable[context.username] = results.attacker.actionCooldown;
+                    var currBuffs = Commands.createBuffMap(context.username, gameContext);
+                    cooldownTable[context.username] = Math.min(11, 6 - Math.min(5, attacker.dex + currBuffs.dex));
 
                     // Set user active if they attack
                     if (!chattersActive[context.username]) {
@@ -860,7 +862,6 @@ async function onConnectedHandler(addr, port) {
             // Tick down buff timers
             Object.keys(buffTable).forEach((username) => {
                 var buffs = buffTable[username] || [];
-                console.log(`${username} buffs:\n${JSON.stringify(buffTable[username], null, 5)}`);
                 buffs.forEach((buff) => {
                     buff.duration--;
                 })
@@ -877,12 +878,14 @@ async function onConnectedHandler(addr, port) {
 
                 // If the monster has no tick, reset it.
                 if (encounter.tick === undefined) {
-                    encounter.tick = encounter.actionCooldown;
+                    var buffs = Commands.createBuffMap("~" + encounter.name, gameContext);
+                    encounter.tick = Math.min(11, 6 - Math.min(5, encounter.dex + buffs.dex));
                 }
 
                 // If cooldown timer for monster is now zero, do an attack.
                 if (encounter.tick === 0) {
-                    encounter.tick = encounter.actionCooldown;
+                    var buffs = Commands.createBuffMap("~" + encounter.name, gameContext);
+                    encounter.tick = Math.min(11, 6 - Math.min(5, encounter.dex + buffs.dex));
 
                     // If no aggro, pick randomly.  If aggro, pick highest damage dealt.
                     var target = null;
