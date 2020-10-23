@@ -909,7 +909,7 @@ async function onConnectedHandler(addr, port) {
             // Tick down buff timers
             Object.keys(buffTable).forEach((username) => {
                 var buffs = buffTable[username] || [];
-                var buffTickTable = buffTicks[username] || [];
+                var buffTicksTable = buffTicks[username] || [];
                 buffTicksTable.forEach((buffTick) => {
                     buffTick.duration--;
                 })
