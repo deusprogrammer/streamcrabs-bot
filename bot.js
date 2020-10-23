@@ -22,6 +22,7 @@ let abilityTable = {};
 let encounterTable = {};
 let cooldownTable = {};
 let buffTable = {};
+let buffTicks = {};
 
 // Various config values that can be changed on the fly
 let configTable = {
@@ -248,6 +249,10 @@ async function onMessageHandler(target, context, msg, self) {
                             results = await Commands.heal(attackerName, abilityTarget, ability, gameContext);
                         } else if (ability.element === "BUFFING") {
                             results = await Commands.buff(attackerName, abilityTarget, ability, gameContext);
+                            if (!buffTicks[context.username]) {
+                                buffTicks[context.username] = [];
+                            }
+                            buffTicks[context.username].push({name: ability.name, duration: ability.buffsDuration});
                         } else {
                             results = await Commands.hurt(attackerName, abilityTarget, ability, gameContext);
                         }
@@ -354,6 +359,19 @@ async function onMessageHandler(target, context, msg, self) {
                     // Set user active if they attack
                     if (!chattersActive[context.username]) {
                         chattersActive[context.username] = 10 * 12;
+                        sendEvent({
+                            type: "JOIN",
+                            targets: ["chat", "panel"],
+                            eventData: {
+                                results: {
+                                    attacker: {
+                                        name: context.username
+                                    },
+                                    message: `${context.username} joins the brawl!`
+                                },
+                                encounterTable
+                            }
+                        });
                     }
 
                     // Set user cool down
@@ -381,6 +399,19 @@ async function onMessageHandler(target, context, msg, self) {
                     // Set user active if they attack
                     if (!chattersActive[context.username]) {
                         chattersActive[context.username] = 10 * 12;
+                        sendEvent({
+                            type: "JOIN",
+                            targets: ["chat", "panel"],
+                            eventData: {
+                                results: {
+                                    attacker: {
+                                        name: context.username
+                                    },
+                                    message: `${context.username} joins the brawl!`
+                                },
+                                encounterTable
+                            }
+                        });
                     }
 
                     if (results.flags.hit) {
@@ -581,7 +612,21 @@ async function onMessageHandler(target, context, msg, self) {
                         targets: ["chat"],
                         eventData: {
                             results: {
-                                message: `[${user.name}] HP: ${user.hp} -- AP: ${user.ap} -- STR: ${user.str} (${Util.sign(buffs.str)}) -- DEX: ${user.dex} (${Util.sign(buffs.dex)}) -- INT: ${user.int} (${Util.sign(buffs.int)}) -- HIT: ${Util.sign(user.hit)} (${Util.sign(buffs.hit)}) -- AC: ${user.totalAC} (${Util.sign(buffs.ac)}).`
+                                message: `[${user.name}] HP: ${user.hp} -- AP: ${user.ap} -- STR: ${user.str} (${Util.sign(buffs.str)}) -- DEX: ${user.dex} (${Util.sign(buffs.dex)}) -- INT: ${user.int} (${Util.sign(buffs.int)}) -- HIT: ${Util.sign(user.hit)} (${Util.sign(buffs.hit)}) -- AC: ${user.totalAC} (${Util.sign(buffs.ac)}) -- Cooldown: ${cooldownTable[username] * 5 || "0"} seconds.`
+                            },
+                            encounterTable
+                        }
+                    });
+                    break;
+                case "!buffs":
+                    var username = context.username;
+                    var buffList = buffTicks[username] || [];
+                    sendEvent({
+                        type: "INFO",
+                        targets: ["chat"],
+                        eventData: {
+                            results: {
+                                message: `[${username} Buffs] ${buffList.map(buff => `${buff.name}(${buff.duration * 5} seconds)`).join(", ")}.`
                             },
                             encounterTable
                         }
@@ -864,9 +909,14 @@ async function onConnectedHandler(addr, port) {
             // Tick down buff timers
             Object.keys(buffTable).forEach((username) => {
                 var buffs = buffTable[username] || [];
+                var buffTickTable = buffTicks[username] || [];
+                buffTicksTable.forEach((buffTick) => {
+                    buffTick.duration--;
+                })
                 buffs.forEach((buff) => {
                     buff.duration--;
                 })
+                buffTicks[username] = buffTicksTable.filter(buff => buff.duration > 0);
                 buffTable[username] = buffs.filter(buff => buff.duration > 0);
             });
 

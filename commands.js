@@ -126,26 +126,29 @@ const getTarget = async (targetName, context) => {
 
 const distributeLoot = async (monster, context) => {
     let events = [];
+    let drops = [...context.monsterTable[monster.id].drops.map((drop) => {return {...drop}})];
+    let taken = {};
     for (var attacker in monster.aggro) {
-        for (var i in monster.drops) {
-            let drop = monster.drops[i];
+        for (var i in drops) {
+            let drop = drops[i];
             let chanceRoll = Util.rollDice("1d100");
-            if (chanceRoll < drop.chance && !(drop.onlyOne && drop.taken)) {
-                drop.taken = true;
+            if (chanceRoll < drop.chance && !(drop.exclusive && drop.exclusiveTaken)) {
+                // If only one of these can drop for a given monster
+                if (drop.onlyOne && taken[drop.itemId]) {
+                    continue;
+                }
+                
+                taken[drop.itemId] = true;
                 await giveItem("", attacker, drop.itemId);
 
                 // If exclusive, mark the drop as permanently taken
                 if (drop.exclusive) {
                     let updatedMonster = context.monsterTable[monster.id];
-                    updatedDrop = updatedMonster.drops.find((search) => search.itemId === drop.itemId && drop.exclusive && !drop.exclusiveTaken);
 
-                    if (!updatedDrop) {
-                        throw "Cannot find exclusive drop";
-                    }
-
-                    updatedDrop.exclusiveTaken = true;
+                    drop.exclusiveTaken  = true;
+                    updatedMonster.drops = drops;
+                    context.monsterTable[monster.id].drops = drops;
                     await Xhr.updateMonster(updatedMonster);
-                    context.monsterTable[monster.id] = updatedMonster;
                 }
                 events.push({
                     type: "ITEM_GET",
