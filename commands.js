@@ -2,6 +2,7 @@ var Xhr = require('./xhr');
 var Util = require('./util');
 
 const createBuffMap = (username, context) => {
+    console.log("BUFF TABLE: " + JSON.stringify(context.buffTable, null, 5));
     let buffs = context.buffTable[username] || [];
     let buffMap = {
         str: 0,

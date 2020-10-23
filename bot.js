@@ -187,7 +187,7 @@ async function onMessageHandler(target, context, msg, self) {
                         ability.ap = 0;
                     }
 
-                    if (Math.max(0, attacker.ap) <= ability.ap) {
+                    if (Math.max(0, attacker.ap) < ability.ap) {
                         throw `@${attackerName} needs ${ability.ap} AP to use this ability.`;
                     }
 
@@ -611,8 +611,8 @@ async function onMessageHandler(target, context, msg, self) {
                         throw "Must provide a target and an item id to give";
                     }
 
-                    user = tokens[1].replace("@", "").toLowerCase();
-                    var itemId = tokens[2];
+                    var itemId = tokens[1];
+                    user = tokens[2].replace("@", "").toLowerCase();
 
                     var results = await Commands.giveItemFromInventory(context.username, user, itemId, gameContext);
 
@@ -631,8 +631,8 @@ async function onMessageHandler(target, context, msg, self) {
                         throw "Must provide a target and an item id to give";
                     }
 
-                    user = tokens[1].replace("@", "").toLowerCase();
-                    var itemId = tokens[2];
+                    var itemId = tokens[1];
+                    user = tokens[2].replace("@", "").toLowerCase();
 
                     // Give from inventory if not a mod
                     if (context.username !== BROADCASTER_NAME && !context.mod) {
@@ -687,7 +687,7 @@ async function onMessageHandler(target, context, msg, self) {
                     monsterTable = await Xhr.getMonsterTable();
                     abilityTable = await Xhr.getAbilityTable();
 
-                    gameContext = { itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, chattersActive, configTable };
+                    gameContext = { itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, buffTable,  chattersActive, configTable };
 
                     console.log(`* All tables refreshed`);
 
