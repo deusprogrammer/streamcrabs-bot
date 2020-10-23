@@ -136,9 +136,7 @@ const distributeLoot = async (monster, context) => {
 
                 // If exclusive, mark the drop as permanently taken
                 if (drop.exclusive) {
-                    console.log("EXCLUSIVE LOOT");
                     let updatedMonster = context.monsterTable[monster.id];
-                    console.log("BEFORE: " + JSON.stringify(updatedMonster));
                     updatedDrop = updatedMonster.drops.find((search) => search.itemId === drop.itemId && drop.exclusive && !drop.exclusiveTaken);
 
                     if (!updatedDrop) {
@@ -146,10 +144,8 @@ const distributeLoot = async (monster, context) => {
                     }
 
                     updatedDrop.exclusiveTaken = true;
-                    console.log("AFTER: " + JSON.stringify(updatedMonster));
                     await Xhr.updateMonster(updatedMonster);
-                    console.log("UPDATED (PROBABLY)");
-                    // context.monsterTable[monster.id] = updatedMonster;
+                    context.monsterTable[monster.id] = updatedMonster;
                 }
                 events.push({
                     type: "ITEM_GET",
