@@ -565,6 +565,7 @@ async function onMessageHandler(target, context, msg, self) {
                     break;
                 case "!stats":
                     var username = context.username;
+                    let buffs = Commands.createBuffMap(username, gameContext);
                     if (tokens[1]) {
                         username = tokens[1].replace("@", "").toLowerCase();
                     }
@@ -576,7 +577,7 @@ async function onMessageHandler(target, context, msg, self) {
                         targets: ["chat"],
                         eventData: {
                             results: {
-                                message: `[${user.name}] HP: ${user.hp} -- MP: ${user.mp} -- AP: ${user.ap} -- STR: ${user.str} -- DEX: ${user.dex} -- INT: ${user.int} -- HIT: ${user.hit} -- AC: ${user.totalAC}.`
+                                message: `[${user.name}] HP: ${user.hp} -- AP: ${user.ap} -- STR: ${user.str} (${Util.sign(buffs.str)}) -- DEX: ${user.dex} (${Util.sign(buffs.dex)}) -- INT: ${user.int} (${Util.sign(buffs.int)}) -- HIT: ${Util.sign(user.hit)} (${Util.sign(buffs.hit)}) -- AC: ${user.totalAC} (${Util.sign(buffs.ac)}).`
                             },
                             encounterTable
                         }
@@ -857,14 +858,14 @@ async function onConnectedHandler(addr, port) {
             });
 
             // Tick down buff timers
-            Object.keys(buffTable).forEach(async (username) => {
-                var buffs = buffTable[username];
-                console.log(`${username} buffs:\n${JSON.stringify(buffTable, null, 5)}`);
+            Object.keys(buffTable).forEach((username) => {
+                var buffs = buffTable[username] || [];
+                console.log(`${username} buffs:\n${JSON.stringify(buffTable[username], null, 5)}`);
                 buffs.forEach((buff) => {
                     buff.duration--;
                 })
-                buffs = buffs.filter(buff => buff.duration <= 0);
-            })
+                buffTable[username] = buffs.filter(buff => buff.duration > 0);
+            });
 
             // Do monster attacks
             Object.keys(encounterTable).forEach(async (encounterName) => {

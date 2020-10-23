@@ -289,7 +289,6 @@ const buff = async (attackerName, defenderName, ability, context) => {
     }
 
     let tokens  = ability.buffs.split(";");
-
     let buffs = tokens.map((token) => {
         let groups = token.match(/(STR|DEX|INT|HIT|AC)\+*(\-*[0-9]+)/);
 
@@ -304,11 +303,10 @@ const buff = async (attackerName, defenderName, ability, context) => {
         }
     })
 
-    console.log("BUFF TABLE: " + JSON.stringify(context.buffTable, null, 5));
-
     // Combine with other buffs
-    let existingBuffs = context.buffTable[attackerName] || [];
-    context.buffTable[attackerName] = [...buffs, ...existingBuffs];
+    let existingBuffs = context.buffTable[defenderName] || [];
+    context.buffTable[defenderName] = [...buffs, ...existingBuffs];
+
 
     return {
         attacker,
@@ -318,7 +316,7 @@ const buff = async (attackerName, defenderName, ability, context) => {
             hit: false,
             dead: false
         },
-        message: `${attacker.name} strengthened ${defender.name}.`,
+        message: `${defender.name} is affected by ${ability.name}`,
         damage: 0,
         damageType: "BUFFING"
     }
@@ -482,6 +480,7 @@ const spawnMonster = async (monsterName, personalName, context) => {
 
 module.exports = {
     getTarget,
+    createBuffMap,
     distributeLoot,
     attack,
     heal,

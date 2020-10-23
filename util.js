@@ -40,6 +40,13 @@ const rollDice = (dice) => {
     return total;
 }
 
+const sign = (number) => {
+    if (number >= 0) {
+        return `+${number}`;
+    }
+    return `${number}`;
+}
+
 const expandUser = (userData, context) => {
     userData.totalAC = 0;
     userData.currentJob = context.jobTable[userData.currentJob.id];
@@ -89,6 +96,7 @@ module.exports = {
     indexArrayToMap,
     nthIndex,
     rollDice,
+    sign,
     expandUser,
     randomUuid,
     randomNumber
