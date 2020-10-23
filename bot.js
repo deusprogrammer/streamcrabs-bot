@@ -72,11 +72,11 @@ const sendEvent = async (event, verbosity = "simple") => {
 // Define configuration options for chat bot
 const opts = {
     identity: {
-        username: "miku_the_space_bot",
-        password: "oauth:k4gkyf9djs2atzzb4yr0zzrglc5hg2"
+        username: process.env.TWITCH_BOT_USER,
+        password: process.env.TWITCH_BOT_PASS
     },
     channels: [
-        "thetruekingofspace"
+        process.env.TWITCH_BOT_CHANNEL
     ]
 };
 

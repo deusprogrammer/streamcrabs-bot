@@ -1,7 +1,7 @@
 const axios = require('axios');
 const Util = require('./util');
 
-const BATTLE_BOT_JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7Il9pZCI6IjVmN2NmZjY0NTk1OWY3MDAxNDFjYjhhMSIsInVzZXJuYW1lIjoibWlrdV90aGVfc3BhY2VfYm90Iiwicm9sZXMiOlsiVFdJVENIX0JPVCJdLCJjb25uZWN0ZWQiOnsidHdpdGNoIjp7fX19LCJpYXQiOjE2MDIwMzU3MjB9.hywhuHwhr3KMePkh3XP6K3dg8iFksZCJIaXmdzBnh7Y';
+const BATTLE_BOT_JWT = process.env.TWITCH_BOT_JWT;
 const BATTLE_API_URL = process.env.BATTLE_API_URL;
 const PROFILE_API_URL = process.env.PROFILE_API_URL;
 
