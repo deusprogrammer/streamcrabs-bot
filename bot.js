@@ -9,6 +9,8 @@ const xhr = require('./xhr');
 
 const BROADCASTER_NAME = "thetruekingofspace";
 
+const versionNumber = "1.0b";
+
 /*
  * INDEXES
  */
@@ -980,7 +982,7 @@ async function onConnectedHandler(addr, port) {
         targets: ["chat"],
         eventData: {
             results: {
-                message: "Miku is online.  All systems nominal."
+                message: `Twitch Dungeon version ${versionNumber} is online.  All systems nominal.`
             },
             encounterTable
         }
