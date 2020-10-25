@@ -2,7 +2,6 @@ var Xhr = require('./xhr');
 var Util = require('./util');
 
 const createBuffMap = (username, context) => {
-    console.log("BUFF TABLE: " + JSON.stringify(context.buffTable, null, 5));
     let buffs = context.buffTable[username] || [];
     let buffMap = {
         str: 0,
@@ -11,8 +10,11 @@ const createBuffMap = (username, context) => {
         hit: 0,
         ac: 0
     };
+
     buffs.forEach((buff) => {
-        buffMap[buff.stat.toLowerCase()] += buff.amount;
+        buff.changes.forEach((change) => {
+            buffMap[change.stat.toLowerCase()] += change.amount;
+        });
     })
     
     return buffMap;
@@ -202,6 +204,9 @@ const hurt = async (attackerName, defenderName, ability, context) => {
     let attackerBuffs = createBuffMap(attackerName, context);
     let defenderBuffs = createBuffMap(defenderName, context);
 
+    console.log("ATTACKER BUFFS: " + JSON.stringify(attackerBuffs, null, 5));
+    console.log("DEFENDER BUFFS: " + JSON.stringify(defenderBuffs, null, 5));
+
     let attackRoll = Util.rollDice("1d20");
     let modifiedAttackRoll = attackRoll + attacker[ability.toHitStat.toLowerCase()] + ability.mods[ability.toHitStat.toLowerCase()] + attackerBuffs[ability.toHitStat.toLowerCase()];
     let damageRoll = Math.max(1, Util.rollDice(ability.dmg) + attacker.str + ability.mods.str + attackerBuffs.str);
@@ -209,15 +214,20 @@ const hurt = async (attackerName, defenderName, ability, context) => {
     let crit = false;
     let dead = false;
 
+    console.log(`ATTACK ROLL ${modifiedAttackRoll} (${attackRoll} + ${attacker[ability.toHitStat.toLowerCase()]} + ${ability.mods[ability.toHitStat.toLowerCase()]} + ${attackerBuffs[ability.toHitStat.toLowerCase()]}) vs AC ${defender.totalAC + defenderBuffs.ac} (${defender.totalAC} + ${defenderBuffs.ac})`);
+
     if (attackRoll === 20) {
         damageRoll *= 2;
         crit = true;
         message = `${attacker.name} ==> ${defender.name} -${damageRoll}HP`;
+        console.log("CRIT");
     } else if (modifiedAttackRoll > defender.totalAC + defenderBuffs.ac) {
         message = `${attacker.name} ==> ${defender.name} -${damageRoll}HP`;
+        console.log("HIT");
     } else {
         message = `${attacker.name} ==> ${defender.name} MISS`;
         hit = false;
+        console.log("MISS");
     }
 
     if (damageRoll >= defender.hp) {
@@ -289,7 +299,7 @@ const buff = async (attackerName, defenderName, ability, context) => {
     }
 
     let tokens  = ability.buffs.split(";");
-    let buffs = tokens.map((token) => {
+    let changes = tokens.map((token) => {
         let groups = token.match(/(STR|DEX|INT|HIT|AC)\+*(\-*[0-9]+)/);
 
         if (!groups && groups.length < 3) {
@@ -298,14 +308,19 @@ const buff = async (attackerName, defenderName, ability, context) => {
 
         return {
             stat: groups[1],
-            amount: parseInt(groups[2]),
-            duration: ability.buffsDuration
+            amount: parseInt(groups[2])
         }
     })
 
     // Combine with other buffs
     let existingBuffs = context.buffTable[defenderName] || [];
-    context.buffTable[defenderName] = [...buffs, ...existingBuffs];
+    context.buffTable[defenderName] = [...existingBuffs,
+        {
+            name: ability.name,
+            duration: ability.buffsDuration,
+            changes
+        }
+    ]
 
 
     return {

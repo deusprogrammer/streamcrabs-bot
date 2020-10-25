@@ -5,9 +5,8 @@ const Util = require('./util');
 const Xhr = require('./xhr');
 const Commands = require('./commands');
 const Redemption = require('./redemption');
-const xhr = require('./xhr');
 
-const BROADCASTER_NAME = "thetruekingofspace";
+const BROADCASTER_NAME = process.env.TWITCH_BOT_CHANNEL;
 
 const versionNumber = "1.0b";
 
@@ -67,6 +66,38 @@ const sendEventToPanels = async (event) => {
 
 const sendEvent = async (event, verbosity = "simple") => {
     queue.unshift({event, level: verbosity});
+}
+
+const sendInfoToChat = async (message, includePanel = false) => {
+    let targets = ["chat"]
+
+    if (includePanel) {
+        targets.push("panel");
+    }
+
+    sendEvent({
+        type: "INFO",
+        targets,
+        eventData: {
+            results: {
+                message
+            }
+        }
+    })
+}
+
+const sendErrorToChat = async(message) => {
+    let targets = ["chat"]
+
+    sendEvent({
+        type: "INFO",
+        targets,
+        eventData: {
+            results: {
+                message
+            }
+        }
+    })
 }
 
 // Define configuration options for chat bot
@@ -214,6 +245,7 @@ async function onMessageHandler(target, context, msg, self) {
                     }
 
                     if (!isItem) {
+                        //sendInfoToChat(`${attacker.name} uses ${ability.name}`, true);
                         sendEvent({
                             type: "INFO",
                             targets: ["chat", "panel"],
@@ -226,6 +258,7 @@ async function onMessageHandler(target, context, msg, self) {
                             }
                         });
                     } else {
+                        //sendInfoToChat(`${attacker.name} uses a ${ability.name}`, true);
                         sendEvent({
                             type: "INFO",
                             targets: ["chat", "panel"],
@@ -252,7 +285,6 @@ async function onMessageHandler(target, context, msg, self) {
                             if (!buffTicks[context.username]) {
                                 buffTicks[context.username] = [];
                             }
-                            buffTicks[context.username].push({name: ability.name, duration: ability.buffsDuration});
                         } else {
                             results = await Commands.hurt(attackerName, abilityTarget, ability, gameContext);
                         }
@@ -284,7 +316,10 @@ async function onMessageHandler(target, context, msg, self) {
                                     encounterTable
                                 }
                             });
-                        } else if (results.damageType !== "HEALING" && results.flags.hit) {
+                        } else if (
+                                results.damageType !== "HEALING" &&
+                                results.damageType !== "BUFFING" && 
+                                results.flags.hit) {
                             let message = `${results.attacker.name} hit ${results.defender.name} for ${results.damage} damage.`;
                             if (results.flags.crit) {
                                 message = `${results.attacker.name} scored a critical hit on ${results.defender.name} for ${results.damage} damage.`;
@@ -607,30 +642,12 @@ async function onMessageHandler(target, context, msg, self) {
 
                     var user = await Xhr.getUser(username);
                     user = Util.expandUser(user, gameContext);
-                    sendEvent({
-                        type: "INFO",
-                        targets: ["chat"],
-                        eventData: {
-                            results: {
-                                message: `[${user.name}] HP: ${user.hp} -- AP: ${user.ap} -- STR: ${user.str} (${Util.sign(buffs.str)}) -- DEX: ${user.dex} (${Util.sign(buffs.dex)}) -- INT: ${user.int} (${Util.sign(buffs.int)}) -- HIT: ${Util.sign(user.hit)} (${Util.sign(buffs.hit)}) -- AC: ${user.totalAC} (${Util.sign(buffs.ac)}) -- Cooldown: ${cooldownTable[username] * 5 || "0"} seconds.`
-                            },
-                            encounterTable
-                        }
-                    });
+                    sendInfoToChat(`[${user.name}] HP: ${user.hp} -- AP: ${user.ap} -- STR: ${user.str} (${Util.sign(buffs.str)}) -- DEX: ${user.dex} (${Util.sign(buffs.dex)}) -- INT: ${user.int} (${Util.sign(buffs.int)}) -- HIT: ${user.hit} (${Util.sign(buffs.hit)}) -- AC: ${user.totalAC} (${Util.sign(buffs.ac)}) -- Cooldown: ${cooldownTable[username] * 5 || "0"} seconds.`);
                     break;
                 case "!buffs":
                     var username = context.username;
-                    var buffList = buffTicks[username] || [];
-                    sendEvent({
-                        type: "INFO",
-                        targets: ["chat"],
-                        eventData: {
-                            results: {
-                                message: `[${username} Buffs] ${buffList.map(buff => `${buff.name}(${buff.duration * 5} seconds)`).join(", ")}.`
-                            },
-                            encounterTable
-                        }
-                    });
+                    var buffList = buffTable[username] || [];
+                    sendInfoToChat(`[${username} Buffs] ${buffList.map(buff => `${buff.name}(${buff.duration * 5} seconds)`).join(", ")}.`);
                     break;
                 case "!targets":
                     var activeUsers = await Xhr.getActiveUsers(gameContext);
@@ -640,16 +657,7 @@ async function onMessageHandler(target, context, msg, self) {
                             return `${monster.name} (~${name})`;
                         }
                     });
-                    sendEvent({
-                        type: "INFO",
-                        targets: ["chat"],
-                        eventData: {
-                            results: {
-                                message: `Available targets are: ${[...activeUsers, ...monsterList]}`
-                            },
-                            encounterTable
-                        }
-                    });
+                    sendInfoToChat(`Available targets are: ${[...activeUsers, ...monsterList]}`);
                     break;
                 case "!give":
                     if (tokens.length < 3) {
@@ -698,29 +706,11 @@ async function onMessageHandler(target, context, msg, self) {
 
                     break;
                 case "!help":
-                    sendEvent({
-                        type: "INFO",
-                        targets: ["chat"],
-                        eventData: {
-                            results: {
-                                message: `Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system.`
-                            },
-                            encounterTable
-                        }
-                    });
+                    sendInfoToChat(`Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system.`);
                     break;
                 case "!inventory":
                 case "!abilities":
-                    sendEvent({
-                        type: "INFO",
-                        targets: ["chat"],
-                        eventData: {
-                            results: {
-                                message: `${context.username} Visit https://deusprogrammer.com/util/twitch/battlers/${context.username} to view your inventory, abilities and stats.`
-                            },
-                            encounterTable
-                        }
-                    });
+                    sendInfoToChat(`${context.username} Visit https://deusprogrammer.com/util/twitch/battlers/${context.username} to view your inventory, abilities and stats.`);
                     break;
                 case "!refresh":
                     if (context.username !== BROADCASTER_NAME && !context.mod) {
@@ -734,18 +724,7 @@ async function onMessageHandler(target, context, msg, self) {
 
                     gameContext = { itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, buffTable,  chattersActive, configTable };
 
-                    console.log(`* All tables refreshed`);
-
-                    sendEvent({
-                        type: "INFO",
-                        targets: ["chat"],
-                        eventData: {
-                            results: {
-                                message: "All tables refreshed"
-                            },
-                            encounterTable
-                        }
-                    });
+                    sendInfoToChat("All tables refreshed");
                     
                     break;
                 case "!config":
@@ -766,10 +745,14 @@ async function onMessageHandler(target, context, msg, self) {
 
                     break;
                 case "!reset":
+                    if (context.username !== BROADCASTER_NAME && !context.mod) {
+                        throw "Only a mod or broadcaster can refresh the tables";
+                    }
+
                     gameContext.encounterTable = {};
                     sendEvent({
                         type: "INFO",
-                        targets: ["chat"],
+                        targets: ["chat", "panel"],
                         eventData: {
                             results: {
                                 message: "Clearing encounter table."
@@ -779,32 +762,21 @@ async function onMessageHandler(target, context, msg, self) {
                     });
                     break;
                 case "!restart":
-                    sendEvent({
-                        type: "INFO",
-                        targets: ["chat"],
-                        eventData: {
-                            results: {
-                                message: "Miku will be right back ^_-!."
-                            },
-                            encounterTable
-                        }
-                    });
+                    if (context.username !== BROADCASTER_NAME && !context.mod) {
+                        throw "Only a mod or broadcaster can refresh the tables";
+                    }
+
+                    sendInfoToChat("Miku will be right back ^_-!.");
                     setTimeout(() => {
                         Util.restartProcess();
                     }, 1000);
                     break;
-                case "!goodnight":
                 case "!shutdown":
-                    sendEvent({
-                        type: "INFO",
-                        targets: ["chat"],
-                        eventData: {
-                            results: {
-                                message: "Miku going offline.  Oyasumi."
-                            },
-                            encounterTable
-                        }
-                    });
+                    if (context.username !== BROADCASTER_NAME && !context.mod) {
+                        throw "Only a mod or broadcaster can refresh the tables";
+                    }
+
+                    sendInfoToChat("Miku going offline.  Oyasumi.");
                     setTimeout(() => {
                         process.exit(0);
                     }, 5000);
@@ -813,16 +785,7 @@ async function onMessageHandler(target, context, msg, self) {
                     throw `${tokens[0]} is an invalid command.`;
             }
         } catch (e) {
-            sendEvent({
-                type: "ERROR",
-                targets: ["chat"],
-                eventData: {
-                    results: {
-                        message: new Error(e)
-                    },
-                    encounterTable
-                }
-            });
+            sendErrorToChat(new Error(e));
         }
     }
 }
@@ -890,16 +853,7 @@ async function onConnectedHandler(addr, port) {
                 chattersActive[username] -= 1;
                 if (chattersActive[username] === 0) {
                     delete chattersActive[username];
-                    sendEvent({
-                        type: "INFO",
-                        targets: ["chat"],
-                        eventData: {
-                            results: {
-                                message:  `${username} has stepped back into the shadows.`
-                            },
-                            encounterTable
-                        }
-                    });
+                    sendInfoToChat(`${username} has stepped back into the shadows.`);
                 }
             });
 
@@ -908,42 +862,20 @@ async function onConnectedHandler(addr, port) {
                 cooldownTable[username] -= 1;
                 if (cooldownTable[username] <= 0) {
                     delete cooldownTable[username];
-                    sendEvent({
-                        type: "INFO",
-                        targets: ["chat"],
-                        eventData: {
-                            results: {
-                                message:  `${username} can act again.`
-                            },
-                            encounterTable
-                        }
-                    });
+                    sendInfoToChat(`${username} can act again.`);
                 }
             });
 
             // Tick down buff timers
             Object.keys(buffTable).forEach((username) => {
                 var buffs = buffTable[username] || [];
-                var buffTicksTable = buffTicks[username] || [];
-                buffTicksTable.forEach((buffTick) => {
-                    buffTick.duration--;
-
-                    if (buffTick.duration <= 0) {
-                        sendEvent({
-                            type: "INFO",
-                            targets: ["chat"],
-                            eventData: {
-                                results: {
-                                    message: `${username}'s ${buffTick.name} buff has worn off.`
-                                }
-                            }
-                        });
-                    }
-                })
                 buffs.forEach((buff) => {
                     buff.duration--;
-                })
-                buffTicks[username] = buffTicksTable.filter(buff => buff.duration > 0);
+
+                    if (buff.duration <= 0) {
+                        sendInfoToChat(`${username}'s ${buffTick.name} buff has worn off.`);
+                    }
+                });
                 buffTable[username] = buffs.filter(buff => buff.duration > 0);
             });
 
@@ -991,18 +923,37 @@ async function onConnectedHandler(addr, port) {
                     // If a target was found
                     if (target !== null) {
                         var results = await Commands.attack("~" + encounterName, target, gameContext);
-                        sendEvent({
-                            type: "ATTACK",
-                            targets: ["chat", "panel"],
-                            eventData: {
-                                results: {
-                                    attacker: results.attacker,
-                                    defender: results.defender,
-                                    message: `${results.attacker.name} hit ${results.defender.name} for ${results.damage} damage.`
-                                },
-                                encounterTable
+                        if (results.flags.hit) {
+                            let message = `${results.attacker.name} hit ${results.defender.name} for ${results.damage} damage.`;
+                            if (results.flags.crit) {
+                                message = `${results.attacker.name} scored a critical hit on ${results.defender.name} for ${results.damage} damage.`;
                             }
-                        });
+                            sendEvent({
+                                type: "ATTACK",
+                                targets: ["chat", "panel"],
+                                eventData: {
+                                    results: {
+                                        attacker: results.attacker,
+                                        defender: results.defender,
+                                        message
+                                    },
+                                    encounterTable
+                                }
+                            });
+                        } else {
+                            sendEvent({
+                                type: "ATTACK",
+                                targets: ["chat", "panel"],
+                                eventData: {
+                                    results: {
+                                        attacker: results.attacker,
+                                        defender: results.defender,
+                                        message: `${results.attacker.name} swung at ${results.defender.name} and missed.`
+                                    },
+                                    encounterTable
+                                }
+                            });
+                        }
 
                         if (results.defender.hp <= 0) {
                             sendEvent({
@@ -1041,29 +992,11 @@ async function onConnectedHandler(addr, port) {
 
     // Advertising message
     setInterval(async () => {
-        sendEvent({
-            type: "INFO",
-            targets: ["chat"],
-            eventData: {
-                results: {
-                    message: "Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system."
-                },
-                encounterTable
-            }
-        });
+        sendInfoToChat("Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system.");
     }, 5 * 60 * 1000);
 
     // Announce restart
-    sendEvent({
-        type: "INFO",
-        targets: ["chat"],
-        eventData: {
-            results: {
-                message: `Twitch Dungeon version ${versionNumber} is online.  All systems nominal.`
-            },
-            encounterTable
-        }
-    });
+    sendInfoToChat(`Twitch Dungeon version ${versionNumber} is online.  All systems nominal.`);
 
     // Start redemption listener
     Redemption.startListener(queue);
