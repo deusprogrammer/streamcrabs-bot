@@ -1,9 +1,57 @@
 const axios = require('axios');
 const Util = require('./util');
+const jsonwebtoken = require('jsonwebtoken');
 
 const BATTLE_BOT_JWT = process.env.TWITCH_BOT_JWT;
 const BATTLE_API_URL = process.env.BATTLE_API_URL;
 const PROFILE_API_URL = process.env.PROFILE_API_URL;
+
+const TWITCH_EXT_CLIENT_ID = process.env.TWITCH_EXT_CLIENT_ID;
+const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
+const TWITCH_EXT_API_URL = `https://api.twitch.tv/extensions/message/${TWITCH_EXT_CHANNEL_ID}`;
+
+const key = process.env.TWITCH_SHARED_SECRET;
+const secret = Buffer.from(key, 'base64');
+
+const createExpirationDate = () => {
+    var d = new Date();
+    var year = d.getFullYear();
+    var month = d.getMonth();
+    var day = d.getDate();
+    var c = new Date(year + 1, month, day);
+    return c;
+}
+
+const pubSubJwtToken = jsonwebtoken.sign({
+    "exp": createExpirationDate().getTime(),
+    "user_id": TWITCH_EXT_CHANNEL_ID,
+    "role": "broadcaster",
+    "channel_id": TWITCH_EXT_CHANNEL_ID,
+    "pubsub_perms": {
+        "send":[
+            "broadcast"
+        ]
+    }
+}, secret);
+
+const sendExtensionPubSubBroadcast = async (event) => {
+    let message = {
+        content_type: "application/json",
+        message: JSON.stringify(event),
+        targets: ["broadcast"]
+    }
+
+    console.log("BODY: " + JSON.stringify(message, null, 5));
+
+    let res = await axios.post(TWITCH_EXT_API_URL, message, {
+        headers: {
+            "Client-Id": TWITCH_EXT_CLIENT_ID,
+            "Authorization": `Bearer ${pubSubJwtToken}`
+        }
+    });
+
+    return res.data;
+}
 
 const getItemTable = () => {
     return axios.get(`${BATTLE_API_URL}/items`, {
@@ -206,5 +254,6 @@ module.exports = {
     updateMonster,
     createUser,
     chargeAP,
-    reviveAvatar
+    reviveAvatar,
+    sendExtensionPubSubBroadcast
 }

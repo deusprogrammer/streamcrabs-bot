@@ -26,15 +26,20 @@ const randomNumber = (max) => {
     return Math.floor(Math.random() * Math.floor(max)) + 1;
 }
 
-// TODO Improve dice parser to include other math
-const rollDice = (dice) => {
+const rollDice = (dice, of) => {
     let tokens = dice.split("d");
 
     // If it's just a hard coded number, just return the number
     if (tokens.length === 1) {
+        if (tokens[0].endsWith("%")) {
+            let percent = parseInt(tokens[0].substring(0, tokens[0].length - 1));
+            console.log("PERCENT: " + percent);
+            return Math.ceil(percent/100 * of);
+        }
         return parseInt(tokens[0]);
     }
 
+    // Otherwise roll dice
     let total = 0;
     for (var i = 0; i < parseInt(tokens[0]); i++) {
         total += Math.floor(Math.random() * Math.floor(parseInt(tokens[1]))) + 1;

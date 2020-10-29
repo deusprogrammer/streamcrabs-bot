@@ -1,8 +1,12 @@
 const { PubSubClient } = require('twitch-pubsub-client');
 const { ApiClient } = require('twitch');
 const { StaticAuthProvider } = require('twitch-auth');
+const jsonwebtoken = require('jsonwebtoken');
 
 var Xhr = require('./xhr');
+
+const BOT_USER_ID = 591669672;
+const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
 /* 
  * REDEMPTION BOT
@@ -23,11 +27,68 @@ const commands = {
     battleAvatarRevive: "84f19708-65f9-468e-9d0a-65ab9554014a"
 }
 
+const key = process.env.TWITCH_SHARED_SECRET;
+const secret = Buffer.from(key, 'base64');
+
+const createExpirationDate = () => {
+    var d = new Date();
+    var year = d.getFullYear();
+    var month = d.getMonth();
+    var day = d.getDate();
+    var c = new Date(year + 1, month, day);
+    return c;
+}
+
+const jwt = jsonwebtoken.sign({
+    "exp": createExpirationDate().getTime(),
+    "user_id": BOT_USER_ID,
+    "role": "moderator",
+    "channel_id": TWITCH_EXT_CHANNEL_ID,
+    "pubsub_perms": {
+        "send":[
+            "broadcast"
+        ]
+    }
+}, secret);
+
 const sendEvent = async (queue, event, verbosity = "simple") => {
     queue.unshift({event, level: verbosity});
 }
 
-let startListener = async (messageQueue) => {
+const sendContextUpdate = async (ws, context, targets, shouldRefresh = false) => {
+    let players = await Xhr.getActiveUsers(context);
+    if (targets) {
+        targets.forEach((target) => {
+            ws.send(JSON.stringify({
+                type: "CONTEXT",
+                jwt,
+                to: target.id,
+                from: BOT_USER_ID,
+                data: {
+                    players,
+                    monsters: Object.keys(context.encounterTable).map(key => `~${key}`),
+                    buffs: context.buffTable[target.name],
+                    cooldown: context.cooldownTable[target.name],
+                    shouldRefresh
+                }
+            }));
+        });
+    } else {
+        ws.send(JSON.stringify({
+            type: "CONTEXT",
+            jwt,
+            to: "ALL",
+            from: BOT_USER_ID,
+            data: {
+                players,
+                monsters: Object.keys(context.encounterTable).map(key => `~${key}`),
+                shouldRefresh
+            }
+        }));
+    }
+}
+
+let startListener = async (messageQueue, ws, context) => {
     // Setup pubsub listener
     const pubSubClient = new PubSubClient();
     await pubSubClient.registerUserListener(apiClient)
@@ -39,89 +100,106 @@ let startListener = async (messageQueue) => {
         console.log("* " + message.userName + " just redeemed " + message.rewardId);
 
         // Redemption switch
-        switch (message.rewardId) {
-            case commands.battleAvatarCreate:
-                let user = await Xhr.getUser(message.userName);
+        try {
+            switch (message.rewardId) {
+                case commands.battleAvatarCreate:
+                    user = await Xhr.getUser(message.userName);
 
-                if (user) {
+                    if (user) {
+                        sendEvent(messageQueue, {
+                            type: "INFO",
+                            targets: ["chat"],
+                            eventData: {
+                                results: {
+                                    message: `@${message.userName} already has a battle avatar.`
+                                }
+                            }
+                        });
+                        return;
+                    }
+
+                    await Xhr.createUser(message);
+
+                    console.log("BATTLE AVATAR CREATED FOR " + message.userName);
                     sendEvent(messageQueue, {
                         type: "INFO",
                         targets: ["chat"],
                         eventData: {
                             results: {
-                                message: `@${message.userName} already has a battle avatar.`
+                                message: `@${message.userName} created their battle avatar.`
                             }
                         }
                     });
-                    return;
-                }
+                    break;
+                case commands.battleAPCharge1:
+                    console.log("AP + 5 FOR " + message.userName);
 
-                console.log("BATTLE AVATAR CREATED FOR " + message.userName);
-                sendEvent(messageQueue, {
-                    type: "INFO",
-                    targets: ["chat"],
-                    eventData: {
-                        results: {
-                            message: `@${message.userName} created their battle avatar.`
+                    await Xhr.chargeAP(message, 5);
+
+                    sendEvent(messageQueue, {
+                        type: "INFO",
+                        targets: ["chat"],
+                        eventData: {
+                            results: {
+                                message: `@${message.userName} charged 5 AP.`
+                            }
                         }
-                    }
-                });
-                Xhr.createUser(message);
-                break;
-            case commands.battleAPCharge1:
-                console.log("AP + 5 FOR " + message.userName);
-                sendEvent(messageQueue, {
-                    type: "INFO",
-                    targets: ["chat"],
-                    eventData: {
-                        results: {
-                            message: `@${message.userName} charged 5 AP.`
+                    });
+                    break;
+                case commands.battleAPCharge10:
+                    console.log("AP + 50 FOR " + message.userName);
+
+                    await Xhr.chargeAP(message, 50);
+
+                    sendEvent(messageQueue, {
+                        type: "INFO",
+                        targets: ["chat"],
+                        eventData: {
+                            results: {
+                                message: `@${message.userName} charged 50 AP.`
+                            }
                         }
-                    }
-                });
-                Xhr.chargeAP(message, 5);
-                break;
-            case commands.battleAPCharge10:
-                console.log("AP + 50 FOR " + message.userName);
-                sendEvent(messageQueue, {
-                    type: "INFO",
-                    targets: ["chat"],
-                    eventData: {
-                        results: {
-                            message: `@${message.userName} charged 50 AP.`
+                    });
+                    break;
+                case commands.battleAPCharge100:
+                    console.log("AP + 100 FOR " + message.userName);
+
+                    await Xhr.chargeAP(message, 100);
+                    
+                    sendEvent(messageQueue, {
+                        type: "INFO",
+                        targets: ["chat"],
+                        eventData: {
+                            results: {
+                                message: `@${message.userName} charged 100 AP.`
+                            }
                         }
-                    }
-                });
-                Xhr.chargeAP(message, 50);
-                break;
-            case commands.battleAPCharge100:
-                console.log("AP + 100 FOR " + message.userName);
-                sendEvent(messageQueue, {
-                    type: "INFO",
-                    targets: ["chat"],
-                    eventData: {
-                        results: {
-                            message: `@${message.userName} charged 100 AP.`
+                    });
+                    break;
+                case commands.battleAvatarRevive:
+                    console.log("REVIVE REQUESTED FOR " + message.userName);
+
+                    await Xhr.reviveAvatar(message);
+
+                    sendEvent(messageQueue, {
+                        type: "INFO",
+                        targets: ["chat"],
+                        eventData: {
+                            results: {
+                                message: `@${message.userName} revived.`
+                            }
                         }
-                    }
-                });
-                Xhr.chargeAP(message, 100);
-                break;
-            case commands.battleAvatarRevive:
-                console.log("REVIVE REQUESTED FOR " + message.userName);
-                sendEvent(messageQueue, {
-                    type: "INFO",
-                    targets: ["chat"],
-                    eventData: {
-                        results: {
-                            message: `@${message.userName} revived.`
-                        }
-                    }
-                });
-                Xhr.reviveAvatar(message);
-                break;
+                    });
+                    break;
+            }
+        } catch(e) {
+            console.log(e.message + ": " + e.stack);
         }
+
+        sendContextUpdate(ws, context, null, true);
     });
+
+    return pubSubClient;
 }
 
 module.exports = {

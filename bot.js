@@ -1,5 +1,6 @@
 const tmi = require('tmi.js');
 const WebSocket = require('ws');
+const jsonwebtoken = require('jsonwebtoken');
 
 const Util = require('./util');
 const Xhr = require('./xhr');
@@ -7,6 +8,7 @@ const Commands = require('./commands');
 const Redemption = require('./redemption');
 
 const BROADCASTER_NAME = process.env.TWITCH_BOT_CHANNEL;
+const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
 const versionNumber = "1.0b";
 
@@ -21,7 +23,6 @@ let abilityTable = {};
 let encounterTable = {};
 let cooldownTable = {};
 let buffTable = {};
-let buffTicks = {};
 
 // Various config values that can be changed on the fly
 let configTable = {
@@ -42,10 +43,105 @@ let queue = [];
 * CHAT BOT 
 */
 
+const key = process.env.TWITCH_SHARED_SECRET;
+const secret = Buffer.from(key, 'base64');
+
+const createExpirationDate = () => {
+    var d = new Date();
+    var year = d.getFullYear();
+    var month = d.getMonth();
+    var day = d.getDate();
+    var c = new Date(year + 1, month, day);
+    return c;
+}
+
+const jwt = jsonwebtoken.sign({
+    "exp": createExpirationDate().getTime(),
+    "user_id": `BOT-${TWITCH_EXT_CHANNEL_ID}`,
+    "role": "moderator",
+    "channel_id": TWITCH_EXT_CHANNEL_ID,
+    "pubsub_perms": {
+        "send":[
+            "broadcast"
+        ]
+    }
+}, secret);
+
+// Setup websocket to communicate with extension
+let pingInterval = null;
+let extWs = null;
+const connectWs = () => {
+    console.log("OPENING WS");
+    extWs = new WebSocket('wss://deusprogrammer.com/api/ws/twitch');
+ 
+    extWs.on('open', () => {
+        extWs.send(JSON.stringify({
+            type: "REGISTER",
+            jwt
+        }));
+
+        extWs.send(JSON.stringify({
+            type: "STARTUP",
+            jwt,
+            to: "ALL"
+        }));
+
+        // Keep connection alive
+        pingInterval = setInterval(() => {
+            extWs.send(JSON.stringify({
+                type: "PING_SERVER",
+                jwt
+            }));
+        }, 20 * 1000);
+    });
+
+    extWs.on('message', async (message) => {
+        let event = JSON.parse(message);
+        if (event.type === "COMMAND") {
+            onMessageHandler(BROADCASTER_NAME, {username: event.username, mod: false}, event.message, false);
+        } else if (event.type === "CONTEXT" && event.to !== "ALL") {
+            console.log("CONTEXT REQUEST FROM " + event.from);
+            let players = await Xhr.getActiveUsers(gameContext);
+            extWs.send(JSON.stringify({
+                type: "CONTEXT",
+                jwt,
+                to: event.from,
+                data: {
+                    players,
+                    monsters: Object.keys(encounterTable).map(key => `~${key}`),
+                    cooldown: cooldownTable[event.username],
+                    buffs: buffTable[event.username]
+                }
+            }));
+        } else if (event.type === "PING") {
+            extWs.send(JSON.stringify({
+                type: "PONG",
+                jwt,
+                to: event.from,
+            }));
+        }
+    });
+
+    extWs.on('close', (e) => {
+        console.log('Socket is closed. Reconnect will be attempted in 5 second.', e.reason);
+        if (this.pingInterval) {
+            clearInterval(this.pingInterval);
+        }
+        setTimeout(() => {
+            connectWs();
+        }, 5000);
+    });
+
+    extWs.on('error', (e) => {
+        console.error('Socket encountered error: ', e.message, 'Closing socket');
+        extWs.close();
+    });
+}
+
 // Setup websocket server for communicating with the panel
 const wss = new WebSocket.Server({ port: 8090 });
 
-wss.on('connection', function connection(ws) {
+wss.on('connection', function connection(panelWs) {
     let initEvent = {
         type: "INIT",
         eventData: {
@@ -53,9 +149,41 @@ wss.on('connection', function connection(ws) {
             encounterTable
         }
     }
-    ws.send(JSON.stringify(initEvent, null, 5));
+    panelWs.send(JSON.stringify(initEvent, null, 5));
 });
 
+const sendContextUpdate = async (targets, shouldRefresh = false) => {
+    let players = await Xhr.getActiveUsers(gameContext);
+    if (targets) {
+        targets.forEach((target) => {
+            extWs.send(JSON.stringify({
+                type: "CONTEXT",
+                jwt,
+                to: target.id,
+                data: {
+                    players,
+                    monsters: Object.keys(encounterTable).map(key => `~${key}`),
+                    buffs: buffTable[target.name],
+                    cooldown: cooldownTable[target.name],
+                    shouldRefresh
+                }
+            }));
+        });
+    } else {
+        extWs.send(JSON.stringify({
+            type: "CONTEXT",
+            jwt,
+            to: "ALL",
+            data: {
+                players,
+                monsters: Object.keys(encounterTable).map(key => `~${key}`),
+                shouldRefresh
+            }
+        }));
+    }
+}
+
+// TODO Eventually collapse this into the one websocket
 const sendEventToPanels = async (event) => {
     wss.clients.forEach(function each(client) {
         if (client.readyState === WebSocket.OPEN) {
@@ -159,6 +287,9 @@ async function onMessageHandler(target, context, msg, self) {
                             }
                         });
                     }
+
+                    sendContextUpdate();
+
                     break;
                 case "!use":
                     if (tokens.length < 2) {
@@ -245,7 +376,6 @@ async function onMessageHandler(target, context, msg, self) {
                     }
 
                     if (!isItem) {
-                        //sendInfoToChat(`${attacker.name} uses ${ability.name}`, true);
                         sendEvent({
                             type: "INFO",
                             targets: ["chat", "panel"],
@@ -258,7 +388,6 @@ async function onMessageHandler(target, context, msg, self) {
                             }
                         });
                     } else {
-                        //sendInfoToChat(`${attacker.name} uses a ${ability.name}`, true);
                         sendEvent({
                             type: "INFO",
                             targets: ["chat", "panel"],
@@ -282,9 +411,6 @@ async function onMessageHandler(target, context, msg, self) {
                             results = await Commands.heal(attackerName, abilityTarget, ability, gameContext);
                         } else if (ability.element === "BUFFING") {
                             results = await Commands.buff(attackerName, abilityTarget, ability, gameContext);
-                            if (!buffTicks[context.username]) {
-                                buffTicks[context.username] = [];
-                            }
                         } else {
                             results = await Commands.hurt(attackerName, abilityTarget, ability, gameContext);
                         }
@@ -337,7 +463,11 @@ async function onMessageHandler(target, context, msg, self) {
                                     encounterTable
                                 }
                             });
-                        } else {
+                        } else if (
+                            results.damageType !== "HEALING" &&
+                            results.damageType !== "BUFFING" &&
+                            !results.flags.hit
+                        ) {
                             sendEvent({
                                 type: "ATTACKED",
                                 targets: ["chat", "panel"],
@@ -354,6 +484,10 @@ async function onMessageHandler(target, context, msg, self) {
 
                         if (results.flags.dead) {
                             if (results.defender.isMonster) {
+                                if (results.defender.transmogName) {
+                                    client.say(BROADCASTER_NAME, `/ban ${results.defender.transmogName}`);
+                                }
+
                                 delete encounterTable[results.defender.spawnKey];
                                 var itemGets = await Commands.distributeLoot(results.defender, gameContext);
 
@@ -389,7 +523,9 @@ async function onMessageHandler(target, context, msg, self) {
                     }
 
                     // Get basic user to update
-                    Xhr.updateUser(updatedAttacker);
+                    await Xhr.updateUser(updatedAttacker);
+
+                    sendContextUpdate([results.attacker, results.defender], true);
 
                     // Set user active if they attack
                     if (!chattersActive[context.username]) {
@@ -419,6 +555,7 @@ async function onMessageHandler(target, context, msg, self) {
                         throw "You must have a target for your attack.";
                     }
                     var attacker = await Commands.getTarget(context.username, gameContext);
+                    var attackerName = context.username.toLowerCase();
                     var defenderName = tokens[1].replace("@", "").toLowerCase();
 
                     if (cooldownTable[context.username]) {
@@ -484,6 +621,10 @@ async function onMessageHandler(target, context, msg, self) {
 
                     if (results.flags.dead) {
                         if (results.defender.isMonster) {
+                            if (results.defender.transmogName) {
+                                client.say(BROADCASTER_NAME, `/ban ${results.defender.transmogName}`);
+                            }
+
                             delete encounterTable[results.defender.spawnKey];
                             var itemGets = await Commands.distributeLoot(results.defender, gameContext);
 
@@ -505,6 +646,8 @@ async function onMessageHandler(target, context, msg, self) {
                         });
                     }
 
+                    sendContextUpdate([results.attacker, results.defender], true);
+
                     break;
                 case "!transmog":
                     if (context.username !== BROADCASTER_NAME && !context.mod) {
@@ -515,21 +658,9 @@ async function onMessageHandler(target, context, msg, self) {
                         throw "You must specify a target to turn into a slime";
                     }
 
-                    // If the encounter table is full, try to clean it up first
+                    // If there are too many encounters, fail
                     if (Object.keys(encounterTable).length >= configTable.maxEncounters) {
-                        
-                        // Do clean up of encounter table
-                        Object.keys(encounterTable).forEach((name) => {
-                            var monster = encounterTable[name];
-                            if (monster.hp <= 0) {
-                                delete encounterTable[name];                            
-                            }
-                        });
-
-                        //If there are still too many, clean up
-                        if (Object.keys(encounterTable).length >= configTable.maxEncounters) {
-                            throw `Only ${configTable.maxEncounters} monster spawns allowed at a time`;
-                        }
+                        throw `Only ${configTable.maxEncounters} monster spawns allowed at a time`;
                     }
 
                     var transmogName = tokens[1];
@@ -540,7 +671,7 @@ async function onMessageHandler(target, context, msg, self) {
                     }
 
                     var slimeName = tokens[1].toLowerCase() + "_the_slime";
-                    var monster = Commands.spawnMonster("SLIME", slimeName, gameContext);
+                    var monster = await Commands.spawnMonster("SLIME", slimeName, gameContext);
                     monster.transmogName = transmogName;
                     encounterTable[monster.spawnKey] = monster;
 
@@ -554,6 +685,8 @@ async function onMessageHandler(target, context, msg, self) {
                             encounterTable
                         }
                     });
+
+                    sendContextUpdate();
 
                     break;
                 case "!untransmog":
@@ -574,6 +707,8 @@ async function onMessageHandler(target, context, msg, self) {
                     }
 
                     delete encounterTable[monsterName];
+
+                    sendContextUpdate();
 
                     break;
                 case "!explore":
@@ -600,6 +735,8 @@ async function onMessageHandler(target, context, msg, self) {
                             encounterTable
                         }
                     });
+
+                    sendContextUpdate();
 
                     break;
                 case "!spawn":
@@ -631,6 +768,8 @@ async function onMessageHandler(target, context, msg, self) {
                             encounterTable
                         }
                     });
+
+                    sendContextUpdate();
 
                     break;
                 case "!stats":
@@ -677,6 +816,8 @@ async function onMessageHandler(target, context, msg, self) {
                             encounterTable
                         }
                     });
+
+                    sendContextUpdate([results.giver, results.receiver], true);
 
                     break;
                 case "!gift":
@@ -777,6 +918,11 @@ async function onMessageHandler(target, context, msg, self) {
                     }
 
                     sendInfoToChat("Miku going offline.  Oyasumi.");
+                    extWs.send(JSON.stringify({
+                        type: "SHUTDOWN",
+                        jwt,
+                        to: "ALL",
+                    }));
                     setTimeout(() => {
                         process.exit(0);
                     }, 5000);
@@ -810,7 +956,7 @@ async function onConnectedHandler(addr, port) {
 
         if (message) {
             let event = message.event;
-            let text = event.eventData.results.message;
+            let text = event.eventData ? event.eventData.results.message : "EXT MESSAGE";
 
             if (!event.targets) {
                 event.targets = ["chat"];
@@ -863,6 +1009,12 @@ async function onConnectedHandler(addr, port) {
                 if (cooldownTable[username] <= 0) {
                     delete cooldownTable[username];
                     sendInfoToChat(`${username} can act again.`);
+                    let user = Xhr.getUser(username);
+                    extWs.send(JSON.stringify({
+                        type: "COOLDOWN_OVER",
+                        jwt,
+                        to: user.id,
+                    }));
                 }
             });
 
@@ -873,10 +1025,19 @@ async function onConnectedHandler(addr, port) {
                     buff.duration--;
 
                     if (buff.duration <= 0) {
-                        sendInfoToChat(`${username}'s ${buffTick.name} buff has worn off.`);
+                        sendInfoToChat(`${username}'s ${buff.name} buff has worn off.`);
                     }
                 });
                 buffTable[username] = buffs.filter(buff => buff.duration > 0);
+                let user = Xhr.getUser(username);
+                extWs.send(JSON.stringify({
+                    type: "BUFF_UPDATE",
+                    jwt,
+                    to: user.id,
+                    data: {
+                        buffs: buffTable[username]
+                    }
+                }));
             });
 
             // Do monster attacks
@@ -923,6 +1084,7 @@ async function onConnectedHandler(addr, port) {
                     // If a target was found
                     if (target !== null) {
                         var results = await Commands.attack("~" + encounterName, target, gameContext);
+
                         if (results.flags.hit) {
                             let message = `${results.attacker.name} hit ${results.defender.name} for ${results.damage} damage.`;
                             if (results.flags.crit) {
@@ -970,6 +1132,7 @@ async function onConnectedHandler(addr, port) {
                             });
                         }
 
+                        sendContextUpdate([results.defender]);
                         return;
                     }
                 }
@@ -998,8 +1161,11 @@ async function onConnectedHandler(addr, port) {
     // Announce restart
     sendInfoToChat(`Twitch Dungeon version ${versionNumber} is online.  All systems nominal.`);
 
+    // Connect to websocket and begin keep alive
+    connectWs();
+
     // Start redemption listener
-    Redemption.startListener(queue);
+    await Redemption.startListener(queue, extWs, gameContext);
 }
 
 // MIKU'S HEART
