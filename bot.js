@@ -104,7 +104,7 @@ const connectWs = () => {
 
         // Ignore messages originating from bot
         if (["SERVER", `BOT-${TWITCH_EXT_CHANNEL_ID}`].includes(event.from)) {
-            console.log("Ignoring error from self or server");
+            console.log("Ignoring event from self or server");
             return;
         }
 
