@@ -213,6 +213,10 @@ const hurt = async (attackerName, defenderName, ability, context) => {
     let crit = false;
     let dead = false;
 
+    if (ability.ignoreDamageMods) {
+        modifiedDamageRoll = damageRoll;
+    }
+
     console.log(`ATTACK ROLL ${modifiedAttackRoll} (${attackRoll} + ${attacker[ability.toHitStat.toLowerCase()]} + ${ability.mods[ability.toHitStat.toLowerCase()]} + ${attackerBuffs[ability.toHitStat.toLowerCase()]}) vs AC ${defender.totalAC + defenderBuffs.ac} (${defender.totalAC} + ${defenderBuffs.ac})`);
     console.log(`DAMAGE ROLL ${modifiedDamageRoll} (${damageRoll} + ${attacker.str} + ${ability.mods.str} + ${attackerBuffs.str})`);
 
@@ -419,6 +423,7 @@ const attack = async (attackerName, defenderName, context) => {
         dmgStat: weapon.dmgStat,
         toHitStat: weapon.toHitStat,
         ap: 1,
+        ignoreDamageMods: false,
         target: "ANY",
         area: "ONE",
         mods: {

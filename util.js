@@ -1,4 +1,5 @@
 const {spawn} = require('child_process');
+const crypto = require('crypto');
 
 const indexArrayToMap = (array) => {
     let table = {};
@@ -107,6 +108,10 @@ const restartProcess = () => {
     process.exit()
 }
 
+const hmacSHA1 = (key, data) => {
+    return crypto.createHmac('sha1', key).update(data).digest().toString('base64');
+}
+
 module.exports = {
     indexArrayToMap,
     nthIndex,
@@ -115,5 +120,6 @@ module.exports = {
     expandUser,
     randomUuid,
     randomNumber,
-    restartProcess
+    restartProcess,
+    hmacSHA1
 }

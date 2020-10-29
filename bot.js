@@ -24,6 +24,8 @@ let encounterTable = {};
 let cooldownTable = {};
 let buffTable = {};
 
+let twitchCache = {};
+
 // Various config values that can be changed on the fly
 let configTable = {
     verbosity: "verbose",
@@ -97,6 +99,37 @@ const connectWs = () => {
 
     extWs.on('message', async (message) => {
         let event = JSON.parse(message);
+
+        // console.log("MESSAGE: " + JSON.stringify(event, null, 5));
+
+        // Ignore messages originating from bot
+        if (["SERVER", `BOT-${TWITCH_EXT_CHANNEL_ID}`].includes(event.from)) {
+            console.log("Ignoring error from self or server");
+            return;
+        }
+
+        // Overwrite username that was passed in
+        if (event.from) {
+            event.username = twitchCache[event.from];
+            if (!event.username) {
+                console.log("Twitch user not cached");
+                let profile = await Xhr.getTwitchProfile(event.from);
+                event.username = profile.name;
+                twitchCache[event.from] = profile.name;
+            }
+        }
+
+        // Validate ws server signature
+        let signature = event.signature;
+        let actualSignature = Util.hmacSHA1(key, event.to + event.from + event.ts);
+
+        if (signature !== actualSignature) {
+            console.error("Dropping message due to signature mismatch");
+            console.error(`${signature} !== ${actualSignature}`);
+            return;
+        }
+
+        // Handle message
         if (event.type === "COMMAND") {
             onMessageHandler(BROADCASTER_NAME, {username: event.username, mod: false}, event.message, false);
         } else if (event.type === "CONTEXT" && event.to !== "ALL") {

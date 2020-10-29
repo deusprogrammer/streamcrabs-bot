@@ -53,6 +53,19 @@ const sendExtensionPubSubBroadcast = async (event) => {
     return res.data;
 }
 
+const getTwitchProfile = async (userId) => {
+    let url = `https://api.twitch.tv/kraken/users/${userId}`;
+    console.log(`URL : ${url}`);
+    let res = await axios.get(url, {
+        headers: {
+            "Client-ID": `z91swgqes7e0y7r8oa1t32u6uokyiw`,
+            Accept: "application/vnd.twitchtv.v5+json"
+        }
+    });
+
+    return res.data;
+}
+
 const getItemTable = () => {
     return axios.get(`${BATTLE_API_URL}/items`, {
         headers: {
@@ -255,5 +268,6 @@ module.exports = {
     createUser,
     chargeAP,
     reviveAvatar,
+    getTwitchProfile,
     sendExtensionPubSubBroadcast
 }
