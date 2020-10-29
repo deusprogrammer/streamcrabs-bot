@@ -104,7 +104,6 @@ const connectWs = () => {
 
         // Ignore messages originating from bot
         if (["SERVER", `BOT-${TWITCH_EXT_CHANNEL_ID}`].includes(event.from)) {
-            console.log("Ignoring event from self or server");
             return;
         }
 
@@ -479,9 +478,9 @@ async function onMessageHandler(target, context, msg, self) {
                                 results.damageType !== "HEALING" &&
                                 results.damageType !== "BUFFING" && 
                                 results.flags.hit) {
-                            let message = `${results.attacker.name} hit ${results.defender.name} for ${results.damage} damage.`;
+                            let message = `${results.attacker.name} hit ${results.defender.name} for ${results.damage} ${results.damageStat} damage.`;
                             if (results.flags.crit) {
-                                message = `${results.attacker.name} scored a critical hit on ${results.defender.name} for ${results.damage} damage.`;
+                                message = `${results.attacker.name} scored a critical hit on ${results.defender.name} for ${results.damage} ${results.damageStat} damage.`;
                             }
 
                             sendEvent({
@@ -508,7 +507,7 @@ async function onMessageHandler(target, context, msg, self) {
                                     results: {
                                         attacker: results.attacker,
                                         defender: results.defender,
-                                        message: `${results.attacker.name} swings at ${results.defender.name} and misses.`
+                                        message: `${results.attacker.name} used ${ability.name} on ${results.defender.name} and missed.`
                                     },
                                     encounterTable
                                 }
@@ -620,9 +619,9 @@ async function onMessageHandler(target, context, msg, self) {
                     }
 
                     if (results.flags.hit) {
-                        let message = `${results.attacker.name} hit ${results.defender.name} for ${results.damage} damage.`;
+                        let message = `${results.attacker.name} hit ${results.defender.name} for ${results.damage} ${results.damageStat} damage.`;
                         if (results.flags.crit) {
-                            message = `${results.attacker.name} scored a critical hit on ${results.defender.name} for ${results.damage} damage.`;
+                            message = `${results.attacker.name} scored a critical hit on ${results.defender.name} for ${results.damage} ${results.damageStat} damage.`;
                         }
 
                         sendEvent({
@@ -645,7 +644,7 @@ async function onMessageHandler(target, context, msg, self) {
                                 results: {
                                     attacker: results.attacker,
                                     defender: results.defender,
-                                    message: `${results.attacker.name} swings at ${results.defender.name} and misses.`
+                                    message: `${results.attacker.name} attacked ${results.defender.name} and missed.`
                                 },
                                 encounterTable
                             }

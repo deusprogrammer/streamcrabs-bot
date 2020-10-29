@@ -207,7 +207,7 @@ const hurt = async (attackerName, defenderName, ability, context) => {
 
     let attackRoll = Util.rollDice("1d20");
     let modifiedAttackRoll = attackRoll + attacker[ability.toHitStat.toLowerCase()] + ability.mods[ability.toHitStat.toLowerCase()] + attackerBuffs[ability.toHitStat.toLowerCase()];
-    let damageRoll = Util.rollDice(ability.dmg, defender.hp);
+    let damageRoll = Util.rollDice(ability.dmg, defender[ability.dmgStat.toLowerCase()]);
     let modifiedDamageRoll = Math.max(1, damageRoll + attacker.str + ability.mods.str + attackerBuffs.str);
     let hit = true;
     let crit = false;
@@ -223,10 +223,10 @@ const hurt = async (attackerName, defenderName, ability, context) => {
     if (attackRoll === 20) {
         modifiedDamageRoll *= 2;
         crit = true;
-        message = `${attacker.name} ==> ${defender.name} -${modifiedDamageRoll}HP`;
+        message = `${attacker.name} ==> ${defender.name} -${modifiedDamageRoll}${ability.dmgStat}`;
         console.log("CRIT");
     } else if (modifiedAttackRoll >= defender.totalAC + defenderBuffs.ac) {
-        message = `${attacker.name} ==> ${defender.name} -${modifiedDamageRoll}HP`;
+        message = `${attacker.name} ==> ${defender.name} -${modifiedDamageRoll}${ability.dmgStat}`;
         console.log("HIT");
     } else {
         message = `${attacker.name} ==> ${defender.name} MISS`;
@@ -234,11 +234,15 @@ const hurt = async (attackerName, defenderName, ability, context) => {
         console.log("MISS");
     }
 
-    if (hit && modifiedDamageRoll >= defender.hp) {
+    if (hit && modifiedDamageRoll >= defender.hp && ability.dmgStat === "HP") {
         endStatus = `[DEAD]`;
         dead = true;
     } else {
-        endStatus = `[${defender.hp - modifiedDamageRoll}/${defender.maxHp}HP]`;
+        if (ability.dmgStat === "HP") {
+            endStatus = `[${defender.hp - modifiedDamageRoll}/${defender.maxHp}HP]`;
+        } else {
+            endStatus = `[${defender.name} lost ${modifiedDamageRoll}${ability.dmgStat}]`;
+        }
     }
 
     // Get current, unexpanded version
@@ -256,7 +260,7 @@ const hurt = async (attackerName, defenderName, ability, context) => {
     }
 
     if (hit) {
-        defender.hp -= modifiedDamageRoll;
+        defender[ability.dmgStat.toLowerCase()] -= modifiedDamageRoll;
     }
 
     // Update attacker and target stats
@@ -272,6 +276,7 @@ const hurt = async (attackerName, defenderName, ability, context) => {
     return {
         message: `[BATTLE]: ${message}  ${hit ? endStatus : ''}`,
         damage: modifiedDamageRoll,
+        damageStat: ability.dmgStat,
         flags: {
             crit,
             hit,
