@@ -106,6 +106,7 @@ const getTarget = async (targetName, context) => {
                 dmg: target.dmg || "1d6",
                 dmgStat: target.dmgStat || "HP",
                 toHitStat: target.toHitStat || "HIT",
+                triggers: [],
                 mods: {
                     hit: target.hit
                 }
@@ -173,7 +174,7 @@ const distributeLoot = async (monster, context) => {
     return events;
 }
 
-const hurt = async (attackerName, defenderName, ability, context) => {
+const hurt = async (attackerName, defenderName, ability, context, isTrigger = false, performTriggers = true) => {
     if (ability.element === "HEALING" || ability.element === "BUFFING") {
         throw `@${ability.name} is not an attack ability`;
     }
@@ -220,12 +221,12 @@ const hurt = async (attackerName, defenderName, ability, context) => {
     console.log(`ATTACK ROLL ${modifiedAttackRoll} (${attackRoll} + ${attacker[ability.toHitStat.toLowerCase()]} + ${ability.mods[ability.toHitStat.toLowerCase()]} + ${attackerBuffs[ability.toHitStat.toLowerCase()]}) vs AC ${defender.totalAC + defenderBuffs.ac} (${defender.totalAC} + ${defenderBuffs.ac})`);
     console.log(`DAMAGE ROLL ${modifiedDamageRoll} (${damageRoll} + ${attacker.str} + ${ability.mods.str} + ${attackerBuffs.str})`);
 
-    if (attackRoll === 20) {
+    if (attackRoll === 20 && !isTrigger) {
         modifiedDamageRoll *= 2;
         crit = true;
         message = `${attacker.name} ==> ${defender.name} -${modifiedDamageRoll}${ability.dmgStat}`;
         console.log("CRIT");
-    } else if (modifiedAttackRoll >= defender.totalAC + defenderBuffs.ac) {
+    } else if (modifiedAttackRoll >= defender.totalAC + defenderBuffs.ac || isTrigger) {
         message = `${attacker.name} ==> ${defender.name} -${modifiedDamageRoll}${ability.dmgStat}`;
         console.log("HIT");
     } else {
@@ -246,9 +247,8 @@ const hurt = async (attackerName, defenderName, ability, context) => {
     }
 
     // Get current, unexpanded version
-    if (!attacker.isMonster) {
+    if (!attacker.isMonster && !isTrigger) {
         attacker = await Xhr.getUser(attacker.name);
-        attacker.ap -= ability.ap;
     }
     if (!defender.isMonster) {
         defender = await Xhr.getUser(defender.name);
@@ -261,6 +261,27 @@ const hurt = async (attackerName, defenderName, ability, context) => {
 
     if (hit) {
         defender[ability.dmgStat.toLowerCase()] -= modifiedDamageRoll;
+
+        // If this ability does DOT, then add an entry to the dotTable
+        if (ability.procTime > 0 && !dead) {
+            if (!context.dotTable[defenderName]) {
+                context.dotTable[defenderName] = [];
+            }
+
+            // Check for existing effect
+            let existingEffect = context.dotTable[defenderName].find(entry => entry.ability.id === ability.id);
+            if (!existingEffect) {
+                // Add new effect
+                context.dotTable[defenderName].push({
+                    ability, 
+                    tickCounter: ability.procTime,
+                    cycles: ability.maxProcs
+                });
+            } else {
+                // Reset cycles left if already existing
+                existingEffect.cycles = ability.maxProcs;
+            }
+        }
     }
 
     // Update attacker and target stats
@@ -273,6 +294,27 @@ const hurt = async (attackerName, defenderName, ability, context) => {
         defender = Util.expandUser(defender, context);
     }
 
+    // Perform triggers
+    let triggerResults = [];
+    if (hit && !dead && performTriggers) {
+        for (const trigger of ability.triggers) {
+            let triggerRoll = Util.rollDice("1d20");
+            let results = null;
+            let ability = context.abilityTable[trigger.abilityId];
+            trigger.ability = ability;
+            if (triggerRoll <= trigger.chance) {
+                if (ability.element === "HEALING") {
+                    results = await heal(attackerName, attackerName, ability, context);
+                } else if (ability.element === "BUFFING") {
+                    results = await buff(attackerName, defenderName, ability, context);
+                } else {
+                    results = await hurt(attackerName, defenderName, ability, context, true, false);
+                }
+                triggerResults.push({trigger, results});
+            }
+        }
+    }
+
     return {
         message: `[BATTLE]: ${message}  ${hit ? endStatus : ''}`,
         damage: modifiedDamageRoll,
@@ -282,6 +324,7 @@ const hurt = async (attackerName, defenderName, ability, context) => {
             hit,
             dead
         },
+        triggerResults,
         attacker,
         defender,
         damageType: ability.element
@@ -323,14 +366,21 @@ const buff = async (attackerName, defenderName, ability, context) => {
 
     // Combine with other buffs
     let existingBuffs = context.buffTable[defenderName] || [];
-    context.buffTable[defenderName] = [...existingBuffs,
-        {
-            name: ability.name,
-            duration: ability.buffsDuration,
-            changes
-        }
-    ]
-
+    let existingBuff = existingBuffs.find(buff => buff.name === ability.name);
+    if (existingBuff) {
+        console.log("User already has buff");
+        existingBuff.duration = ability.buffsDuration;
+    } else {
+        existingBuffs.push(
+            {
+                name: ability.name,
+                duration: ability.buffsDuration,
+                changes
+            }
+        );
+    }
+    context.buffTable[defenderName] = existingBuffs;
+    console.log("EXISTING BUFFS: " + JSON.stringify(existingBuffs, null, 5));
 
     return {
         attacker,
@@ -340,6 +390,7 @@ const buff = async (attackerName, defenderName, ability, context) => {
             hit: false,
             dead: false
         },
+        triggerResults: [],
         message: `${defender.name} is affected by ${ability.name}`,
         damage: 0,
         damageType: "BUFFING"
@@ -407,6 +458,7 @@ const heal = async (attackerName, defenderName, ability, context) => {
             hit: false,
             dead: false
         },
+        triggerResults: [],
         message: `${attacker.name} healed ${defender.name} for ${healingAmount} ${ability.dmgStat}`,
         damage: healingAmount,
         damageType: "HEALING"
@@ -431,6 +483,7 @@ const attack = async (attackerName, defenderName, context) => {
         ignoreDamageMods: false,
         target: "ANY",
         area: "ONE",
+        triggers: weapon.triggers,
         mods: {
             hit: 0,
             str: 0

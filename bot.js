@@ -23,6 +23,7 @@ let abilityTable = {};
 let encounterTable = {};
 let cooldownTable = {};
 let buffTable = {};
+let dotTable = {};
 
 let twitchCache = {};
 
@@ -131,6 +132,7 @@ const connectWs = () => {
         // Handle message
         if (event.type === "COMMAND") {
             onMessageHandler(BROADCASTER_NAME, {username: event.username, mod: false}, event.message, false);
+            sendContextUpdate([event.username]);
         } else if (event.type === "CONTEXT" && event.to !== "ALL") {
             console.log("CONTEXT REQUEST FROM " + event.from);
             let players = await Xhr.getActiveUsers(gameContext);
@@ -514,6 +516,22 @@ async function onMessageHandler(target, context, msg, self) {
                             });
                         }
 
+                        // Show trigger results
+                        for (const triggerResult of results.triggerResults) {
+                            sendEvent({
+                                type: "INFO",
+                                targets: ["chat", "panel"],
+                                eventData: {
+                                    results: {
+                                        attacker: triggerResult.results.attacker,
+                                        defender: triggerResult.results.defender,
+                                        message: `${results.attacker.name}'s ${results.attacker.equipment.hand.name}'s ${triggerResult.trigger.ability.name} activated!`
+                                    },
+                                    encounterTable
+                                }
+                            });
+                        }
+
                         if (results.flags.dead) {
                             if (results.defender.isMonster) {
                                 if (results.defender.transmogName) {
@@ -645,6 +663,22 @@ async function onMessageHandler(target, context, msg, self) {
                                     attacker: results.attacker,
                                     defender: results.defender,
                                     message: `${results.attacker.name} attacked ${results.defender.name} and missed.`
+                                },
+                                encounterTable
+                            }
+                        });
+                    }
+
+                    // Show trigger results
+                    for (const triggerResult of results.triggerResults) {
+                        sendEvent({
+                            type: "INFO",
+                            targets: ["chat", "panel"],
+                            eventData: {
+                                results: {
+                                    attacker: triggerResult.results.attacker,
+                                    defender: triggerResult.results.defender,
+                                    message: `${results.attacker.name}'s ${triggerResult.trigger.ability.name} activated!`
                                 },
                                 encounterTable
                             }
@@ -963,6 +997,7 @@ async function onMessageHandler(target, context, msg, self) {
                     throw `${tokens[0]} is an invalid command.`;
             }
         } catch (e) {
+            console.error(e.message + ": " + e.stack);
             sendErrorToChat(new Error(e));
         }
     }
@@ -978,11 +1013,11 @@ async function onConnectedHandler(addr, port) {
     abilityTable = await Xhr.getAbilityTable();
     // TODO Load config table from file
 
-    gameContext = { itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, buffTable, chattersActive, configTable };
+    gameContext = { itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, buffTable, chattersActive, configTable, dotTable };
 
     console.log(`* All tables loaded`);
 
-    // QUEUE CUSTOMER
+    // QUEUE CONSUMER
     setInterval(async () => {
         let message = queue.pop();
 
@@ -1051,7 +1086,7 @@ async function onConnectedHandler(addr, port) {
             });
 
             // Tick down buff timers
-            Object.keys(buffTable).forEach((username) => {
+            Object.keys(buffTable).forEach(async (username) => {
                 var buffs = buffTable[username] || [];
                 buffs.forEach((buff) => {
                     buff.duration--;
@@ -1061,16 +1096,84 @@ async function onConnectedHandler(addr, port) {
                     }
                 });
                 buffTable[username] = buffs.filter(buff => buff.duration > 0);
-                let user = Xhr.getUser(username);
-                extWs.send(JSON.stringify({
-                    type: "BUFF_UPDATE",
-                    jwt,
-                    to: user.id,
-                    data: {
-                        buffs: buffTable[username]
-                    }
-                }));
+
+                // If not a monster, send buff updates to user
+                if (!username.startsWith("~")) {
+                    let user = await Xhr.getUser(username);
+                    extWs.send(JSON.stringify({
+                        type: "BUFF_UPDATE",
+                        jwt,
+                        to: user.id,
+                        data: {
+                            buffs: buffTable[username]
+                        }
+                    }));
+                }
             });
+
+            // Tick down status timers
+            Object.keys(dotTable).forEach(async (username) => {
+                var effects = dotTable[username];
+                for (let effect of effects) {
+                    effect.tickCounter--;
+                    if (effect.tickCounter <= 0) {
+                        effect.tickCounter = effect.ability.procTime;
+                        effect.cycles--;
+
+                        // Perform damage
+                        let defender = null;
+                        try {
+                            defender = await Commands.getTarget(username, gameContext);
+                        } catch (e) {
+                            effect.cycles = 0;
+                            break;
+                        }
+                        let damageRoll = Util.rollDice(effect.ability.dmg);
+                
+                        if (!defender.isMonster) {
+                            let user = await Xhr.getUser(username);
+                            user[effect.ability.damageStat] -= damageRoll;
+                            await Xhr.updateUser(user);
+
+                            sendContextUpdate([username], true);
+                        } else {
+                            defender.hp -= damageRoll;
+                        }
+
+                        // Send panel update
+                        sendEvent({
+                            type: "ATTACKED",
+                            targets: ["chat", "panel"],
+                            eventData: {
+                                results: {
+                                    defender: defender,
+                                    message: `${defender.name} took ${damageRoll} damage from ${effect.ability.name} ${defender.hp <= 0 ? " and died." : "."}`
+                                },
+                                encounterTable
+                            }
+                        });
+
+                        if (effect.cycles <= 0) {
+                            sendInfoToChat(`${defender.name}'s ${effect.ability.name} status has worn off.`);
+                        }
+                    }
+                }
+                dotTable[username] = effects.filter(effect => effect.cycles > 0);
+
+                // If not a monster, send effect updates to user
+                if (!username.startsWith("~")) {
+                    let user = await Xhr.getUser(username);
+                    extWs.send(JSON.stringify({
+                        type: "STATUS_UPDATE",
+                        jwt,
+                        to: user.id,
+                        data: {
+                            effects: dotTable[username]
+                        }
+                    }));
+                }
+            })
+
 
             // Do monster attacks
             Object.keys(encounterTable).forEach(async (encounterName) => {
