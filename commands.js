@@ -132,7 +132,7 @@ const distributeLoot = async (monster, context) => {
     let events = [];
     let drops = [...context.monsterTable[monster.id].drops.map((drop) => {return {...drop}})];
     let taken = {};
-    for (var attacker in monster.aggro) {
+    for (var attacker in Util.shuffle(monster.aggro)) {
         for (var i in drops) {
             let drop = drops[i];
             let chanceRoll = Util.rollDice("1d100");
