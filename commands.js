@@ -247,7 +247,7 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
     }
 
     // Get current, unexpanded version
-    if (!attacker.isMonster && !isTrigger) {
+    if (!attacker.isMonster) {
         attacker = await Xhr.getUser(attacker.name);
     }
     if (!defender.isMonster) {
