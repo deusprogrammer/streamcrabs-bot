@@ -783,13 +783,57 @@ async function onMessageHandler(target, context, msg, self) {
                         throw `All adventurers are busy with monsters right now.`;
                     }
 
-                    var lowLevelMonsters = Object.keys(monsterTable).filter(name => monsterTable[name].rarity < 5);
-                    var randomMonster = lowLevelMonsters[Util.randomNumber(lowLevelMonsters.length) - 1];
+                    var randomMonster = null;
+                    var apCost = 5;
+                    const maxRarity = Util.rollDice("1d100") < 10 ? 7 : 5;
+                    const itemDrop = Util.rollDice("1d100") <= 20;
+
+                    // Potential item drop
+                    if (itemDrop) {
+                        if (tokens.length >= 2) {
+                            maxRarity *= 2;
+                            apCost = 10;
+                        }
+
+                        const items = Object.keys(itemTable).filter(name => itemTable[name].rarity < maxRarity && itemTable[name].dungeon === "generic");
+                        const foundItem = items[Util.randomNumber(items.length) - 1];
+                        await Xhr.adjustPlayer(context.username, {ap: -apCost}, [foundItem.id]);
+
+                        sendEvent({
+                            type: "ITEM_GET",
+                            targets: ["chat", "panel"],
+                            eventData: {
+                                results: {
+                                    receiver: {
+                                        name: context.username
+                                    },
+                                    item: context.itemTable[drop.itemId],
+                                    message: `${context.username} found ${foundItem.name}!`
+                                },
+                                encounterTable: context.encounterTable
+                            }
+                        });
+                        sendContextUpdate(null, true);
+                        return;
+                    }
+
+                    // Monster spawn
+                    if (tokens.length < 2) {
+                        var lowLevelMonsters = Object.keys(monsterTable).filter(name => monsterTable[name].rarity < maxRarity);
+                        randomMonster = lowLevelMonsters[Util.randomNumber(lowLevelMonsters.length) - 1];
+                    } else {
+                        var dungeonMonsters = Object.keys(monsterTable).filter(name => monsterTable[name].rarity < maxRarity * 2 && monsterTable[name].dungeon === tokens[1]);
+                        randomMonster = dungeonMonsters[Util.randomNumber(dungeonMonsters.length) - 1];
+                        apCost = 10;
+                    }
 
                     // Retrieve monster from monster table
                     var monsterName = randomMonster;
                     var monster = await Commands.spawnMonster(monsterName, null, gameContext);
                     encounterTable[monster.spawnKey] = monster;
+
+                    // Expend AP
+                    await Xhr.adjustPlayer(context.username, {ap: -apCost});
 
                     sendEvent({
                         type: "SPAWN",
@@ -802,7 +846,7 @@ async function onMessageHandler(target, context, msg, self) {
                         }
                     });
 
-                    sendContextUpdate();
+                    sendContextUpdate(null, true);
 
                     break;
                 case "!spawn":
@@ -810,18 +854,30 @@ async function onMessageHandler(target, context, msg, self) {
                         throw "Only a broadcaster or mod can spawn monsters";
                     }
 
-                    if (tokens.length < 2) {
-                        throw "You must specify a monster to spawn";
-                    }
-
                     // If there are too many encounters, fail
                     if (Object.keys(encounterTable).length >= configTable.maxEncounters) {
                         throw `Only ${configTable.maxEncounters} monster spawns allowed at a time`;
                     }
 
-                    // Retrieve monster from monster table
-                    var monsterName = tokens[1];
-                    var monster = await Commands.spawnMonster(monsterName, null, gameContext);
+                    var monster = null;
+                    if (tokens.length < 2) {
+                        // Retrieve a random monster from the present dungeon
+                        const dungeonName = configTable.currentDungeon;
+
+                        if (!dungeonName) {
+                            throw "If no current dungeon is defined, then the spawn command requires a monster name."
+                        }
+
+                        const maxRarity = Util.rollDice("1d100") < 10 ? 7 : 5;
+                        const dungeonMonsters = Object.keys(monsterTable).filter(name => monsterTable[name].rarity < maxRarity * 2 && monsterTable[name].dungeon === dungeonName);
+                        const randomMonsterName = dungeonMonsters[Util.randomNumber(dungeonMonsters.length) - 1];
+                        monster = await Commands.spawnMonster(randomMonsterName, null, gameContext);
+                    } else {
+                        // Retrieve monster from monster table
+                        const monsterName = tokens[1];
+                        monster = await Commands.spawnMonster(monsterName, null, gameContext);
+                    }
+
                     encounterTable[monster.spawnKey] = monster;
 
                     sendEvent({

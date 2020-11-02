@@ -107,6 +107,42 @@ const updateMonster = async (monster) => {
     })
 }
 
+const adjustPlayer = async (username, statUpdates, newInventory, newEquipment, context) => {
+    let user = {};
+
+    if (username.startsWith("~")) {
+        user = context.encounterTable[username];
+    } else {
+        user = await getUser(username);
+    }
+
+    if (statUpdates.hp) {
+        user.hp += statUpdates.hp;
+    }
+
+    if (statUpdates.ap) {
+        user.ap += statUpdates.ap;
+    }
+
+    if (statUpdates.gold) {
+        user.gold += statUpdates.gold;
+    }
+
+    if (newInventory) {
+        user.inventory = [...user.inventory, newInventory];
+    }
+
+    if (newEquipment) {
+        for (const slot in Object.keys(newEquipment)) {
+            user.equipment[slot] = newEquipment[slot];
+        }
+    }
+
+    if (!username.startsWith("~")) {
+        await updateUser(user);
+    }
+}
+
 const getAbilityTable = () => {
     return axios.get(`${BATTLE_API_URL}/abilities`, {
         headers: {
@@ -263,6 +299,7 @@ module.exports = {
     getJobTable,
     getMonsterTable,
     getAbilityTable,
+    adjustPlayer,
     updateUser,
     updateMonster,
     createUser,

@@ -246,6 +246,48 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
         }
     }
 
+    // TODO Test this once Twitch finishes dragging their heels on testing my extension.
+    // Simplified adjustments
+    // const defenderChanges = {};
+
+    // if (hit) {
+    //     defenderChanges[ability.dmgStat.toLowerCase()] = -modifiedDamageRoll;
+    //     if (ability.ignoreDamageMods) {
+    //         defenderChanges[ability.dmgStat.toLowerCase()] = -damageRoll;
+    //     }
+
+    //     // If this ability does DOT, then add an entry to the dotTable
+    //     if (ability.procTime > 0 && !dead) {
+    //         if (!context.dotTable[defenderName]) {
+    //             context.dotTable[defenderName] = [];
+    //         }
+
+    //         // Check for existing effect
+    //         let existingEffect = context.dotTable[defenderName].find(entry => entry.ability.id === ability.id);
+    //         if (!existingEffect) {
+    //             // Add new effect
+    //             context.dotTable[defenderName].push({
+    //                 ability, 
+    //                 tickCounter: ability.procTime,
+    //                 cycles: ability.maxProcs
+    //             });
+    //         } else {
+    //             // Reset cycles left if already existing
+    //             existingEffect.cycles = ability.maxProcs;
+    //         }
+    //     }
+    // }
+
+    // Xhr.adjustPlayer(defender.name, defenderChanges, null, null, context);
+
+    // // Set aggro
+    // if (defender.isMonster) {
+    //     if (!defender.aggro[attackerName]) {
+    //         defender.aggro[attackerName] = 0;
+    //     }
+    //     defender.aggro[attackerName] += modifiedDamageRoll;
+    // }
+
     // Get current, unexpanded version
     if (!attacker.isMonster) {
         attacker = await Xhr.getUser(attacker.name);
@@ -317,7 +359,7 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
 
     return {
         message: `[BATTLE]: ${message}  ${hit ? endStatus : ''}`,
-        damage: modifiedDamageRoll,
+        damage: ability.ignoreDamageMods ? damageRoll : modifiedDamageRoll,
         damageStat: ability.dmgStat,
         flags: {
             crit,
