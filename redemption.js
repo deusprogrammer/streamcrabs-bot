@@ -102,35 +102,6 @@ let startListener = async (messageQueue, ws, context) => {
         // Redemption switch
         try {
             switch (message.rewardId) {
-                case commands.battleAvatarCreate:
-                    user = await Xhr.getUser(message.userName);
-
-                    if (user) {
-                        sendEvent(messageQueue, {
-                            type: "INFO",
-                            targets: ["chat"],
-                            eventData: {
-                                results: {
-                                    message: `@${message.userName} already has a battle avatar.`
-                                }
-                            }
-                        });
-                        return;
-                    }
-
-                    await Xhr.createUser(message);
-
-                    console.log("BATTLE AVATAR CREATED FOR " + message.userName);
-                    sendEvent(messageQueue, {
-                        type: "INFO",
-                        targets: ["chat"],
-                        eventData: {
-                            results: {
-                                message: `@${message.userName} created their battle avatar.`
-                            }
-                        }
-                    });
-                    break;
                 case commands.battleAPCharge1:
                     console.log("AP + 5 FOR " + message.userName);
 
