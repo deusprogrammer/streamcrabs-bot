@@ -394,15 +394,22 @@ const buff = async (attackerName, defenderName, ability, context) => {
 
     let tokens  = ability.buffs.split(";");
     let changes = tokens.map((token) => {
-        let groups = token.match(/(STR|DEX|INT|HIT|AC)\+*(\-*[0-9]+)/);
+        let groups = token.match(/(STR|DEX|INT|HIT|AC)\+*(\-*[0-9]+)(%*)/);
 
         if (!groups && groups.length < 3) {
             throw `Bad buff string on ability ${ability.name}`;
         }
 
+        let amount = parseInt(groups[2]);
+        if (groups[3] === "%") {
+            amount = Math.ceil(defender[groups[1].toLowerCase()] * (amount/100));
+        }
+
+        console.log("Amount:" + amount);
+
         return {
             stat: groups[1],
-            amount: parseInt(groups[2])
+            amount
         }
     })
 
