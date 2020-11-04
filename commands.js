@@ -415,13 +415,14 @@ const buff = async (attackerName, defenderName, ability, context) => {
 
     // Combine with other buffs
     let existingBuffs = context.buffTable[defenderName] || [];
-    let existingBuff = existingBuffs.find(buff => buff.name === ability.name);
+    let existingBuff = existingBuffs.find(buff => buff.id === ability.id);
     if (existingBuff) {
         console.log("User already has buff");
         existingBuff.duration = ability.buffsDuration;
     } else {
         existingBuffs.push(
             {
+                id: ability.id,
                 name: ability.name,
                 duration: ability.buffsDuration,
                 changes
@@ -443,6 +444,71 @@ const buff = async (attackerName, defenderName, ability, context) => {
         message: `${defender.name} is affected by ${ability.name}`,
         damage: 0,
         damageType: "BUFFING"
+    }
+}
+
+const cleanse = async (attackerName, defenderName, ability, context) => {
+    if (ability.element !== "CLEANSING") {
+        throw `@${ability.name} is not a cleansing ability`;
+    }
+
+    let attacker = await getTarget(attackerName, context);
+
+    if (attacker.hp <= 0) {
+        throw `@${attackerName} is dead and cannot perform any actions.`;
+    }
+
+    let defender = await getTarget(defenderName, context);
+
+    if (ability.target === "ENEMY" && !defender.isMonster) {
+        throw `${ability.name} cannot target battlers`;
+    } else if (ability.target === "CHAT" && defender.isMonster) {
+        throw `${ability.name} cannot target monsters`;
+    }
+
+    let effectsRemoved = [];
+    let tokens  = ability.buffs.split(";");
+    tokens.forEach((token) => {
+        let groups = token.match(/\-([a-zA-Z0-9_]+)/);
+
+        if (!groups && groups.length < 2) {
+            throw `Bad cleansing string on ability ${ability.name}`;
+        }
+
+        let effectToRemove = groups[1];
+        effectsRemoved.push(effectToRemove.toLowerCase());
+
+        let dots = context.dotTable[defenderName] || [];
+        let buffs = context.buffTable[defenderName] || [];
+
+        context.dotTable[defenderName] = dots.filter(dot => dot.ability.id !== effectToRemove);
+        context.buffTable[defenderName] = buffs.filter(buff => buff.id === effectToRemove);
+    })
+
+    let message = '';
+    if (effectsRemoved.length < 1) {
+        message = `${defender.name} wasn't cured of anything.`;
+    } else if (effectsRemoved.length === 1) {
+        message = `${defender.name} is cured of ${effectsRemoved[0]}`;
+    } else if (effectsRemoved.length === 2) {
+        message = `${defender.name} is cured of ${effectsRemoved[0]} and ${effectsRemoved[1]}`;
+    } else {
+        message = `${defender.name} is cured of ${effectsRemoved.slice(0, effectsRemoved.length - 1).join(", ")} and ${effectsRemoved[effectsRemoved.length - 1]}`;
+    }
+    
+
+    return {
+        attacker,
+        defender,
+        flags: {
+            crit: false,
+            hit: false,
+            dead: false
+        },
+        triggerResults: [],
+        message,
+        damage: 0,
+        damageType: "CLEANSING"
     }
 }
 
@@ -613,6 +679,7 @@ module.exports = {
     heal,
     buff,
     hurt,
+    cleanse,
     spawnMonster,
     giveItem,
     giveItemFromInventory

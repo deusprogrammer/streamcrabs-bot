@@ -445,6 +445,8 @@ async function onMessageHandler(target, context, msg, self) {
                             results = await Commands.heal(attackerName, abilityTarget, ability, gameContext);
                         } else if (ability.element === "BUFFING") {
                             results = await Commands.buff(attackerName, abilityTarget, ability, gameContext);
+                        } else if (ability.element === "CLEANSING") {
+                            results = await Commands.cleanse(attackerName, abilityTarget, ability, gameContext);
                         } else {
                             results = await Commands.hurt(attackerName, abilityTarget, ability, gameContext);
                         }
@@ -476,9 +478,23 @@ async function onMessageHandler(target, context, msg, self) {
                                     encounterTable
                                 }
                             });
+                        } else if (results.damageType === "CLEANSING") {
+                            sendEvent({
+                                type: "BUFFING",
+                                targets: ["chat", "panel"],
+                                eventData: {
+                                    results: {
+                                        attacker: results.attacker,
+                                        defender: results.defender,
+                                        message: results.message
+                                    },
+                                    encounterTable
+                                }
+                            });
                         } else if (
                                 results.damageType !== "HEALING" &&
                                 results.damageType !== "BUFFING" && 
+                                results.damageType !== "CLEANSING" && 
                                 results.flags.hit) {
                             let message = `${results.attacker.name} hit ${results.defender.name} for ${results.damage} ${results.damageStat} damage.`;
                             if (results.flags.crit) {
@@ -500,6 +516,7 @@ async function onMessageHandler(target, context, msg, self) {
                         } else if (
                             results.damageType !== "HEALING" &&
                             results.damageType !== "BUFFING" &&
+                            results.damageType !== "CLEANSING" && 
                             !results.flags.hit
                         ) {
                             sendEvent({
