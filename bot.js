@@ -706,7 +706,7 @@ async function onMessageHandler(target, context, msg, self) {
                                 results: {
                                     attacker: triggerResult.results.attacker,
                                     defender: triggerResult.results.defender,
-                                    message: `${results.attacker.name}'s ${triggerResult.trigger.ability.name} activated!`
+                                    message: `${results.attacker.name}'s ${results.attacker.equipment.hand.name}'s ${triggerResult.trigger.ability.name} activated!`
                                 },
                                 encounterTable
                             }
