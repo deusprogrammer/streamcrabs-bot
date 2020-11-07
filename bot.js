@@ -131,8 +131,12 @@ const connectWs = () => {
 
         // Handle message
         if (event.type === "COMMAND") {
-            onMessageHandler(BROADCASTER_NAME, {username: event.username, mod: false}, event.message, false);
-            sendContextUpdate([event.username]);
+            onMessageHandler(BROADCASTER_NAME, {username: event.username, "user-id": event.from, mod: false}, event.message, false);
+            const caller = {
+                id: event.from,
+                name: event.username
+            }
+            sendContextUpdate([caller]);
         } else if (event.type === "CONTEXT" && event.to !== "ALL") {
             console.log("CONTEXT REQUEST FROM " + event.from);
             let players = await Xhr.getActiveUsers(gameContext);
@@ -290,6 +294,12 @@ async function onMessageHandler(target, context, msg, self) {
     // Reset a players activity tick to a full 10 minutes before we check again
     if (chattersActive[context.username]) {
         chattersActive[context.username] = 10 * 12;
+    }
+
+    console.log("CONTEXT: " + JSON.stringify(context, null, 5));
+    const caller = {
+        id: context["user-id"],
+        name: context.username
     }
 
     // Remove whitespace from chat message
@@ -830,7 +840,7 @@ async function onMessageHandler(target, context, msg, self) {
                                 encounterTable: context.encounterTable
                             }
                         });
-                        sendContextUpdate(null, true);
+                        sendContextUpdate([caller], true);
                         return;
                     }
 
@@ -992,21 +1002,21 @@ async function onMessageHandler(target, context, msg, self) {
                 case "!abilities":
                     sendInfoToChat(`${context.username} Visit https://deusprogrammer.com/util/twitch/battlers/${context.username} to view your inventory, abilities and stats.`);
                     break;
-                case "!refresh":
-                    if (context.username !== BROADCASTER_NAME && !context.mod) {
-                        throw "Only a mod or broadcaster can refresh the tables";
-                    }
+                // case "!refresh":
+                //     if (context.username !== BROADCASTER_NAME && !context.mod) {
+                //         throw "Only a mod or broadcaster can refresh the tables";
+                //     }
 
-                    itemTable = await Xhr.getItemTable()
-                    jobTable = await Xhr.getJobTable();
-                    monsterTable = await Xhr.getMonsterTable();
-                    abilityTable = await Xhr.getAbilityTable();
+                //     itemTable = await Xhr.getItemTable()
+                //     jobTable = await Xhr.getJobTable();
+                //     monsterTable = await Xhr.getMonsterTable();
+                //     abilityTable = await Xhr.getAbilityTable();
 
-                    gameContext = { itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, buffTable,  chattersActive, configTable };
+                //     gameContext = { itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, buffTable,  chattersActive, configTable };
 
-                    sendInfoToChat("All tables refreshed");
+                //     sendInfoToChat("All tables refreshed");
                     
-                    break;
+                //     break;
                 case "!config":
                     if (context.username !== BROADCASTER_NAME && !context.mod) {
                         throw "Only a mod or broadcaster can change config values";
@@ -1072,6 +1082,7 @@ async function onMessageHandler(target, context, msg, self) {
         } catch (e) {
             console.error(e.message + ": " + e.stack);
             sendErrorToChat(new Error(e));
+            sendContextUpdate([caller]);
         }
     }
 }
@@ -1197,6 +1208,10 @@ async function onConnectedHandler(addr, port) {
                         let defender = null;
                         try {
                             defender = await Commands.getTarget(username, gameContext);
+                            if (defender.hp <= 0) {
+                                effect.cycles = 0;
+                                continue;
+                            }
                         } catch (e) {
                             effect.cycles = 0;
                             break;
@@ -1208,7 +1223,7 @@ async function onConnectedHandler(addr, port) {
                             user[effect.ability.damageStat] -= damageRoll;
                             await Xhr.updateUser(user);
 
-                            sendContextUpdate([username], true);
+                            sendContextUpdate([user], true);
                         } else {
                             defender.hp -= damageRoll;
                         }
@@ -1219,15 +1234,24 @@ async function onConnectedHandler(addr, port) {
                             targets: ["chat", "panel"],
                             eventData: {
                                 results: {
-                                    defender: defender,
+                                    defender,
                                     message: `${defender.name} took ${damageRoll} damage from ${effect.ability.name} ${defender.hp <= 0 ? " and died." : "."}`
                                 },
                                 encounterTable
                             }
                         });
 
+                        // Send update to all users if monster died.
+                        if (defender.hp <= 0 && defender.isMonster) {
+                            effect.cycles = 0;
+                            delete gameContext.encounterTable[defender.spawnKey];
+                            sendContextUpdate();
+                            continue;
+                        }
+
                         if (effect.cycles <= 0) {
                             sendInfoToChat(`${defender.name}'s ${effect.ability.name} status has worn off.`);
+                            sendContextUpdate();
                         }
                     }
                 }
@@ -1339,6 +1363,8 @@ async function onConnectedHandler(addr, port) {
                                 }
                             });
                         }
+
+                        console.log("DEFENDER ATTACKED: " + JSON.stringify(results.defender, null, 5));
 
                         sendContextUpdate([results.defender]);
                         return;
