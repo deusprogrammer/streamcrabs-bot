@@ -825,9 +825,11 @@ async function onMessageHandler(target, context, msg, self) {
                             apCost = 10;
                         }
 
-                        const items = Object.keys(itemTable).filter(name => itemTable[name].rarity < maxRarity && itemTable[name].dungeon === "generic");
-                        const foundItem = items[Util.randomNumber(items.length) - 1];
-                        await Xhr.adjustPlayer(context.username, {ap: -apCost}, [foundItem.id]);
+                        const items = Object.keys(itemTable).filter(name => itemTable[name].rarity < maxRarity);
+                        const foundItemKey = items[Util.randomNumber(items.length) - 1];
+                        const foundItem = gameContext.itemTable[foundItemKey];
+
+                        await Xhr.adjustPlayer(context.username, {ap: -apCost}, [foundItemKey]);
 
                         sendEvent({
                             type: "ITEM_GET",
@@ -837,10 +839,10 @@ async function onMessageHandler(target, context, msg, self) {
                                     receiver: {
                                         name: context.username
                                     },
-                                    item: context.itemTable[drop.itemId],
+                                    item: foundItem,
                                     message: `${context.username} found ${foundItem.name}!`
                                 },
-                                encounterTable: context.encounterTable
+                                encounterTable: gameContext.encounterTable
                             }
                         });
                         sendContextUpdate([caller], true);

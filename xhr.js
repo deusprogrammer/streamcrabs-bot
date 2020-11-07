@@ -129,7 +129,7 @@ const adjustPlayer = async (username, statUpdates, newInventory, newEquipment, c
     }
 
     if (newInventory) {
-        user.inventory = [...user.inventory, newInventory];
+        user.inventory = [...user.inventory, ...newInventory];
     }
 
     if (newEquipment) {
