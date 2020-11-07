@@ -296,7 +296,6 @@ async function onMessageHandler(target, context, msg, self) {
         chattersActive[context.username] = 10 * 12;
     }
 
-    console.log("CONTEXT: " + JSON.stringify(context, null, 5));
     const caller = {
         id: context["user-id"],
         name: context.username
@@ -552,7 +551,7 @@ async function onMessageHandler(target, context, msg, self) {
                                     results: {
                                         attacker: triggerResult.results.attacker,
                                         defender: triggerResult.results.defender,
-                                        message: `${results.attacker.name}'s ${results.attacker.equipment.hand.name}'s ${triggerResult.trigger.ability.name} activated!`
+                                        message: `${results.attacker.name} triggered ${triggerResult.trigger.ability.name}!`
                                     },
                                     encounterTable
                                 }
@@ -584,6 +583,8 @@ async function onMessageHandler(target, context, msg, self) {
                                     encounterTable
                                 }
                             });
+
+                            sendContextUpdate();
                         }
                     }
 
@@ -723,7 +724,9 @@ async function onMessageHandler(target, context, msg, self) {
 
                             itemGets.forEach((itemGet) => {
                                 sendEvent(itemGet);
-                            })
+                            });
+
+                            sendContextUpdate();
                         }
 
                         sendEvent({
@@ -1246,7 +1249,7 @@ async function onConnectedHandler(addr, port) {
                             effect.cycles = 0;
                             delete gameContext.encounterTable[defender.spawnKey];
                             sendContextUpdate();
-                            continue;
+                            continue;l
                         }
 
                         if (effect.cycles <= 0) {
@@ -1363,8 +1366,6 @@ async function onConnectedHandler(addr, port) {
                                 }
                             });
                         }
-
-                        console.log("DEFENDER ATTACKED: " + JSON.stringify(results.defender, null, 5));
 
                         sendContextUpdate([results.defender]);
                         return;
