@@ -116,8 +116,8 @@ const restartProcess = () => {
     process.exit()
 }
 
-const hmacSHA1 = (key, data) => {
-    return crypto.createHmac('sha1', key).update(data).digest().toString('base64');
+const hmacSHA1 = (hmacSecret, data) => {
+    return crypto.createHmac('sha1', hmacSecret).update(data).digest().toString('base64');
 }
 
 module.exports = {

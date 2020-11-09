@@ -46,8 +46,8 @@ let queue = [];
 * CHAT BOT 
 */
 
-const key = process.env.TWITCH_SHARED_SECRET;
-const secret = Buffer.from(key, 'base64');
+const secret = process.env.TWITCH_SHARED_SECRET;
+// const secret = Buffer.from(key, 'base64');
 
 const createExpirationDate = () => {
     var d = new Date();
@@ -80,11 +80,13 @@ const connectWs = () => {
     extWs.on('open', () => {
         extWs.send(JSON.stringify({
             type: "REGISTER",
+            channelId: TWITCH_EXT_CHANNEL_ID,
             jwt
         }));
 
         extWs.send(JSON.stringify({
             type: "STARTUP",
+            channelId: TWITCH_EXT_CHANNEL_ID,
             jwt,
             to: "ALL"
         }));
@@ -93,6 +95,7 @@ const connectWs = () => {
         pingInterval = setInterval(() => {
             extWs.send(JSON.stringify({
                 type: "PING_SERVER",
+                channelId: TWITCH_EXT_CHANNEL_ID,
                 jwt
             }));
         }, 20 * 1000);
@@ -121,7 +124,7 @@ const connectWs = () => {
 
         // Validate ws server signature
         let signature = event.signature;
-        let actualSignature = Util.hmacSHA1(key, event.to + event.from + event.ts);
+        let actualSignature = Util.hmacSHA1(secret, event.to + event.from + event.ts);
 
         if (signature !== actualSignature) {
             console.error("Dropping message due to signature mismatch");
@@ -142,6 +145,7 @@ const connectWs = () => {
             let players = await Xhr.getActiveUsers(gameContext);
             extWs.send(JSON.stringify({
                 type: "CONTEXT",
+                channelId: TWITCH_EXT_CHANNEL_ID,
                 jwt,
                 to: event.from,
                 data: {
@@ -154,6 +158,7 @@ const connectWs = () => {
         } else if (event.type === "PING") {
             extWs.send(JSON.stringify({
                 type: "PONG",
+                channelId: TWITCH_EXT_CHANNEL_ID,
                 jwt,
                 to: event.from,
             }));
@@ -196,6 +201,7 @@ const sendContextUpdate = async (targets, shouldRefresh = false) => {
         targets.forEach((target) => {
             extWs.send(JSON.stringify({
                 type: "CONTEXT",
+                channelId: TWITCH_EXT_CHANNEL_ID,
                 jwt,
                 to: target.id,
                 data: {
@@ -210,6 +216,7 @@ const sendContextUpdate = async (targets, shouldRefresh = false) => {
     } else {
         extWs.send(JSON.stringify({
             type: "CONTEXT",
+            channelId: TWITCH_EXT_CHANNEL_ID,
             jwt,
             to: "ALL",
             data: {
@@ -1074,6 +1081,7 @@ async function onMessageHandler(target, context, msg, self) {
                     sendInfoToChat("Miku going offline.  Oyasumi.");
                     extWs.send(JSON.stringify({
                         type: "SHUTDOWN",
+                        channelId: TWITCH_EXT_CHANNEL_ID,
                         jwt,
                         to: "ALL",
                     }));
@@ -1168,6 +1176,7 @@ async function onConnectedHandler(addr, port) {
                     let user = Xhr.getUser(username);
                     extWs.send(JSON.stringify({
                         type: "COOLDOWN_OVER",
+                        channelId: TWITCH_EXT_CHANNEL_ID,
                         jwt,
                         to: user.id,
                     }));
@@ -1191,6 +1200,7 @@ async function onConnectedHandler(addr, port) {
                     let user = await Xhr.getUser(username);
                     extWs.send(JSON.stringify({
                         type: "BUFF_UPDATE",
+                        channelId: TWITCH_EXT_CHANNEL_ID,
                         jwt,
                         to: user.id,
                         data: {
@@ -1267,6 +1277,7 @@ async function onConnectedHandler(addr, port) {
                     let user = await Xhr.getUser(username);
                     extWs.send(JSON.stringify({
                         type: "STATUS_UPDATE",
+                        channelId: TWITCH_EXT_CHANNEL_ID,
                         jwt,
                         to: user.id,
                         data: {

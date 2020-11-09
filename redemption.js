@@ -5,7 +5,6 @@ const jsonwebtoken = require('jsonwebtoken');
 
 var Xhr = require('./xhr');
 
-const BOT_USER_ID = 591669672;
 const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
 /* 
@@ -41,7 +40,7 @@ const createExpirationDate = () => {
 
 const jwt = jsonwebtoken.sign({
     "exp": createExpirationDate().getTime(),
-    "user_id": BOT_USER_ID,
+    "user_id": `BOT-${TWITCH_EXT_CHANNEL_ID}`,
     "role": "moderator",
     "channel_id": TWITCH_EXT_CHANNEL_ID,
     "pubsub_perms": {
@@ -63,7 +62,6 @@ const sendContextUpdate = async (ws, context, targets, shouldRefresh = false) =>
                 type: "CONTEXT",
                 jwt,
                 to: target.id,
-                from: BOT_USER_ID,
                 data: {
                     players,
                     monsters: Object.keys(context.encounterTable).map(key => `~${key}`),
@@ -78,7 +76,6 @@ const sendContextUpdate = async (ws, context, targets, shouldRefresh = false) =>
             type: "CONTEXT",
             jwt,
             to: "ALL",
-            from: BOT_USER_ID,
             data: {
                 players,
                 monsters: Object.keys(context.encounterTable).map(key => `~${key}`),
