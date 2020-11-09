@@ -166,7 +166,6 @@ const distributeLoot = async (monster, context) => {
                         encounterTable: context.encounterTable
                     }
                 });
-                break;
             }
         }
     }

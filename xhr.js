@@ -202,6 +202,30 @@ const getItem = async (itemId) => {
     }
 }
 
+const getSealedItem = async (itemId) => {
+    try {
+        let itemResponse = await axios.get(`${BATTLE_API_URL}/sealed-items/${itemId}`, {
+            headers: {
+                Authorization: `Bearer ${BATTLE_BOT_JWT}`
+            }
+        })
+
+        return itemResponse.data;
+    } catch (e) {
+        console.error(e);
+        return null;
+    }
+}
+
+const updateSealedItem = async (item) => {
+    await axios.put(`${BATTLE_API_URL}/sealed-items/${item.id}`, item, {
+        headers: {
+            contentType: "application/json",
+            Authorization: `Bearer ${BATTLE_BOT_JWT}`
+        }
+    })
+}
+
 const updateUser = async (user) => {
     await axios.put(`${BATTLE_API_URL}/users/${user.name}`, user, {
         headers: {
@@ -294,6 +318,8 @@ const reviveAvatar = async (message) => {
 module.exports = {
     getUser,
     getItem,
+    getSealedItem,
+    updateSealedItem,
     getActiveUsers,
     getItemTable,
     getJobTable,
