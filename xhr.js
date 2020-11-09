@@ -3,8 +3,10 @@ const Util = require('./util');
 const jsonwebtoken = require('jsonwebtoken');
 
 const BATTLE_BOT_JWT = process.env.TWITCH_BOT_JWT;
+const BATTLE_BOT_ACCESS_TOKEN = process.env.TWITCH_BOT_ACCESS_TOKEN;
 const BATTLE_API_URL = process.env.BATTLE_API_URL;
 const PROFILE_API_URL = process.env.PROFILE_API_URL;
+const AUTH_API_URL = process.env.AUTH_API_URL;
 
 const TWITCH_EXT_CLIENT_ID = process.env.TWITCH_EXT_CLIENT_ID;
 const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
@@ -12,6 +14,14 @@ const TWITCH_EXT_API_URL = `https://api.twitch.tv/extensions/message/${TWITCH_EX
 
 const key = process.env.TWITCH_SHARED_SECRET;
 const secret = Buffer.from(key, 'base64');
+
+// const headers = {
+//     Authorization: `Bearer ${BATTLE_BOT_JWT}`
+// }
+
+const headers = {
+    "X-Access-Token": BATTLE_BOT_ACCESS_TOKEN
+}
 
 const createExpirationDate = () => {
     var d = new Date();
@@ -33,6 +43,15 @@ const pubSubJwtToken = jsonwebtoken.sign({
         ]
     }
 }, secret);
+
+const authenticateBot = async (username, password) => {
+    let authResponse = await axios.post(`${AUTH_API_URL}/items/${itemId}`, {
+        username,
+        password
+    });
+
+    return authResponse.data.id;
+}
 
 const sendExtensionPubSubBroadcast = async (event) => {
     let message = {
@@ -68,9 +87,7 @@ const getTwitchProfile = async (userId) => {
 
 const getItemTable = () => {
     return axios.get(`${BATTLE_API_URL}/items`, {
-        headers: {
-            Authorization: `Bearer ${BATTLE_BOT_JWT}`
-        }
+        headers
     })
         .then((response) => {
             return Util.indexArrayToMap(response.data);
@@ -79,9 +96,7 @@ const getItemTable = () => {
 
 const getJobTable = () => {
     return axios.get(`${BATTLE_API_URL}/jobs`, {
-        headers: {
-            Authorization: `Bearer ${BATTLE_BOT_JWT}`
-        }
+        headers
     })
         .then((response) => {
             return Util.indexArrayToMap(response.data);
@@ -90,9 +105,7 @@ const getJobTable = () => {
 
 const getMonsterTable = () => {
     return axios.get(`${BATTLE_API_URL}/monsters`, {
-        headers: {
-            Authorization: `Bearer ${BATTLE_BOT_JWT}`
-        }
+        headers
     })
         .then((response) => {
             return Util.indexArrayToMap(response.data);
@@ -101,9 +114,7 @@ const getMonsterTable = () => {
 
 const updateMonster = async (monster) => {
     return axios.put(`${BATTLE_API_URL}/monsters/${monster.id}`, monster, {
-        headers: {
-            Authorization: `Bearer ${BATTLE_BOT_JWT}`
-        }
+        headers
     })
 }
 
@@ -145,9 +156,7 @@ const adjustPlayer = async (username, statUpdates, newInventory, newEquipment, c
 
 const getAbilityTable = () => {
     return axios.get(`${BATTLE_API_URL}/abilities`, {
-        headers: {
-            Authorization: `Bearer ${BATTLE_BOT_JWT}`
-        }
+        headers
     })
         .then((response) => {
             return Util.indexArrayToMap(response.data);
@@ -158,9 +167,7 @@ const getActiveUsers = async (context) => {
     let chatters = Object.keys(context.chattersActive);
 
     let r = await axios.get(`${BATTLE_API_URL}/users`, {
-        headers: {
-            Authorization: `Bearer ${BATTLE_BOT_JWT}`
-        }
+        headers
     });
 
     let users = r.data.map((user) => {
@@ -175,9 +182,7 @@ const getActiveUsers = async (context) => {
 const getUser = async (username) => {
     try {
         let userResponse = await axios.get(`${BATTLE_API_URL}/users/${username}`, {
-            headers: {
-                Authorization: `Bearer ${BATTLE_BOT_JWT}`
-            }
+            headers
         })
 
         return userResponse.data;
@@ -190,9 +195,7 @@ const getUser = async (username) => {
 const getItem = async (itemId) => {
     try {
         let itemResponse = await axios.get(`${BATTLE_API_URL}/items/${itemId}`, {
-            headers: {
-                Authorization: `Bearer ${BATTLE_BOT_JWT}`
-            }
+            headers
         })
 
         return itemResponse.data;
@@ -205,9 +208,7 @@ const getItem = async (itemId) => {
 const getSealedItem = async (itemId) => {
     try {
         let itemResponse = await axios.get(`${BATTLE_API_URL}/sealed-items/${itemId}`, {
-            headers: {
-                Authorization: `Bearer ${BATTLE_BOT_JWT}`
-            }
+            headers
         })
 
         return itemResponse.data;
@@ -219,19 +220,13 @@ const getSealedItem = async (itemId) => {
 
 const updateSealedItem = async (item) => {
     await axios.put(`${BATTLE_API_URL}/sealed-items/${item.id}`, item, {
-        headers: {
-            contentType: "application/json",
-            Authorization: `Bearer ${BATTLE_BOT_JWT}`
-        }
+        headers
     })
 }
 
 const updateUser = async (user) => {
     await axios.put(`${BATTLE_API_URL}/users/${user.name}`, user, {
-        headers: {
-            contentType: "application/json",
-            Authorization: `Bearer ${BATTLE_BOT_JWT}`
-        }
+        headers
     })
 }
 
@@ -247,10 +242,7 @@ const createUser = async (message) => {
                 }
             }
         }, {
-            headers: {
-                contentType: "application/json",
-                Authorization: `Bearer ${BATTLE_BOT_JWT}`
-            }
+            headers
         });
 
         await axios.post(`${BATTLE_API_URL}/users`, {
@@ -285,10 +277,7 @@ const createUser = async (message) => {
             ],
             gold: 100
         }, {
-            headers: {
-                contentType: "application/json",
-                Authorization: `Bearer ${BATTLE_BOT_JWT}`
-            }
+            headers
         });
     } catch (e) {
 
@@ -332,5 +321,6 @@ module.exports = {
     chargeAP,
     reviveAvatar,
     getTwitchProfile,
+    authenticateBot,
     sendExtensionPubSubBroadcast
 }
