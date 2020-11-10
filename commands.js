@@ -150,10 +150,10 @@ const distributeLoot = async (monster, context) => {
 
                 // If exclusive, mark the drop as permanently taken
                 if (drop.exclusive) {
-                    
+
                     // Skip exclusive loot drop if it belongs to another channel; this should never happen.
-                    if (itemTable[drop.itemId].owningChannel !== TWITCH_EXT_CHANNEL_ID) {
-                        console.error("Attempting to drop loot from another channel.");
+                    if (context.itemTable[drop.itemId].owningChannel != TWITCH_EXT_CHANNEL_ID) {
+                        console.error(`Attempting to drop loot from channel ${context.itemTable[drop.itemId].owningChannel} in channel ${TWITCH_EXT_CHANNEL_ID}.`);
                         continue;
                     }
 

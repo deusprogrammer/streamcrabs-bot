@@ -68,7 +68,6 @@ const jwt = jsonwebtoken.sign({
 }, secret);
 
 // Setup websocket to communicate with extension
-let pingInterval = null;
 let extWs = null;
 const connectWs = () => {
     console.log("OPENING WS");
@@ -100,8 +99,6 @@ const connectWs = () => {
 
     extWs.on('message', async (message) => {
         let event = JSON.parse(message);
-
-        console.log("RECEIVED MESSAGE: " + JSON.stringify(event, null, 5));
 
         // Ignore messages originating from bot
         if (["SERVER", `BOT-${TWITCH_EXT_CHANNEL_ID}`].includes(event.from)) {
@@ -1431,7 +1428,7 @@ const handleItemGive = async (item, giver, receiver) => {
         // Handle giving sealed item to Miku
         let sealedItem = await Xhr.getSealedItem(item.sealedItemId);
 
-        if (sealedItem.owningChannel !== TWITCH_EXT_CHANNEL_ID) {
+        if (sealedItem.owningChannel != TWITCH_EXT_CHANNEL_ID) {
             client.whisper(giver.name, `This sealed box is meant for another channel...you shouldn't have been able to get this.  Please contact deusprogrammer@gmail.com to let them know you have found a bug.`);
             return;
         }
