@@ -21,27 +21,6 @@ const headers = {
     "X-Access-Token": BATTLE_BOT_ACCESS_TOKEN
 }
 
-const createExpirationDate = () => {
-    var d = new Date();
-    var year = d.getFullYear();
-    var month = d.getMonth();
-    var day = d.getDate();
-    var c = new Date(year + 1, month, day);
-    return c;
-}
-
-const pubSubJwtToken = jsonwebtoken.sign({
-    "exp": createExpirationDate().getTime(),
-    "user_id": TWITCH_EXT_CHANNEL_ID,
-    "role": "broadcaster",
-    "channel_id": TWITCH_EXT_CHANNEL_ID,
-    "pubsub_perms": {
-        "send":[
-            "broadcast"
-        ]
-    }
-}, secret);
-
 const authenticateBot = async (username, password) => {
     let authResponse = await axios.post(`${AUTH_API_URL}/items/${itemId}`, {
         username,
@@ -49,19 +28,6 @@ const authenticateBot = async (username, password) => {
     });
 
     return authResponse.data.id;
-}
-
-const getTwitchProfile = async (userId) => {
-    let url = `https://api.twitch.tv/kraken/users/${userId}`;
-    console.log(`URL : ${url}`);
-    let res = await axios.get(url, {
-        headers: {
-            "Client-ID": `z91swgqes7e0y7r8oa1t32u6uokyiw`,
-            Accept: "application/vnd.twitchtv.v5+json"
-        }
-    });
-
-    return res.data;
 }
 
 const getItemTable = () => {
@@ -299,6 +265,5 @@ module.exports = {
     createUser,
     chargeAP,
     reviveAvatar,
-    getTwitchProfile,
     authenticateBot
 }

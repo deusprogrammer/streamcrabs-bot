@@ -104,22 +104,11 @@ const connectWs = () => {
     extWs.on('message', async (message) => {
         let event = JSON.parse(message);
 
-        // console.log("MESSAGE: " + JSON.stringify(event, null, 5));
+        console.log("RECEIVED MESSAGE: " + JSON.stringify(event, null, 5));
 
         // Ignore messages originating from bot
         if (["SERVER", `BOT-${TWITCH_EXT_CHANNEL_ID}`].includes(event.from)) {
             return;
-        }
-
-        // Overwrite username that was passed in
-        if (event.from) {
-            event.username = twitchCache[event.from];
-            if (!event.username) {
-                console.log("Twitch user not cached");
-                let profile = await Xhr.getTwitchProfile(event.from);
-                event.username = profile.name;
-                twitchCache[event.from] = profile.name;
-            }
         }
 
         // Validate ws server signature
@@ -134,10 +123,10 @@ const connectWs = () => {
 
         // Handle message
         if (event.type === "COMMAND") {
-            onMessageHandler(BROADCASTER_NAME, {username: event.username, "user-id": event.from, mod: false}, event.message, false);
+            onMessageHandler(BROADCASTER_NAME, {username: event.fromUser, "user-id": event.from, mod: false}, event.message, false);
             const caller = {
                 id: event.from,
-                name: event.username
+                name: event.fromUser
             }
             sendContextUpdate([caller]);
         } else if (event.type === "CONTEXT" && event.to !== "ALL") {
@@ -151,8 +140,8 @@ const connectWs = () => {
                 data: {
                     players,
                     monsters: Object.keys(encounterTable).map(key => `~${key}`),
-                    cooldown: cooldownTable[event.username],
-                    buffs: buffTable[event.username]
+                    cooldown: cooldownTable[event.fromUser],
+                    buffs: buffTable[event.fromUser]
                 }
             }));
         } else if (event.type === "PING") {
