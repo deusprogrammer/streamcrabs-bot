@@ -1,21 +1,12 @@
 const axios = require('axios');
 const Util = require('./util');
-const jsonwebtoken = require('jsonwebtoken');
 
 // const BATTLE_BOT_JWT = process.env.TWITCH_BOT_JWT;
 const BATTLE_BOT_ACCESS_TOKEN = process.env.TWITCH_BOT_ACCESS_TOKEN;
 const BATTLE_API_URL = process.env.BATTLE_API_URL;
 const PROFILE_API_URL = process.env.PROFILE_API_URL;
 const AUTH_API_URL = process.env.AUTH_API_URL;
-
 const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
-
-const key = process.env.TWITCH_SHARED_SECRET;
-const secret = Buffer.from(key, 'base64');
-
-// const headers = {
-//     Authorization: `Bearer ${BATTLE_BOT_JWT}`
-// }
 
 const headers = {
     "X-Access-Token": BATTLE_BOT_ACCESS_TOKEN
@@ -49,7 +40,7 @@ const getJobTable = () => {
 }
 
 const getMonsterTable = () => {
-    return axios.get(`${BATTLE_API_URL}/monsters`, {
+    return axios.get(`${BATTLE_API_URL}/monsters?owningChannel=${TWITCH_EXT_CHANNEL_ID}`, {
         headers
     })
         .then((response) => {

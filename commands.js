@@ -1,6 +1,8 @@
 var Xhr = require('./xhr');
 var Util = require('./util');
 
+const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
+
 const createBuffMap = (username, context) => {
     let buffs = context.buffTable[username] || [];
     let buffMap = {
@@ -135,6 +137,7 @@ const distributeLoot = async (monster, context) => {
     for (var attacker in Util.shuffle(monster.aggro)) {
         for (var i in drops) {
             let drop = drops[i];
+
             let chanceRoll = Util.rollDice("1d100");
             if (chanceRoll < drop.chance && !(drop.exclusive && drop.exclusiveTaken)) {
                 // If only one of these can drop for a given monster
@@ -147,6 +150,13 @@ const distributeLoot = async (monster, context) => {
 
                 // If exclusive, mark the drop as permanently taken
                 if (drop.exclusive) {
+                    
+                    // Skip exclusive loot drop if it belongs to another channel; this should never happen.
+                    if (itemTable[drop.itemId].owningChannel !== TWITCH_EXT_CHANNEL_ID) {
+                        console.error("Attempting to drop loot from another channel.");
+                        continue;
+                    }
+
                     let updatedMonster = context.monsterTable[monster.id];
 
                     drop.exclusiveTaken  = true;

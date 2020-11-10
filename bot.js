@@ -25,8 +25,6 @@ let cooldownTable = {};
 let buffTable = {};
 let dotTable = {};
 
-let twitchCache = {};
-
 // Various config values that can be changed on the fly
 let configTable = {
     verbosity: "verbose",
@@ -47,7 +45,6 @@ let queue = [];
 */
 
 const secret = process.env.TWITCH_SHARED_SECRET;
-// const secret = Buffer.from(key, 'base64');
 
 const createExpirationDate = () => {
     var d = new Date();
@@ -1433,6 +1430,11 @@ const handleItemGive = async (item, giver, receiver) => {
     } else if (item.type === "sealed") {
         // Handle giving sealed item to Miku
         let sealedItem = await Xhr.getSealedItem(item.sealedItemId);
+
+        if (sealedItem.owningChannel !== TWITCH_EXT_CHANNEL_ID) {
+            client.whisper(giver.name, `This sealed box is meant for another channel...you shouldn't have been able to get this.  Please contact deusprogrammer@gmail.com to let them know you have found a bug.`);
+            return;
+        }
         
         if (!sealedItem || sealedItem.claimed) {
             client.whisper(giver.name, `Huh...this box is empty.  That's weird.  Reach out to the streamer for assistance.`);
