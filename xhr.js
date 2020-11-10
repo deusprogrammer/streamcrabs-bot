@@ -40,7 +40,7 @@ const getJobTable = () => {
 }
 
 const getMonsterTable = () => {
-    return axios.get(`${BATTLE_API_URL}/monsters?owningChannel=${TWITCH_EXT_CHANNEL_ID}`, {
+    return axios.get(`${BATTLE_API_URL}/monsters}`, {
         headers
     })
         .then((response) => {
