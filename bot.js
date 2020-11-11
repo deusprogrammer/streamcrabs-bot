@@ -105,6 +105,22 @@ const connectWs = () => {
             return;
         }
 
+        // If it's just a panel listener requesting initialization, just do it marrrrrrk.
+        if (event.type === "PANEL_INIT") {
+            extWs.send(JSON.stringify({
+                type: "INIT",
+                channelId: TWITCH_EXT_CHANNEL_ID,
+                jwt,
+                to: event.from,
+                eventData: {
+                    results: {},
+                    encounterTable
+                }
+            }));
+
+            return;
+        }
+
         // Validate ws server signature
         let signature = event.signature;
         let actualSignature = Util.hmacSHA1(secret, event.to + event.from + event.ts);
@@ -144,17 +160,6 @@ const connectWs = () => {
                 channelId: TWITCH_EXT_CHANNEL_ID,
                 jwt,
                 to: event.from,
-            }));
-        } else if (event.type === "PANEL_INIT") {
-            extWs.send(JSON.stringify({
-                type: "INIT",
-                channelId: TWITCH_EXT_CHANNEL_ID,
-                jwt,
-                to: event.from,
-                eventData: {
-                    results: {},
-                    encounterTable
-                }
             }));
         }
     });
