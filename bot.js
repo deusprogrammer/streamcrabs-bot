@@ -145,6 +145,17 @@ const connectWs = () => {
                 jwt,
                 to: event.from,
             }));
+        } else if (event.type === "PANEL_INIT") {
+            extWs.send(JSON.stringify({
+                type: "INIT",
+                channelId: TWITCH_EXT_CHANNEL_ID,
+                jwt,
+                to: event.from,
+                eventData: {
+                    results: {},
+                    encounterTable
+                }
+            }));
         }
     });
 
@@ -163,20 +174,6 @@ const connectWs = () => {
         extWs.close();
     });
 }
-
-// Setup websocket server for communicating with the panel
-const wss = new WebSocket.Server({ port: 8090 });
-
-wss.on('connection', function connection(panelWs) {
-    let initEvent = {
-        type: "INIT",
-        eventData: {
-            results: {},
-            encounterTable
-        }
-    }
-    panelWs.send(JSON.stringify(initEvent, null, 5));
-});
 
 const sendContextUpdate = async (targets, shouldRefresh = false) => {
     let players = await Xhr.getActiveUsers(gameContext);
@@ -213,11 +210,10 @@ const sendContextUpdate = async (targets, shouldRefresh = false) => {
 
 // TODO Eventually collapse this into the one websocket
 const sendEventToPanels = async (event) => {
-    wss.clients.forEach(function each(client) {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify(event));
-        }
-    });
+    event.channelId = TWITCH_EXT_CHANNEL_ID;
+    event.to = "PANELS";
+    event.jwt = jwt;
+    extWs.send(JSON.stringify(event));
 }
 
 const sendEvent = async (event, verbosity = "simple") => {
