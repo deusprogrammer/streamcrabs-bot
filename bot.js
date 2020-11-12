@@ -1243,9 +1243,16 @@ async function onConnectedHandler(addr, port) {
                         // Send update to all users if monster died.
                         if (defender.hp <= 0 && defender.isMonster) {
                             effect.cycles = 0;
+
                             delete gameContext.encounterTable[defender.spawnKey];
+
+                            let itemGets = await Commands.distributeLoot(defender, gameContext);
+                            itemGets.forEach((itemGet) => {
+                                sendEvent(itemGet);
+                            });
+
                             sendContextUpdate();
-                            continue;l
+                            continue;
                         }
 
                         if (effect.cycles <= 0) {

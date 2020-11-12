@@ -139,9 +139,11 @@ const distributeLoot = async (monster, context) => {
             let drop = drops[i];
 
             let chanceRoll = Util.rollDice("1d100");
+            console.log("CHANCE: " + chanceRoll + " vs " + drop.chance);
             if (chanceRoll < drop.chance && !(drop.exclusive && drop.exclusiveTaken)) {
                 // If only one of these can drop for a given monster
                 if (drop.onlyOne && taken[drop.itemId]) {
+                    console.log("ONLY ONE");
                     continue;
                 }
                 
@@ -150,7 +152,7 @@ const distributeLoot = async (monster, context) => {
 
                 // If exclusive, mark the drop as permanently taken
                 if (drop.exclusive) {
-
+                    console.log("EXCLUSIVE");
                     // Skip exclusive loot drop if it belongs to another channel; this should never happen.
                     if (context.itemTable[drop.itemId].owningChannel != TWITCH_EXT_CHANNEL_ID) {
                         console.error(`Attempting to drop loot from channel ${context.itemTable[drop.itemId].owningChannel} in channel ${TWITCH_EXT_CHANNEL_ID}.`);
