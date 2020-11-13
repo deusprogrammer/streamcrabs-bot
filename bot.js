@@ -7,10 +7,11 @@ const Xhr = require('./xhr');
 const Commands = require('./commands');
 const Redemption = require('./redemption');
 
-const BROADCASTER_NAME = process.env.TWITCH_BOT_CHANNEL;
 const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
 const versionNumber = "1.0b";
+
+// TODO Move these into an async function so we can use await
 
 /*
  * INDEXES
@@ -24,6 +25,9 @@ let encounterTable = {};
 let cooldownTable = {};
 let buffTable = {};
 let dotTable = {};
+
+let botConfig = {};
+let client = {};
 
 // Various config values that can be changed on the fly
 let configTable = {
@@ -44,8 +48,6 @@ let queue = [];
 * CHAT BOT 
 */
 
-const secret = process.env.TWITCH_SHARED_SECRET;
-
 const createExpirationDate = () => {
     var d = new Date();
     var year = d.getFullYear();
@@ -55,35 +57,37 @@ const createExpirationDate = () => {
     return c;
 }
 
-const jwt = jsonwebtoken.sign({
-    "exp": createExpirationDate().getTime(),
-    "user_id": `BOT-${TWITCH_EXT_CHANNEL_ID}`,
-    "role": "moderator",
-    "channel_id": TWITCH_EXT_CHANNEL_ID,
-    "pubsub_perms": {
-        "send":[
-            "broadcast"
-        ]
-    }
-}, secret);
+const createJwt = (secret) => {
+    return jsonwebtoken.sign({
+        "exp": createExpirationDate().getTime(),
+        "user_id": `BOT-${TWITCH_EXT_CHANNEL_ID}`,
+        "role": "moderator",
+        "channel_id": TWITCH_EXT_CHANNEL_ID,
+        "pubsub_perms": {
+            "send":[
+                "broadcast"
+            ]
+        }
+    }, secret);
+}
 
 // Setup websocket to communicate with extension
 let extWs = null;
-const connectWs = () => {
-    console.log("OPENING WS");
+const connectWs = (config) => {
     extWs = new WebSocket('wss://deusprogrammer.com/api/ws/twitch');
  
     extWs.on('open', () => {
+        console.log("OPENED WS");
         extWs.send(JSON.stringify({
             type: "REGISTER",
             channelId: TWITCH_EXT_CHANNEL_ID,
-            jwt
+            jwt: createJwt(config.sharedSecretKey),
         }));
 
         extWs.send(JSON.stringify({
             type: "STARTUP",
             channelId: TWITCH_EXT_CHANNEL_ID,
-            jwt,
+            jwt: createJwt(config.sharedSecretKey),
             to: "ALL"
         }));
 
@@ -92,7 +96,7 @@ const connectWs = () => {
             extWs.send(JSON.stringify({
                 type: "PING_SERVER",
                 channelId: TWITCH_EXT_CHANNEL_ID,
-                jwt
+                jwt: createJwt(config.sharedSecretKey),
             }));
         }, 20 * 1000);
     });
@@ -105,12 +109,14 @@ const connectWs = () => {
             return;
         }
 
+        console.log("EVENT: " + JSON.stringify(event, null, 5));
+
         // If it's just a panel listener requesting initialization, just do it marrrrrrk.
         if (event.type === "PANEL_INIT") {
             extWs.send(JSON.stringify({
                 type: "INIT",
                 channelId: TWITCH_EXT_CHANNEL_ID,
-                jwt,
+                jwt: createJwt(config.sharedSecretKey),
                 to: event.from,
                 eventData: {
                     results: {},
@@ -123,7 +129,7 @@ const connectWs = () => {
 
         // Validate ws server signature
         let signature = event.signature;
-        let actualSignature = Util.hmacSHA1(secret, event.to + event.from + event.ts);
+        let actualSignature = Util.hmacSHA1(config.sharedSecretKey, event.to + event.from + event.ts);
 
         if (signature !== actualSignature) {
             console.error("Dropping message due to signature mismatch");
@@ -133,7 +139,7 @@ const connectWs = () => {
 
         // Handle message
         if (event.type === "COMMAND") {
-            onMessageHandler(BROADCASTER_NAME, {username: event.fromUser, "user-id": event.from, mod: false}, event.message, false);
+            onMessageHandler(botConfig.twitchChannel, {username: event.fromUser, "user-id": event.from, mod: false}, event.message, false);
             const caller = {
                 id: event.from,
                 name: event.fromUser
@@ -145,7 +151,7 @@ const connectWs = () => {
             extWs.send(JSON.stringify({
                 type: "CONTEXT",
                 channelId: TWITCH_EXT_CHANNEL_ID,
-                jwt,
+                jwt: createJwt(config.sharedSecretKey),
                 to: event.from,
                 data: {
                     players,
@@ -158,7 +164,7 @@ const connectWs = () => {
             extWs.send(JSON.stringify({
                 type: "PONG",
                 channelId: TWITCH_EXT_CHANNEL_ID,
-                jwt,
+                jwt: createJwt(config.sharedSecretKey),
                 to: event.from,
             }));
         }
@@ -187,7 +193,7 @@ const sendContextUpdate = async (targets, shouldRefresh = false) => {
             extWs.send(JSON.stringify({
                 type: "CONTEXT",
                 channelId: TWITCH_EXT_CHANNEL_ID,
-                jwt,
+                jwt: createJwt(botConfig.sharedSecretKey),
                 to: target.id,
                 data: {
                     players,
@@ -202,7 +208,7 @@ const sendContextUpdate = async (targets, shouldRefresh = false) => {
         extWs.send(JSON.stringify({
             type: "CONTEXT",
             channelId: TWITCH_EXT_CHANNEL_ID,
-            jwt,
+            jwt: createJwt(botConfig.sharedSecretKey),
             to: "ALL",
             data: {
                 players,
@@ -217,7 +223,7 @@ const sendContextUpdate = async (targets, shouldRefresh = false) => {
 const sendEventToPanels = async (event) => {
     event.channelId = TWITCH_EXT_CHANNEL_ID;
     event.to = "PANELS";
-    event.jwt = jwt;
+    event.jwt = createJwt(botConfig.sharedSecretKey);
     extWs.send(JSON.stringify(event));
 }
 
@@ -258,25 +264,29 @@ const sendErrorToChat = async(message) => {
 }
 
 // Define configuration options for chat bot
-const opts = {
-    identity: {
-        username: process.env.TWITCH_BOT_USER,
-        password: process.env.TWITCH_BOT_PASS
-    },
-    channels: [
-        process.env.TWITCH_BOT_CHANNEL
-    ]
+const startBot = async () => {
+    botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
+    const opts = {
+        identity: {
+            username: process.env.TWITCH_BOT_USER,
+            password: process.env.TWITCH_BOT_PASS
+        },
+        channels: [
+            botConfig.twitchChannel
+        ]
+    };
+
+    // Create a client with our options
+    client = new tmi.client(opts);
+
+    // Register our event handlers (defined below)
+    client.on('message', onMessageHandler);
+    client.on('connected', onConnectedHandler);
+
+    // Connect to Twitch:
+    client.connect();
 };
-
-// Create a client with our options
-const client = new tmi.client(opts);
-
-// Register our event handlers (defined below)
-client.on('message', onMessageHandler);
-client.on('connected', onConnectedHandler);
-
-// Connect to Twitch:
-client.connect();
+startBot();
 
 // Called every time a message comes in
 async function onMessageHandler(target, context, msg, self) {
@@ -552,7 +562,7 @@ async function onMessageHandler(target, context, msg, self) {
                         if (results.flags.dead) {
                             if (results.defender.isMonster) {
                                 if (results.defender.transmogName) {
-                                    client.say(BROADCASTER_NAME, `/ban ${results.defender.transmogName}`);
+                                    client.say(botConfig.twitchChannel, `/ban ${results.defender.transmogName}`);
                                 }
 
                                 delete encounterTable[results.defender.spawnKey];
@@ -707,7 +717,7 @@ async function onMessageHandler(target, context, msg, self) {
                     if (results.flags.dead) {
                         if (results.defender.isMonster) {
                             if (results.defender.transmogName) {
-                                client.say(BROADCASTER_NAME, `/ban ${results.defender.transmogName}`);
+                                client.say(botConfig.twitchChannel, `/ban ${results.defender.transmogName}`);
                             }
 
                             delete encounterTable[results.defender.spawnKey];
@@ -737,7 +747,7 @@ async function onMessageHandler(target, context, msg, self) {
 
                     break;
                 case "!transmog":
-                    if (context.username !== BROADCASTER_NAME && !context.mod) {
+                    if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a broadcaster or mod can turn a viewer into a slime";
                     }
 
@@ -753,7 +763,7 @@ async function onMessageHandler(target, context, msg, self) {
                     var transmogName = tokens[1];
                     tokens[1] = tokens[1].replace("@", "").toLowerCase();
 
-                    if (tokens[1] === BROADCASTER_NAME) {
+                    if (tokens[1] === botConfig.twitchChannel) {
                         throw "You can't turn the broadcaster into a slime";
                     }
 
@@ -777,7 +787,7 @@ async function onMessageHandler(target, context, msg, self) {
 
                     break;
                 case "!untransmog":
-                    if (context.username !== BROADCASTER_NAME && !context.mod) {
+                    if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a broadcaster or mod can revert a slime";
                     }
 
@@ -873,7 +883,7 @@ async function onMessageHandler(target, context, msg, self) {
 
                     break;
                 case "!spawn":
-                    if (context.username !== BROADCASTER_NAME && !context.mod) {
+                    if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a broadcaster or mod can spawn monsters";
                     }
 
@@ -974,7 +984,7 @@ async function onMessageHandler(target, context, msg, self) {
                     user = tokens[2].replace("@", "").toLowerCase();
 
                     // Give from inventory if not a mod
-                    if (context.username !== BROADCASTER_NAME && !context.mod) {
+                    if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a mod can gift an item to someone";
                     }
 
@@ -999,7 +1009,7 @@ async function onMessageHandler(target, context, msg, self) {
                     sendInfoToChat(`${context.username} Visit https://deusprogrammer.com/util/twitch/battlers/${context.username} to view your inventory, abilities and stats.`);
                     break;
                 // case "!refresh":
-                //     if (context.username !== BROADCASTER_NAME && !context.mod) {
+                //     if (context.username !== botConfig.twitchChannel && !context.mod) {
                 //         throw "Only a mod or broadcaster can refresh the tables";
                 //     }
 
@@ -1014,7 +1024,7 @@ async function onMessageHandler(target, context, msg, self) {
                     
                 //     break;
                 case "!config":
-                    if (context.username !== BROADCASTER_NAME && !context.mod) {
+                    if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a mod or broadcaster can change config values";
                     }
 
@@ -1031,7 +1041,7 @@ async function onMessageHandler(target, context, msg, self) {
 
                     break;
                 case "!reset":
-                    if (context.username !== BROADCASTER_NAME && !context.mod) {
+                    if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a mod or broadcaster can refresh the tables";
                     }
 
@@ -1048,7 +1058,7 @@ async function onMessageHandler(target, context, msg, self) {
                     });
                     break;
                 case "!restart":
-                    if (context.username !== BROADCASTER_NAME && !context.mod) {
+                    if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a mod or broadcaster can refresh the tables";
                     }
 
@@ -1058,7 +1068,7 @@ async function onMessageHandler(target, context, msg, self) {
                     }, 1000);
                     break;
                 case "!shutdown":
-                    if (context.username !== BROADCASTER_NAME && !context.mod) {
+                    if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a mod or broadcaster can refresh the tables";
                     }
 
@@ -1066,7 +1076,7 @@ async function onMessageHandler(target, context, msg, self) {
                     extWs.send(JSON.stringify({
                         type: "SHUTDOWN",
                         channelId: TWITCH_EXT_CHANNEL_ID,
-                        jwt,
+                        jwt: createJwt(botConfig.sharedSecretKey),
                         to: "ALL",
                     }));
                     setTimeout(() => {
@@ -1091,10 +1101,11 @@ async function onConnectedHandler(addr, port) {
     itemTable = await Xhr.getItemTable()
     jobTable = await Xhr.getJobTable();
     monsterTable = await Xhr.getMonsterTable();
-    abilityTable = await Xhr.getAbilityTable();
-    // TODO Load config table from file
+    abilityTable = await Xhr.getAbilityTable();    
 
-    gameContext = { itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, buffTable, chattersActive, configTable, dotTable };
+    console.log("BOT CONFIG: " + JSON.stringify(botConfig, null, 5));
+
+    gameContext = { itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, buffTable, chattersActive, configTable, dotTable, botConfig };
 
     console.log(`* All tables loaded`);
 
@@ -1124,9 +1135,9 @@ async function onConnectedHandler(addr, port) {
             // Send event to chat
             if (event.targets.includes("chat")) {
                 if (text.startsWith("/")) {
-                    client.say(BROADCASTER_NAME, text);
+                    client.say(botConfig.twitchChannel, text);
                 } else {
-                    client.say(BROADCASTER_NAME, "/me " + text);
+                    client.say(botConfig.twitchChannel, "/me " + text);
                 }
             }
             // Send event to panel via web socket
@@ -1161,7 +1172,7 @@ async function onConnectedHandler(addr, port) {
                     extWs.send(JSON.stringify({
                         type: "COOLDOWN_OVER",
                         channelId: TWITCH_EXT_CHANNEL_ID,
-                        jwt,
+                        jwt: createJwt(botConfig.sharedSecretKey),
                         to: user.id,
                     }));
                 }
@@ -1185,7 +1196,7 @@ async function onConnectedHandler(addr, port) {
                     extWs.send(JSON.stringify({
                         type: "BUFF_UPDATE",
                         channelId: TWITCH_EXT_CHANNEL_ID,
-                        jwt,
+                        jwt: createJwt(botConfig.sharedSecretKey),
                         to: user.id,
                         data: {
                             buffs: buffTable[username]
@@ -1269,7 +1280,7 @@ async function onConnectedHandler(addr, port) {
                     extWs.send(JSON.stringify({
                         type: "STATUS_UPDATE",
                         channelId: TWITCH_EXT_CHANNEL_ID,
-                        jwt,
+                        jwt: createJwt(botConfig.sharedSecretKey),
                         to: user.id,
                         data: {
                             effects: dotTable[username]
@@ -1401,7 +1412,7 @@ async function onConnectedHandler(addr, port) {
     sendInfoToChat(`Twitch Dungeon version ${versionNumber} is online.  All systems nominal.`);
 
     // Connect to websocket and begin keep alive
-    connectWs();
+    connectWs(botConfig);
 
     // Start redemption listener
     await Redemption.startListener(queue, extWs, gameContext);
@@ -1414,16 +1425,16 @@ const flaggedUsers = {};
 const handleItemGive = async (item, giver, receiver) => {
     if (item.name.startsWith("Miku's")) {
         if (receiver.name !== "miku_the_space_bot") {
-            client.say(BROADCASTER_NAME, `WHY ARE YOU TRADING THOSE?!  My ${item.name.replace("Miku's", "").toLowerCase()} aren't Pokemon cards >_<!`);
+            client.say(botConfig.twitchChannel, `WHY ARE YOU TRADING THOSE?!  My ${item.name.replace("Miku's", "").toLowerCase()} aren't Pokemon cards >_<!`);
             flaggedUsers[receiver.name] = true;
             flaggedUsers[giver.name] = true;
         } else {
             let username = giver.name;
             let mikusThings = await gatherMikusThings(username);
             if (mikusThings.length > 0) {
-                client.say(BROADCASTER_NAME, `Oh, ${username}...you're giving these back?  Hmmmmm...are you sure you don't have something else of mine...like my ${mikusThings.map(name => name.replace("Miku's", "").toLowerCase())[0]}.`);
+                client.say(botConfig.twitchChannel, `Oh, ${username}...you're giving these back?  Hmmmmm...are you sure you don't have something else of mine...like my ${mikusThings.map(name => name.replace("Miku's", "").toLowerCase())[0]}.`);
             } else {
-                client.say(BROADCASTER_NAME, `Oh, ${username}...you're giving these back?  Hmmmmm...I guess I forgive you...baka.`);
+                client.say(botConfig.twitchChannel, `Oh, ${username}...you're giving these back?  Hmmmmm...I guess I forgive you...baka.`);
                 flaggedUsers[giver.name] = false;
             }
         }
@@ -1464,19 +1475,19 @@ const gatherMikusThings = async (username) => {
 const mikuEventHandler = async (client, event) => {
     // If the user get's an item that belong's to Miku, have her react
     if (event.type === "ITEM_GET" && event.eventData.results.item.name.startsWith("Miku's")) {
-        client.say(BROADCASTER_NAME, `W...wait!  Give back my ${event.eventData.results.item.name.replace("Miku's", "").toLowerCase()} >//<!`);
+        client.say(botConfig.twitchChannel, `W...wait!  Give back my ${event.eventData.results.item.name.replace("Miku's", "").toLowerCase()} >//<!`);
         flaggedUsers[event.eventData.results.receiver.name] = true;
     } else if (event.type === "ITEM_GIVE") {
         handleItemGive(event.eventData.results.item, event.eventData.results.giver, event.eventData.results.receiver);
     } else if (event.type === "ITEM_GIFT" && event.eventData.results.item.name.startsWith("Miku's")) {
-        client.say(BROADCASTER_NAME, `WHERE DID YOU GET THOSE?!  I don't think I'm missing my ${event.eventData.results.item.name.replace("Miku's", "").toLowerCase()}...OMFG...WHERE DID THEY GO O//O;?`);
+        client.say(botConfig.twitchChannel, `WHERE DID YOU GET THOSE?!  I don't think I'm missing my ${event.eventData.results.item.name.replace("Miku's", "").toLowerCase()}...OMFG...WHERE DID THEY GO O//O;?`);
         flaggedUsers[event.eventData.results.receiver.name] = true;
         flaggedUsers[event.eventData.results.giver.name] = true;
     } else if (event.type === "JOIN") {
         let username = event.eventData.results.attacker.name;
         let mikusThings = await gatherMikusThings(username);
         if (mikusThings.length > 0) {
-            client.say(BROADCASTER_NAME, `I see you still have my ${mikusThings.map(name => name.replace("Miku's", "").toLowerCase())[0]} and probably other things...hentai.`);
+            client.say(botConfig.twitchChannel, `I see you still have my ${mikusThings.map(name => name.replace("Miku's", "").toLowerCase())[0]} and probably other things...hentai.`);
             flaggedUsers[username] = true;
         }
     }

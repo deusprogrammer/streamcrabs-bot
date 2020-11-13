@@ -1,23 +1,20 @@
 const axios = require('axios');
 const Util = require('./util');
 
-// const BATTLE_BOT_JWT = process.env.TWITCH_BOT_JWT;
 const BATTLE_BOT_ACCESS_TOKEN = process.env.TWITCH_BOT_ACCESS_TOKEN;
 const BATTLE_API_URL = process.env.BATTLE_API_URL;
 const PROFILE_API_URL = process.env.PROFILE_API_URL;
-const AUTH_API_URL = process.env.AUTH_API_URL;
 
 const headers = {
     "X-Access-Token": BATTLE_BOT_ACCESS_TOKEN
 }
 
-const authenticateBot = async (username, password) => {
-    let authResponse = await axios.post(`${AUTH_API_URL}/items/${itemId}`, {
-        username,
-        password
+const getBotConfig = async (channel) => {
+    let res = await axios.get(`${BATTLE_API_URL}/bots/${channel}`, {
+        headers
     });
 
-    return authResponse.data.id;
+    return res.data;
 }
 
 const getItemTable = () => {
@@ -255,5 +252,5 @@ module.exports = {
     createUser,
     chargeAP,
     reviveAvatar,
-    authenticateBot
+    getBotConfig
 }

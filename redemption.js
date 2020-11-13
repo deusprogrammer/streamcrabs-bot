@@ -5,18 +5,13 @@ const jsonwebtoken = require('jsonwebtoken');
 
 var Xhr = require('./xhr');
 
+// TODO Move these into an async function so we can use await
+
 const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
 /* 
  * REDEMPTION BOT
 */
-
-// Setup Twitch API Client
-const clientId = process.env.TWITCH_PUBSUB_CLIENT_ID;
-const accessToken = process.env.TWITCH_PUBSUB_ACCESS_TOKEN;
-const userId = process.env.TWITCH_PUBSUB_CHANNEL_USER_ID;
-const authProvider = new StaticAuthProvider(clientId, accessToken);
-const apiClient = new ApiClient({ authProvider });
 
 const commands = {
     battleAPCharge1: "d4bc34fb-c360-4655-863a-a3e310f17347",
@@ -25,9 +20,6 @@ const commands = {
     battleAvatarCreate: "fb444b86-4e6c-4af8-ac75-518efb882e78",
     battleAvatarRevive: "84f19708-65f9-468e-9d0a-65ab9554014a"
 }
-
-const key = process.env.TWITCH_SHARED_SECRET;
-const secret = Buffer.from(key, 'base64');
 
 const createExpirationDate = () => {
     var d = new Date();
@@ -38,17 +30,19 @@ const createExpirationDate = () => {
     return c;
 }
 
-const jwt = jsonwebtoken.sign({
-    "exp": createExpirationDate().getTime(),
-    "user_id": `BOT-${TWITCH_EXT_CHANNEL_ID}`,
-    "role": "moderator",
-    "channel_id": TWITCH_EXT_CHANNEL_ID,
-    "pubsub_perms": {
-        "send":[
-            "broadcast"
-        ]
-    }
-}, secret);
+const createJwt = async (secret) => {
+    return jsonwebtoken.sign({
+        "exp": createExpirationDate().getTime(),
+        "user_id": `BOT-${TWITCH_EXT_CHANNEL_ID}`,
+        "role": "moderator",
+        "channel_id": TWITCH_EXT_CHANNEL_ID,
+        "pubsub_perms": {
+            "send":[
+                "broadcast"
+            ]
+        }
+    }, secret);
+}
 
 const sendEvent = async (queue, event, verbosity = "simple") => {
     queue.unshift({event, level: verbosity});
@@ -60,7 +54,7 @@ const sendContextUpdate = async (ws, context, targets, shouldRefresh = false) =>
         targets.forEach((target) => {
             ws.send(JSON.stringify({
                 type: "CONTEXT",
-                jwt,
+                jwt: createJwt(context.botConfig.sharedSecretKey),
                 to: target.id,
                 data: {
                     players,
@@ -74,7 +68,7 @@ const sendContextUpdate = async (ws, context, targets, shouldRefresh = false) =>
     } else {
         ws.send(JSON.stringify({
             type: "CONTEXT",
-            jwt,
+            jwt: createJwt(context.botConfig.sharedSecretKey),
             to: "ALL",
             data: {
                 players,
@@ -86,9 +80,15 @@ const sendContextUpdate = async (ws, context, targets, shouldRefresh = false) =>
 }
 
 let startListener = async (messageQueue, ws, context) => {
+    const clientId = process.env.TWITCH_BOT_CLIENT_ID;
+    const accessToken = context.botConfig.accessToken;
+    const userId = context.botConfig.twitchChannelId;
+    const authProvider = new StaticAuthProvider(clientId, accessToken);
+    const apiClient = new ApiClient({ authProvider });
+
     // Setup pubsub listener
     const pubSubClient = new PubSubClient();
-    await pubSubClient.registerUserListener(apiClient)
+    await pubSubClient.registerUserListener(apiClient);
     console.log("* User registered");
 
     // Create pubsub listener
