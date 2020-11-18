@@ -13,14 +13,6 @@ const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
  * REDEMPTION BOT
 */
 
-const commands = {
-    battleAPCharge1: "d4bc34fb-c360-4655-863a-a3e310f17347",
-    battleAPCharge10: "14b9e261-4d1a-4bfc-b55a-59913162ec73",
-    battleAPCharge100: "0b2d8300-b0d8-4e30-a116-0f7d73fafc9a",
-    battleAvatarCreate: "fb444b86-4e6c-4af8-ac75-518efb882e78",
-    battleAvatarRevive: "84f19708-65f9-468e-9d0a-65ab9554014a"
-}
-
 const createExpirationDate = () => {
     var d = new Date();
     var year = d.getFullYear();
@@ -93,75 +85,50 @@ let startListener = async (messageQueue, ws, context) => {
 
     // Create pubsub listener
     pubSubClient.onRedemption(userId, async (message) => {
+        let rewardName = message._data.data.redemption.reward.title;
+
         console.log("* " + JSON.stringify(message, null, 5));
-        console.log("* " + message.userName + " just redeemed " + message.rewardId);
+        console.log("* " + message.userName + " just redeemed " + message._data.data.redemption.reward.title);
 
-        // Redemption switch
-        try {
-            switch (message.rewardId) {
-                case commands.battleAPCharge1:
-                    console.log("AP + 5 FOR " + message.userName);
-
-                    await Xhr.chargeAP(message, 5);
-
-                    sendEvent(messageQueue, {
-                        type: "INFO",
-                        targets: ["chat"],
-                        eventData: {
-                            results: {
-                                message: `@${message.userName} charged 5 AP.`
-                            }
+        if (rewardName.toUpperCase().startsWith("AP")) {
+            let groups = token.match(/AP\s*\+\s*([0-9]+)/);
+            
+            if (!groups && groups.length < 2) {
+                sendEvent(messageQueue, {
+                    type: "INFO",
+                    targets: ["chat"],
+                    eventData: {
+                        results: {
+                            message: `Invalid reward name ${rewardName}`
                         }
-                    });
-                    break;
-                case commands.battleAPCharge10:
-                    console.log("AP + 50 FOR " + message.userName);
-
-                    await Xhr.chargeAP(message, 50);
-
-                    sendEvent(messageQueue, {
-                        type: "INFO",
-                        targets: ["chat"],
-                        eventData: {
-                            results: {
-                                message: `@${message.userName} charged 50 AP.`
-                            }
-                        }
-                    });
-                    break;
-                case commands.battleAPCharge100:
-                    console.log("AP + 100 FOR " + message.userName);
-
-                    await Xhr.chargeAP(message, 100);
-                    
-                    sendEvent(messageQueue, {
-                        type: "INFO",
-                        targets: ["chat"],
-                        eventData: {
-                            results: {
-                                message: `@${message.userName} charged 100 AP.`
-                            }
-                        }
-                    });
-                    break;
-                case commands.battleAvatarRevive:
-                    console.log("REVIVE REQUESTED FOR " + message.userName);
-
-                    await Xhr.reviveAvatar(message);
-
-                    sendEvent(messageQueue, {
-                        type: "INFO",
-                        targets: ["chat"],
-                        eventData: {
-                            results: {
-                                message: `@${message.userName} revived.`
-                            }
-                        }
-                    });
-                    break;
+                    }
+                });
+                return;
             }
-        } catch(e) {
-            console.log(e.message + ": " + e.stack);
+
+            let amount = groups[1];
+            await Xhr.chargeAP(message, parseInt(amount));
+            sendEvent(messageQueue, {
+                type: "INFO",
+                targets: ["chat"],
+                eventData: {
+                    results: {
+                        message: `@${message.userName} charged ${amount} AP.`
+                    }
+                }
+            });
+        } else if (rewardName.toUpperCase().startsWith("REVIVE")) {
+            await Xhr.reviveAvatar(message);
+
+            sendEvent(messageQueue, {
+                type: "INFO",
+                targets: ["chat"],
+                eventData: {
+                    results: {
+                        message: `@${message.userName} revived.`
+                    }
+                }
+            });
         }
 
         sendContextUpdate(ws, context, null, true);

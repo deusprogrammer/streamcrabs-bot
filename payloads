@@ -1,0 +1,17 @@
+http://10.0.0.243:2375/containers/create?name=bot-{channelId}
+
+{
+    "Image": "cbd-bot:latest",
+    "Env": [
+        "TWITCH_EXT_CHANNEL_ID=88666502",
+        "TWITCH_EXT_CLIENT_ID=z91swgqes7e0y7r8oa1t32u6uokyiw",
+        "TWITCH_BOT_ACCESS_TOKEN=5fa99af9c1cf475d70678929",
+        "TWITCH_BOT_USER=miku_the_space_bot",
+        "TWITCH_BOT_PASS=oauth:k4gkyf9djs2atzzb4yr0zzrglc5hg2",
+        "TWITCH_BOT_CLIENT_ID=gp762nuuoqcoxypju8c569th9wz7q5",
+        "PROFILE_API_URL=https://deusprogrammer.com/api/profile-svc",
+        "BATTLE_API_URL=https://deusprogrammer.com/api/twitch"
+    ]
+}
+
+http://10.0.0.243:2375/containers/bot-{channelId}/start
