@@ -143,7 +143,6 @@ const distributeLoot = async (monster, context) => {
             if (chanceRoll < drop.chance && !(drop.exclusive && drop.exclusiveTaken)) {
                 // If only one of these can drop for a given monster
                 if (drop.onlyOne && taken[drop.itemId]) {
-                    console.log("ONLY ONE");
                     continue;
                 }
                 
@@ -152,7 +151,6 @@ const distributeLoot = async (monster, context) => {
 
                 // If exclusive, mark the drop as permanently taken
                 if (drop.exclusive) {
-                    console.log("EXCLUSIVE");
                     // Skip exclusive loot drop if it belongs to another channel; this should never happen.
                     if (context.itemTable[drop.itemId].owningChannel != TWITCH_EXT_CHANNEL_ID) {
                         console.error(`Attempting to drop loot from channel ${context.itemTable[drop.itemId].owningChannel} in channel ${TWITCH_EXT_CHANNEL_ID}.`);
@@ -236,14 +234,11 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
         modifiedDamageRoll *= 2;
         crit = true;
         message = `${attacker.name} ==> ${defender.name} -${modifiedDamageRoll}${ability.dmgStat}`;
-        console.log("CRIT");
     } else if (modifiedAttackRoll >= defender.totalAC + defenderBuffs.ac || isTrigger) {
         message = `${attacker.name} ==> ${defender.name} -${modifiedDamageRoll}${ability.dmgStat}`;
-        console.log("HIT");
     } else {
         message = `${attacker.name} ==> ${defender.name} MISS`;
         hit = false;
-        console.log("MISS");
     }
 
     if (hit && modifiedDamageRoll >= defender.hp && ability.dmgStat === "HP") {
@@ -416,8 +411,6 @@ const buff = async (attackerName, defenderName, ability, context) => {
             amount = Math.ceil(defender[groups[1].toLowerCase()] * (amount/100));
         }
 
-        console.log("Amount:" + amount);
-
         return {
             stat: groups[1],
             amount
@@ -441,7 +434,6 @@ const buff = async (attackerName, defenderName, ability, context) => {
         );
     }
     context.buffTable[defenderName] = existingBuffs;
-    console.log("EXISTING BUFFS: " + JSON.stringify(existingBuffs, null, 5));
 
     return {
         attacker,

@@ -1103,8 +1103,6 @@ async function onConnectedHandler(addr, port) {
     monsterTable = await Xhr.getMonsterTable();
     abilityTable = await Xhr.getAbilityTable();    
 
-    console.log("BOT CONFIG: " + JSON.stringify(botConfig, null, 5));
-
     gameContext = { itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, buffTable, chattersActive, configTable, dotTable, botConfig };
 
     console.log(`* All tables loaded`);

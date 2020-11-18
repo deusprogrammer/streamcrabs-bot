@@ -87,7 +87,7 @@ let startListener = async (messageQueue, ws, context) => {
     pubSubClient.onRedemption(userId, async (message) => {
         let rewardName = message._data.data.redemption.reward.title;
 
-        console.log("* " + JSON.stringify(message, null, 5));
+        // console.log("* " + JSON.stringify(message, null, 5));
         console.log("* " + message.userName + " just redeemed " + message._data.data.redemption.reward.title);
 
         if (rewardName.toUpperCase().startsWith("AP")) {

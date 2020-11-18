@@ -42,7 +42,6 @@ const rollDice = (dice, of) => {
     if (tokens.length === 1) {
         if (tokens[0].endsWith("%")) {
             let percent = parseInt(tokens[0].substring(0, tokens[0].length - 1));
-            console.log("PERCENT: " + percent);
             return Math.ceil(percent/100 * of);
         }
         return parseInt(tokens[0]);
