@@ -91,7 +91,7 @@ let startListener = async (messageQueue, ws, context) => {
         console.log("* " + message.userName + " just redeemed " + message._data.data.redemption.reward.title);
 
         if (rewardName.toUpperCase().startsWith("AP")) {
-            let groups = token.match(/AP\s*\+\s*([0-9]+)/);
+            let groups = rewardName.match(/AP\s*\+\s*([0-9]+)/);
             
             if (!groups && groups.length < 2) {
                 sendEvent(messageQueue, {
