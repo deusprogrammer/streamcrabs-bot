@@ -129,7 +129,7 @@ const connectWs = (config) => {
 
         // Validate ws server signature
         let signature = event.signature;
-        let actualSignature = Util.hmacSHA1(config.sharedSecretKey, event.to + event.from + event.ts);
+        let actualSignature = Util.hmacSHA1(botConfig.sharedSecretKey, event.to + event.from + event.ts);
 
         if (signature !== actualSignature) {
             console.error("Dropping message due to signature mismatch");
