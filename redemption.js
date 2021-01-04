@@ -81,7 +81,7 @@ let startListener = async (messageQueue, ws, context) => {
     // Setup pubsub listener
     const pubSubClient = new PubSubClient();
     await pubSubClient.registerUserListener(apiClient);
-    console.log("* User registered");
+    console.log("* Redemption User registered");
 
     // Create pubsub listener
     pubSubClient.onRedemption(userId, async (message) => {

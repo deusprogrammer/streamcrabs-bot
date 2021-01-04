@@ -265,26 +265,33 @@ const sendErrorToChat = async(message) => {
 
 // Define configuration options for chat bot
 const startBot = async () => {
-    botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
-    const opts = {
-        identity: {
-            username: process.env.TWITCH_BOT_USER,
-            password: process.env.TWITCH_BOT_PASS
-        },
-        channels: [
-            botConfig.twitchChannel
-        ]
-    };
+    try {
+        console.log("* Retrieving bot config");
+        botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
+        const opts = {
+            identity: {
+                username: process.env.TWITCH_BOT_USER,
+                password: process.env.TWITCH_BOT_PASS
+            },
+            channels: [
+                botConfig.twitchChannel
+            ]
+        };
 
-    // Create a client with our options
-    client = new tmi.client(opts);
+        console.log("* Retrieved bot config");
 
-    // Register our event handlers (defined below)
-    client.on('message', onMessageHandler);
-    client.on('connected', onConnectedHandler);
+        // Create a client with our options
+        client = new tmi.client(opts);
 
-    // Connect to Twitch:
-    client.connect();
+        // Register our event handlers (defined below)
+        client.on('message', onMessageHandler);
+        client.on('connected', onConnectedHandler);
+
+        // Connect to Twitch:
+        client.connect();
+    } catch (error) {
+        console.error(`* Failed to start bot: ${error}`);
+    }
 };
 startBot();
 
@@ -342,6 +349,24 @@ async function onMessageHandler(target, context, msg, self) {
 
                     if (cooldownTable[context.username]) {
                         throw `${context.username} is on cooldown.`;
+                    }
+
+                    // Set user active if they attack
+                    if (!chattersActive[context.username]) {
+                        chattersActive[context.username] = 10 * 12;
+                        sendEvent({
+                            type: "JOIN",
+                            targets: ["chat", "panel"],
+                            eventData: {
+                                results: {
+                                    attacker: {
+                                        name: context.username
+                                    },
+                                    message: `${context.username} joins the brawl!`
+                                },
+                                encounterTable
+                            }
+                        });
                     }
 
                     var isItem = false;
@@ -604,25 +629,7 @@ async function onMessageHandler(target, context, msg, self) {
                     // Get basic user to update
                     await Xhr.updateUser(updatedAttacker);
 
-                    sendContextUpdate([results.attacker, results.defender], true);
-
-                    // Set user active if they attack
-                    if (!chattersActive[context.username]) {
-                        chattersActive[context.username] = 10 * 12;
-                        sendEvent({
-                            type: "JOIN",
-                            targets: ["chat", "panel"],
-                            eventData: {
-                                results: {
-                                    attacker: {
-                                        name: context.username
-                                    },
-                                    message: `${context.username} joins the brawl!`
-                                },
-                                encounterTable
-                            }
-                        });
-                    }
+                    sendContextUpdate([updatedAttacker], true);
 
                     // Set user cool down
                     var currBuffs = Commands.createBuffMap(context.username, gameContext);
