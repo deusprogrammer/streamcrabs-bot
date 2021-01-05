@@ -9,7 +9,7 @@ const Redemption = require('./redemption');
 
 const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
-const versionNumber = "1.0b";
+const versionNumber = "1.1b";
 
 // TODO Move these into an async function so we can use await
 
@@ -1064,32 +1064,34 @@ async function onMessageHandler(target, context, msg, self) {
                         }
                     });
                     break;
-                case "!restart":
-                    if (context.username !== botConfig.twitchChannel && !context.mod) {
-                        throw "Only a mod or broadcaster can refresh the tables";
-                    }
+                // case "!restart":
+                //     if (context.username !== botConfig.twitchChannel && !context.mod) {
+                //         throw "Only a mod or broadcaster can refresh the tables";
+                //     }
 
-                    sendInfoToChat("Miku will be right back ^_-!.");
-                    setTimeout(() => {
-                        Util.restartProcess();
-                    }, 1000);
-                    break;
-                case "!shutdown":
-                    if (context.username !== botConfig.twitchChannel && !context.mod) {
-                        throw "Only a mod or broadcaster can refresh the tables";
-                    }
+                //     sendInfoToChat("Miku will be right back ^_-!.");
+                //     setTimeout(() => {
+                //         Util.restartProcess();
+                //     }, 1000);
+                //     break;
+                // case "!shutdown":
+                //     if (context.username !== botConfig.twitchChannel && !context.mod) {
+                //         throw "Only a mod or broadcaster can refresh the tables";
+                //     }
 
-                    sendInfoToChat("Miku going offline.  Oyasumi.");
-                    extWs.send(JSON.stringify({
-                        type: "SHUTDOWN",
-                        channelId: TWITCH_EXT_CHANNEL_ID,
-                        jwt: createJwt(botConfig.sharedSecretKey),
-                        to: "ALL",
-                    }));
-                    setTimeout(() => {
-                        process.exit(0);
-                    }, 5000);
-                    break;
+                //     sendInfoToChat("Miku going offline.  Oyasumi.");
+                //     extWs.send(JSON.stringify({
+                //         type: "SHUTDOWN",
+                //         channelId: TWITCH_EXT_CHANNEL_ID,
+                //         jwt: createJwt(botConfig.sharedSecretKey),
+                //         to: "ALL",
+                //     }));
+                //     setTimeout(() => {
+                //         process.exit(0);
+                //     }, 5000);
+                //     break;
+                case "!about":
+                    sendInfoToChat(`Chat battler dungeon version ${versionNumber} written by thetruekingofspace`);
                 default:
                     throw `${tokens[0]} is an invalid command.`;
             }
