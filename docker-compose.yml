@@ -1,0 +1,5 @@
+version: '2'
+services:
+    battle-bot-1:
+        image: mmain/cbd-bot:latest
+        build: ./
