@@ -129,6 +129,18 @@ let startListener = async (messageQueue, ws, context) => {
                     }
                 }
             });
+        }  else if (rewardName.toUpperCase().startsWith("CREATE BATTLER")) {
+            await Xhr.createUser(message);
+
+            sendEvent(messageQueue, {
+                type: "INFO",
+                targets: ["chat"],
+                eventData: {
+                    results: {
+                        message: `@${message.userName} created a battler.`
+                    }
+                }
+            });
         }
 
         sendContextUpdate(ws, context, null, true);
