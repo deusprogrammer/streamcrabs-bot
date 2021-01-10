@@ -1093,6 +1093,12 @@ async function onMessageHandler(target, context, msg, self) {
                 case "!about":
                     sendInfoToChat(`Chat battler dungeon version ${versionNumber} written by thetruekingofspace`);
                     break;
+                case "!signup":
+                    Xhr.createUser({
+                        username: caller.name,
+                        userId: caller.id
+                    });
+                    break;
                 default:
                     throw `${tokens[0]} is an invalid command.`;
             }
