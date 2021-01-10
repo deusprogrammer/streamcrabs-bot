@@ -1095,7 +1095,7 @@ async function onMessageHandler(target, context, msg, self) {
                     break;
                 case "!signup":
                     await Xhr.createUser({
-                        username: caller.name,
+                        userName: caller.name,
                         userId: caller.id
                     });
                     sendInfoToChat(`${caller.name} created a battler.`);
