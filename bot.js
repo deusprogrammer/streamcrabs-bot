@@ -1016,11 +1016,7 @@ async function onMessageHandler(target, context, msg, self) {
 
                     sendEvent({
                         type: "DEATH_COUNT",
-                        targets: ["chat", "panel"],
-                        eventData: {
-                            results,
-                            encounterTable
-                        }
+                        targets: ["chat", "panel"]
                     });
 
                     break;
