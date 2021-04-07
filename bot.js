@@ -1009,9 +1009,6 @@ async function onMessageHandler(target, context, msg, self) {
 
                     break;
                 case "!f":
-                    var itemId = tokens[1];
-                    user = tokens[2].replace("@", "").toLowerCase();
-
                     // Check if mod
                     if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a mod can increment the death counter";
