@@ -129,6 +129,14 @@ let startListener = async (messageQueue, ws, context) => {
                     }
                 }
             });
+        } else if (rewardName.toUpperCase() === "PLAY RANDOM SOUND") {
+            sendEvent(messageQueue, {
+                type: "PLAY_SOUND",
+                targets: ["panel"],
+                eventData: {
+                    results: {}
+                }
+            });
         }
 
         sendContextUpdate(ws, context, null, true);

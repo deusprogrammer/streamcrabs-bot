@@ -1001,6 +1001,25 @@ async function onMessageHandler(target, context, msg, self) {
                     });
 
                     break;
+                case "!f":
+                    var itemId = tokens[1];
+                    user = tokens[2].replace("@", "").toLowerCase();
+
+                    // Check if mod
+                    if (context.username !== botConfig.twitchChannel && !context.mod) {
+                        throw "Only a mod can increment the death counter";
+                    }
+
+                    sendEvent({
+                        type: "DEATH_COUNT",
+                        targets: ["chat", "panel"],
+                        eventData: {
+                            results,
+                            encounterTable
+                        }
+                    });
+
+                    break;
                 case "!help":
                     sendInfoToChat(`Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system.`);
                     break;
@@ -1008,21 +1027,6 @@ async function onMessageHandler(target, context, msg, self) {
                 case "!abilities":
                     sendInfoToChat(`${context.username} Visit https://deusprogrammer.com/util/twitch/battlers/${context.username} to view your inventory, abilities and stats.`);
                     break;
-                // case "!refresh":
-                //     if (context.username !== botConfig.twitchChannel && !context.mod) {
-                //         throw "Only a mod or broadcaster can refresh the tables";
-                //     }
-
-                //     itemTable = await Xhr.getItemTable()
-                //     jobTable = await Xhr.getJobTable();
-                //     monsterTable = await Xhr.getMonsterTable();
-                //     abilityTable = await Xhr.getAbilityTable();
-
-                //     gameContext = { itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, buffTable,  chattersActive, configTable };
-
-                //     sendInfoToChat("All tables refreshed");
-                    
-                //     break;
                 case "!config":
                     if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a mod or broadcaster can change config values";
