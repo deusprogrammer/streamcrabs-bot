@@ -137,6 +137,14 @@ let startListener = async (messageQueue, ws, context) => {
                     results: {}
                 }
             })
+        }  else if (rewardName.toUpperCase() === "BIRD UP") {
+            sendEvent(messageQueue, {
+                type: "BIRDUP",
+                targets: ["panel"],
+                eventData: {
+                    results: {}
+                }
+            })
         }  else if (rewardName.toUpperCase().startsWith("CREATE BATTLER")) {
             await Xhr.createUser(message);
             sendEvent(messageQueue, {
