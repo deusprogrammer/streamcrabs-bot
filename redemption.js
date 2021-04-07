@@ -81,7 +81,7 @@ let startListener = async (messageQueue, ws, context) => {
     // Setup pubsub listener
     const pubSubClient = new PubSubClient();
     await pubSubClient.registerUserListener(apiClient);
-    console.log("* User registered");
+    console.log("* Redemption User registered");
 
     // Create pubsub listener
     pubSubClient.onRedemption(userId, async (message) => {
@@ -135,6 +135,17 @@ let startListener = async (messageQueue, ws, context) => {
                 targets: ["panel"],
                 eventData: {
                     results: {}
+                }
+            })
+        }  else if (rewardName.toUpperCase().startsWith("CREATE BATTLER")) {
+            await Xhr.createUser(message);
+            sendEvent(messageQueue, {
+                type: "INFO",
+                targets: ["chat"],
+                eventData: {
+                    results: {
+                        message: `@${message.userName} created a battler.`
+                    }
                 }
             });
         }
