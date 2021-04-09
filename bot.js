@@ -25,6 +25,7 @@ let encounterTable = {};
 let cooldownTable = {};
 let buffTable = {};
 let dotTable = {};
+let requestList = [];
 
 let botConfig = {};
 let client = {};
@@ -1008,6 +1009,35 @@ async function onMessageHandler(target, context, msg, self) {
                     });
 
                     break;
+                case "!request":
+                    // Check if mod
+                    if (context.username !== botConfig.twitchChannel && !context.mod) {
+                        throw "Only a mod can queue requests";
+                    }
+
+                    let requestMatch = command.match(/!.*\[(.*)\]\s*@(.*)/);
+
+                    if (!requestMatch) {
+                       throw "Invalid syntax.  Correct syntax is '!request [GAME/SONG] @username";
+                    }
+
+                    context.requestList.push({
+                        request: requestMatch[1],
+                        requester: requestMatch[2]
+                    });
+
+                    sendEvent({
+                        type: "REQUEST",
+                        targets: ["chat", "panel"],
+                        eventData: {
+                            results: {
+                                message: `${requestMatch[2]} has requested ${requestMatch[1]}`
+                            },
+                            requestList
+                        }
+                    });
+
+                    break;
                 case "!f":
                     // Check if mod
                     if (context.username !== botConfig.twitchChannel && !context.mod) {
@@ -1066,42 +1096,16 @@ async function onMessageHandler(target, context, msg, self) {
                         }
                     });
                     break;
-                // case "!restart":
-                //     if (context.username !== botConfig.twitchChannel && !context.mod) {
-                //         throw "Only a mod or broadcaster can refresh the tables";
-                //     }
-
-                //     sendInfoToChat("Miku will be right back ^_-!.");
-                //     setTimeout(() => {
-                //         Util.restartProcess();
-                //     }, 1000);
-                //     break;
-                // case "!shutdown":
-                //     if (context.username !== botConfig.twitchChannel && !context.mod) {
-                //         throw "Only a mod or broadcaster can refresh the tables";
-                //     }
-
-                //     sendInfoToChat("Miku going offline.  Oyasumi.");
-                //     extWs.send(JSON.stringify({
-                //         type: "SHUTDOWN",
-                //         channelId: TWITCH_EXT_CHANNEL_ID,
-                //         jwt: createJwt(botConfig.sharedSecretKey),
-                //         to: "ALL",
-                //     }));
-                //     setTimeout(() => {
-                //         process.exit(0);
-                //     }, 5000);
-                //     break;
                 case "!about":
                     sendInfoToChat(`Chat battler dungeon version ${versionNumber} written by thetruekingofspace`);
                     break;
-                case "!signup":
-                    await Xhr.createUser({
-                        userName: caller.name,
-                        userId: caller.id
-                    });
-                    sendInfoToChat(`${caller.name} created a battler.`);
-                    break;
+                // case "!signup":
+                //     await Xhr.createUser({
+                //         userName: caller.name,
+                //         userId: caller.id
+                //     });
+                //     sendInfoToChat(`${caller.name} created a battler.`);
+                //     break;
                 default:
                     throw `${tokens[0]} is an invalid command.`;
             }
@@ -1122,7 +1126,7 @@ async function onConnectedHandler(addr, port) {
     monsterTable = await Xhr.getMonsterTable();
     abilityTable = await Xhr.getAbilityTable();    
 
-    gameContext = { itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, buffTable, chattersActive, configTable, dotTable, botConfig };
+    gameContext = { itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, buffTable, chattersActive, configTable, dotTable, botConfig, requestList };
 
     console.log(`* All tables loaded`);
 
