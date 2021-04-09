@@ -1038,7 +1038,7 @@ async function onMessageHandler(target, context, msg, self) {
                     });
 
                     break;
-                case "!request next":
+                case "!request:next":
                     // Check if mod
                     if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a mod can queue requests";
@@ -1058,7 +1058,7 @@ async function onMessageHandler(target, context, msg, self) {
                     });
 
                     break;
-                case "!request depth":
+                case "!request:depth":
                     // Check if mod
                     if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a mod can queue requests";
