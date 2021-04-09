@@ -1009,16 +1009,16 @@ async function onMessageHandler(target, context, msg, self) {
                     });
 
                     break;
-                case "!request queue":
+                case "!request:queue":
                     // Check if mod
                     if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a mod can queue requests";
                     }
 
-                    let requestMatch = command.match(/!request queue \[(.*)\]\s*@(.*)/);
+                    let requestMatch = command.match(/!request:queue \[(.*)\]\s*@(.*)/);
 
                     if (!requestMatch) {
-                       throw "Invalid syntax.  Correct syntax is '!request [GAME/SONG] @username";
+                       throw "Invalid syntax.  Correct syntax is '!request:queue [GAME/SONG] @username";
                     }
 
                     requestList.push({
