@@ -1021,7 +1021,7 @@ async function onMessageHandler(target, context, msg, self) {
                        throw "Invalid syntax.  Correct syntax is '!request:queue [GAME/SONG] @username";
                     }
 
-                    requestList.push({
+                    requestList.unshift({
                         request: requestMatch[1],
                         requester: requestMatch[2]
                     });
