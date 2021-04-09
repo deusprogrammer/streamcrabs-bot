@@ -1024,10 +1024,10 @@ async function onMessageHandler(target, context, msg, self) {
                         throw "Only a mod can queue requests";
                     }
 
-                    let requestMatch = command.match(/!request:queue "(.*)"\s*@(.*)/);
+                    let requestMatch = command.match(/!request:queue ["|'|`](.*)["|'|`]\s*@(.*)/);
 
                     if (!requestMatch) {
-                       throw "Invalid syntax.  Correct syntax is '!request:queue [GAME/SONG] @username";
+                       throw "Invalid syntax.  Correct syntax is '!request:queue \"GAME/SONG\" @username";
                     }
 
                     requestList.unshift({
