@@ -125,6 +125,16 @@ const connectWs = (config) => {
                 }
             }));
 
+            extWs.send(JSON.stringify({
+                type: "REQUEST",
+                channelId: TWITCH_EXT_CHANNEL_ID,
+                jwt: createJwt(config.sharedSecretKey),
+                to: event.from,
+                eventData: {
+                    requestList
+                }
+            }));
+
             return;
         }
 
