@@ -1009,19 +1009,19 @@ async function onMessageHandler(target, context, msg, self) {
                     });
 
                     break;
-                case "!request":
+                case "!request queue":
                     // Check if mod
                     if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a mod can queue requests";
                     }
 
-                    let requestMatch = command.match(/!.*\[(.*)\]\s*@(.*)/);
+                    let requestMatch = command.match(/!request queue \[(.*)\]\s*@(.*)/);
 
                     if (!requestMatch) {
                        throw "Invalid syntax.  Correct syntax is '!request [GAME/SONG] @username";
                     }
 
-                    context.requestList.push({
+                    requestList.push({
                         request: requestMatch[1],
                         requester: requestMatch[2]
                     });
@@ -1036,6 +1036,35 @@ async function onMessageHandler(target, context, msg, self) {
                             requestList
                         }
                     });
+
+                    break;
+                case "!request next":
+                    // Check if mod
+                    if (context.username !== botConfig.twitchChannel && !context.mod) {
+                        throw "Only a mod can queue requests";
+                    }
+
+                    let entry = requestList.pop();
+
+                    sendEvent({
+                        type: "REQUEST",
+                        targets: ["chat", "panel"],
+                        eventData: {
+                            results: {
+                                message: `Now playing ${entry.request} requested by @${entry.requester}`
+                            },
+                            requestList
+                        }
+                    });
+
+                    break;
+                case "!request depth":
+                    // Check if mod
+                    if (context.username !== botConfig.twitchChannel && !context.mod) {
+                        throw "Only a mod can queue requests";
+                    }
+
+                    sendInfoToChat(`The request queue is ${requestList.length} elements deep`);
 
                     break;
                 case "!f":
