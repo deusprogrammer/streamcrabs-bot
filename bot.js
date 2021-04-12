@@ -9,7 +9,7 @@ const Redemption = require('./redemption');
 
 const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
-const versionNumber = "1.1b";
+const versionNumber = "1.5b";
 
 // TODO Move these into an async function so we can use await
 
@@ -332,6 +332,10 @@ async function onMessageHandler(target, context, msg, self) {
         try {
             switch (tokens[0]) {
                 case "!ready":
+                    if (!botConfig.config.cbd) {
+                        throw "This channel does not have this command enabled";
+                    }
+
                     if (!chattersActive[context.username]) {
                         chattersActive[context.username] = 10 * 12;
                         sendEvent({
@@ -353,6 +357,10 @@ async function onMessageHandler(target, context, msg, self) {
 
                     break;
                 case "!use":
+                    if (!botConfig.config.cbd) {
+                        throw "This channel does not have this command enabled";
+                    }
+
                     if (tokens.length < 2) {
                         throw "You must have an name for your ability.";
                     }
@@ -647,6 +655,10 @@ async function onMessageHandler(target, context, msg, self) {
 
                     break;
                 case "!attack":
+                    if (!botConfig.config.cbd) {
+                        throw "This channel does not have this command enabled";
+                    }
+
                     if (tokens.length < 2) {
                         throw "You must have a target for your attack.";
                     }
@@ -764,6 +776,10 @@ async function onMessageHandler(target, context, msg, self) {
 
                     break;
                 case "!transmog":
+                    if (!botConfig.config.cbd) {
+                        throw "This channel does not have this command enabled";
+                    }
+
                     if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a broadcaster or mod can turn a viewer into a slime";
                     }
@@ -804,6 +820,10 @@ async function onMessageHandler(target, context, msg, self) {
 
                     break;
                 case "!untransmog":
+                    if (!botConfig.config.cbd) {
+                        throw "This channel does not have this command enabled";
+                    }
+
                     if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a broadcaster or mod can revert a slime";
                     }
@@ -826,6 +846,10 @@ async function onMessageHandler(target, context, msg, self) {
 
                     break;
                 case "!explore":
+                    if (!botConfig.config.cbd) {
+                        throw "This channel does not have this command enabled";
+                    }
+
                     // If there are too many encounters, fail
                     if (Object.keys(encounterTable).length >= configTable.maxEncounters) {
                         throw `All adventurers are busy with monsters right now.`;
@@ -900,6 +924,10 @@ async function onMessageHandler(target, context, msg, self) {
 
                     break;
                 case "!spawn":
+                    if (!botConfig.config.cbd) {
+                        throw "This channel does not have this command enabled";
+                    }
+
                     if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a broadcaster or mod can spawn monsters";
                     }
@@ -945,6 +973,10 @@ async function onMessageHandler(target, context, msg, self) {
 
                     break;
                 case "!stats":
+                    if (!botConfig.config.cbd) {
+                        throw "This channel does not have this command enabled";
+                    }
+
                     var username = context.username;
                     let buffs = Commands.createBuffMap(username, gameContext);
                     if (tokens[1]) {
@@ -956,11 +988,19 @@ async function onMessageHandler(target, context, msg, self) {
                     sendInfoToChat(`[${user.name}] HP: ${user.hp} -- AP: ${user.ap} -- STR: ${user.str} (${Util.sign(buffs.str)}) -- DEX: ${user.dex} (${Util.sign(buffs.dex)}) -- INT: ${user.int} (${Util.sign(buffs.int)}) -- HIT: ${user.hit} (${Util.sign(buffs.hit)}) -- AC: ${user.totalAC} (${Util.sign(buffs.ac)}) -- Cooldown: ${cooldownTable[username] * 5 || "0"} seconds.`);
                     break;
                 case "!buffs":
+                    if (!botConfig.config.cbd) {
+                        throw "This channel does not have this command enabled";
+                    }
+
                     var username = context.username;
                     var buffList = buffTable[username] || [];
                     sendInfoToChat(`[${username} Buffs] ${buffList.map(buff => `${buff.name}(${buff.duration * 5} seconds)`).join(", ")}.`);
                     break;
                 case "!targets":
+                    if (!botConfig.config.cbd) {
+                        throw "This channel does not have this command enabled";
+                    }
+
                     var activeUsers = await Xhr.getActiveUsers(gameContext);
                     var monsterList = Object.keys(encounterTable).map((name) => {
                         var monster = encounterTable[name];
@@ -971,6 +1011,10 @@ async function onMessageHandler(target, context, msg, self) {
                     sendInfoToChat(`Available targets are: ${[...activeUsers, ...monsterList]}`);
                     break;
                 case "!give":
+                    if (!botConfig.config.cbd) {
+                        throw "This channel does not have this command enabled";
+                    }
+
                     if (tokens.length < 3) {
                         throw "Must provide a target and an item id to give";
                     }
@@ -993,6 +1037,10 @@ async function onMessageHandler(target, context, msg, self) {
 
                     break;
                 case "!gift":
+                    if (!botConfig.config.cbd) {
+                        throw "This channel does not have this command enabled";
+                    }
+
                     if (tokens.length < 3) {
                         throw "Must provide a target and an item id to give";
                     }
@@ -1019,6 +1067,10 @@ async function onMessageHandler(target, context, msg, self) {
 
                     break;
                 case "!request:queue":
+                    if (!botConfig.config.requests) {
+                        throw "This channel does not have this command enabled";
+                    }
+
                     // Check if mod
                     if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a mod can queue requests";
@@ -1048,6 +1100,10 @@ async function onMessageHandler(target, context, msg, self) {
 
                     break;
                 case "!request:next":
+                    if (!botConfig.config.requests) {
+                        throw "This channel does not have this command enabled";
+                    }
+
                     // Check if mod
                     if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a mod can queue requests";
@@ -1068,6 +1124,10 @@ async function onMessageHandler(target, context, msg, self) {
 
                     break;
                 case "!request:depth":
+                    if (!botConfig.config.requests) {
+                        throw "This channel does not have this command enabled";
+                    }
+                    
                     // Check if mod
                     if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a mod can queue requests";
@@ -1096,10 +1156,6 @@ async function onMessageHandler(target, context, msg, self) {
                 case "!help":
                     sendInfoToChat(`Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system.`);
                     break;
-                case "!inventory":
-                case "!abilities":
-                    sendInfoToChat(`${context.username} Visit https://deusprogrammer.com/util/twitch/battlers/${context.username} to view your inventory, abilities and stats.`);
-                    break;
                 case "!config":
                     if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a mod or broadcaster can change config values";
@@ -1114,10 +1170,14 @@ async function onMessageHandler(target, context, msg, self) {
 
                     configTable[configElement] = configValue;
 
-                    // TODO Eventually save this to config file
+                    // TODO Eventually save this to bot config
 
                     break;
                 case "!reset":
+                    if (!botConfig.config.cbd) {
+                        throw "This channel does not have this command enabled";
+                    }
+
                     if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a mod or broadcaster can refresh the tables";
                     }
