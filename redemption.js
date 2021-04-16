@@ -134,6 +134,7 @@ let startListener = async (messageQueue, ws, context) => {
                 type: "PLAY_SOUND",
                 targets: ["panel"],
                 eventData: {
+                    requester: message.userName,
                     results: {}
                 }
             })
