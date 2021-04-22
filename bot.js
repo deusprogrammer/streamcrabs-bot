@@ -186,7 +186,7 @@ const connectWs = (config) => {
             clearInterval(this.pingInterval);
         }
         setTimeout(() => {
-            connectWs();
+            connectWs(botConfig);
         }, 5000);
     });
 
