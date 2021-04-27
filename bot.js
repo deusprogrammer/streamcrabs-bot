@@ -1066,7 +1066,7 @@ async function onMessageHandler(target, context, msg, self) {
                     });
 
                     break;
-                case "!request:queue":
+                case "!tools:request:queue":
                     if (!botConfig.config.requests) {
                         throw "This channel does not have this command enabled";
                     }
@@ -1099,7 +1099,7 @@ async function onMessageHandler(target, context, msg, self) {
                     });
 
                     break;
-                case "!request:next":
+                case "!tools:request:next":
                     if (!botConfig.config.requests) {
                         throw "This channel does not have this command enabled";
                     }
@@ -1123,7 +1123,7 @@ async function onMessageHandler(target, context, msg, self) {
                     });
 
                     break;
-                case "!request:depth":
+                case "!tools:request:depth":
                     if (!botConfig.config.requests) {
                         throw "This channel does not have this command enabled";
                     }
@@ -1136,10 +1136,15 @@ async function onMessageHandler(target, context, msg, self) {
                     sendInfoToChat(`The request queue is ${requestList.length} elements deep`);
 
                     break;
-                case "!f":
+                case "!tools:death":
                     // Check if mod
                     if (context.username !== botConfig.twitchChannel && !context.mod) {
                         throw "Only a mod can increment the death counter";
+                    }
+
+                    let count = -1;
+                    if (tokens.length > 1) {
+                        count = tokens[1];
                     }
 
                     sendEvent({
@@ -1148,7 +1153,8 @@ async function onMessageHandler(target, context, msg, self) {
                         eventData: {
                             results: {
                                 message: "F's in chat"
-                            }
+                            },
+                            count
                         }
                     });
 
