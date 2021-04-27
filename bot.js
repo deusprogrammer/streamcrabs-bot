@@ -1144,7 +1144,7 @@ async function onMessageHandler(target, context, msg, self) {
 
                     let count = -1;
                     if (tokens.length > 1) {
-                        count = tokens[1];
+                        count = parseInt(tokens[1]);
                     }
 
                     sendEvent({
