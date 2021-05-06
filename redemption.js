@@ -138,7 +138,7 @@ let startListener = async (messageQueue, ws, context) => {
                     results: {}
                 }
             })
-        }  else if (rewardName.toUpperCase() === "BIRD UP") {
+        } else if (rewardName.toUpperCase() === "BIRD UP") {
             sendEvent(messageQueue, {
                 type: "BIRDUP",
                 targets: ["panel"],
@@ -146,7 +146,15 @@ let startListener = async (messageQueue, ws, context) => {
                     results: {}
                 }
             })
-        }  else if (rewardName.toUpperCase().startsWith("CREATE BATTLER")) {
+        } else if (rewardName.toUpperCase() === "BAD APPLE") {
+            sendEvent(messageQueue, {
+                type: "BADAPPLE",
+                targets: ["panel"],
+                eventData: {
+                    results: {}
+                }
+            })
+        } else if (rewardName.toUpperCase().startsWith("CREATE BATTLER")) {
             await Xhr.createUser(message);
             sendEvent(messageQueue, {
                 type: "INFO",
