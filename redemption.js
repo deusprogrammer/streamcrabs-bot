@@ -143,6 +143,7 @@ let startListener = async (messageQueue, ws, context) => {
                 type: "BIRDUP",
                 targets: ["panel"],
                 eventData: {
+                    requester: message.userName,
                     results: {}
                 }
             })
@@ -151,6 +152,16 @@ let startListener = async (messageQueue, ws, context) => {
                 type: "BADAPPLE",
                 targets: ["panel"],
                 eventData: {
+                    requester: message.userName,
+                    results: {}
+                }
+            })
+        } else if (rewardName.toUpperCase() === "RANDOM VIDEO") {
+            sendEvent(messageQueue, {
+                type: "RANDOM_VIDEO",
+                targets: ["panel"],
+                eventData: {
+                    requester: message.userName,
                     results: {}
                 }
             })
