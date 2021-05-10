@@ -1,5 +1,5 @@
-const Util = require('../util');
-const Xhr = require('../xhr');
+const Util = require('../components/base/util');
+const Xhr = require('../components/base/xhr');
 const Commands = require('../components/cbd/commands');
 const EventQueue = require('../components/base/eventQueue');
 
