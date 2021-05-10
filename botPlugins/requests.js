@@ -1,11 +1,15 @@
-module.exports = {
-    "!tools:request:queue": async (twitchContext, gameContext, eventUtil) => {
-        if (!gameContext.botConfig.config.requests) {
+const EventQueue = require('../eventQueue');
+
+let requestList = [];
+
+exports.commands = {
+    "!tools:request:queue": async (twitchContext, botContext) => {
+        if (!botContext.botConfig.config.requests) {
             throw "This channel does not have this command enabled";
         }
 
         // Check if mod
-        if (twitchContext.username !== gameContext.botConfig.twitchChannel && !twitchContext.mod) {
+        if (twitchContext.username !== botContext.botConfig.twitchChannel && !twitchContext.mod) {
             throw "Only a mod can queue requests";
         }
 
@@ -15,55 +19,69 @@ module.exports = {
             throw "Invalid syntax.  Correct syntax is '!tools:request:queue \"GAME/SONG\" @username";
         }
 
-        gameContext.requestList.unshift({
+        requestList.unshift({
             request: requestMatch[1],
             requester: requestMatch[2]
         });
 
-        eventUtil.sendEvent({
+        EventQueue.sendEvent({
             type: "REQUEST",
             targets: ["chat", "panel"],
             eventData: {
                 results: {
                     message: `${requestMatch[2]} has requested ${requestMatch[1]}`
                 },
-                requestList: gameContext.requestList
+                requestList
             }
         });
     },
-    "!tools:request:next": async (twitchContext, gameContext, eventUtil) => {
-        if (!gameContext.botConfig.config.requests) {
+    "!tools:request:next": async (twitchContext, botContext) => {
+        if (!botContext.botConfig.config.requests) {
             throw "This channel does not have this command enabled";
         }
 
         // Check if mod
-        if (twitchContext.username !== gameContext.botConfig.twitchChannel && !twitchContext.mod) {
+        if (twitchContext.username !== botContext.botConfig.twitchChannel && !twitchContext.mod) {
             throw "Only a mod can queue requests";
         }
 
-        let entry = gameContext.requestList.pop();
+        let entry = requestList.pop();
 
-        eventUtil.sendEvent({
+        EventQueue.sendEvent({
             type: "REQUEST",
             targets: ["chat", "panel"],
             eventData: {
                 results: {
                     message: `Now playing ${entry.request} requested by @${entry.requester}`
                 },
-                requestList: gameContext.requestList
+                requestList
             }
         });
     },
-    "!tools:request:depth": async (twitchContext, gameContext, eventUtil) => {
-        if (!gameContext.botConfig.config.requests) {
+    "!tools:request:depth": async (twitchContext, botContext) => {
+        if (!botContext.botConfig.config.requests) {
             throw "This channel does not have this command enabled";
         }
         
         // Check if mod
-        if (twitchContext.username !== gameContext.botConfig.twitchChannel && !twitchContext.mod) {
+        if (twitchContext.username !== botContext.botConfig.twitchChannel && !twitchContext.mod) {
             throw "Only a mod can queue requests";
         }
 
-        eventUtil.sendInfoToChat(`The request queue is ${gameContext.requestList.length} elements deep`);
+        EventQueue.sendInfoToChat(`The request queue is ${requestList.length} elements deep`);
     }
+}
+
+exports.init = async (botContext) => {}
+exports.redemptionHook = async (message, rewardName) => {}
+exports.wsInitHook = () => {
+    console.log(JSON.stringify(requestList, null, 5));
+    EventQueue.sendEvent({
+        type: "REQUEST",
+        targets: ["panel"],
+        eventData: {
+            results: {},
+            requestList
+        }
+    });
 }

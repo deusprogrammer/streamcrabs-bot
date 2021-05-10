@@ -1,16 +1,28 @@
 const Util = require('../util');
 const Xhr = require('../xhr');
 const Commands = require('../commands');
+const EventQueue = require('../eventQueue');
 
-module.exports = {
-    "!ready": async (twitchContext, gameContext, eventUtil) => {
-        if (!gameContext.botConfig.config.cbd) {
+let itemTable = {}
+let jobTable = {};
+let monsterTable = {};
+let abilityTable = {};
+let encounterTable = {};
+let cooldownTable = {};
+let buffTable = {};
+let dotTable = {};
+
+let pluginContext = {};
+
+exports.commands = {
+    "!ready": async (twitchContext, botContext) => {
+        if (!botContext.botConfig.config.cbd) {
             throw "This channel does not have this command enabled";
         }
 
-        if (!gameContext.chattersActive[twitchContext.username]) {
-            gameContext.chattersActive[twitchContext.username] = 10 * 12;
-            eventUtil.sendEvent({
+        if (!botContext.chattersActive[twitchContext.username]) {
+            botContext.chattersActive[twitchContext.username] = 10 * 12;
+            EventQueue.sendEvent({
                 type: "JOIN",
                 targets: ["chat", "panel"],
                 eventData: {
@@ -20,15 +32,15 @@ module.exports = {
                         },
                         message: `${twitchContext.username} joins the brawl!`
                     },
-                    encounterTable: gameContext.encounterTable
+                    encounterTable
                 }
             });
         }
 
-        eventUtil.sendContextUpdate();
+        EventQueue.sendContextUpdate();
     },
-    "!use": async (twitchContext, gameContext, eventUtil) => {
-        if (!gameContext.botConfig.config.cbd) {
+    "!use": async (twitchContext, botContext) => {
+        if (!botContext.botConfig.config.cbd) {
             throw "This channel does not have this command enabled";
         }
 
@@ -36,14 +48,14 @@ module.exports = {
             throw "You must have an name for your ability.";
         }
 
-        if (gameContext.cooldownTable[twitchContext.username]) {
+        if (cooldownTable[twitchContext.username]) {
             throw `${twitchContext.username} is on cooldown.`;
         }
 
         // Set user active if they attack
-        if (!gameContext.chattersActive[twitchContext.username]) {
-            gameContext.chattersActive[twitchContext.username] = 10 * 12;
-            eventUtil.sendEvent({
+        if (!botContext.chattersActive[twitchContext.username]) {
+            botContext.chattersActive[twitchContext.username] = 10 * 12;
+            EventQueue.sendEvent({
                 type: "JOIN",
                 targets: ["chat", "panel"],
                 eventData: {
@@ -53,24 +65,24 @@ module.exports = {
                         },
                         message: `${twitchContext.username} joins the brawl!`
                     },
-                    encounterTable: gameContext.encounterTable
+                    encounterTable
                 }
             });
         }
 
-        var isItem = false;
-        var itemName = "";
-        var foundIndex = -1;
-        var attackerName = twitchContext.username;
-        var abilityName = twitchContext.tokens[1].toUpperCase();
-        var defenderName = twitchContext.tokens[2] ? twitchContext.tokens[2].replace("@", "").toLowerCase() : null;
-        var attacker = await Commands.getTarget(attackerName, gameContext);
-        var targets = await Xhr.getActiveUsers(gameContext);
-        var aliveMonsters = Object.keys(gameContext.encounterTable).map(monster => "~" + monster);
+        let isItem = false;
+        let itemName = "";
+        let foundIndex = -1;
+        let attackerName = twitchContext.username;
+        let abilityName = twitchContext.tokens[1].toUpperCase();
+        let defenderName = twitchContext.tokens[2] ? twitchContext.tokens[2].replace("@", "").toLowerCase() : null;
+        let attacker = await Commands.getTarget(attackerName, pluginContext);
+        let targets = await Xhr.getActiveUsers(pluginContext);
+        let aliveMonsters = Object.keys(encounterTable).map(monster => "~" + monster);
 
         if (abilityName.startsWith("#")) {
             itemName = abilityName.substring(1).toUpperCase();
-            var item = gameContext.itemTable[itemName];
+            let item = itemTable[itemName];
             foundIndex = attacker.inventory.findIndex(inventoryItem => inventoryItem.id === itemName);
 
             if (!item) {
@@ -90,7 +102,7 @@ module.exports = {
             isItem = true;
         }
 
-        var ability = gameContext.abilityTable[abilityName];
+        let ability = abilityTable[abilityName];
 
         if (!ability) {
             throw `Ability named ${abilityName} doesn't exist goofball.`;
@@ -112,7 +124,7 @@ module.exports = {
             throw `@${attackerName} needs ${ability.ap} AP to use this ability.`;
         }
 
-        var abilityTargets = [];
+        let abilityTargets = [];
         if (!defenderName) {
             if (ability.area === "ONE" && ability.target !== "CHAT") {
                 throw `${abilityName} cannot target all opponents.  You must specify a target.`;
@@ -134,7 +146,7 @@ module.exports = {
         }
 
         if (!isItem) {
-            eventUtil.sendEvent({
+            EventQueue.sendEvent({
                 type: "INFO",
                 targets: ["chat", "panel"],
                 eventData: {
@@ -142,11 +154,11 @@ module.exports = {
                         attacker,
                         message: `${attacker.name} uses ${ability.name}`
                     },
-                    encounterTable: gameContext.encounterTable
+                    encounterTable
                 }
             });
         } else {
-            eventUtil.sendEvent({
+            EventQueue.sendEvent({
                 type: "INFO",
                 targets: ["chat", "panel"],
                 eventData: {
@@ -154,30 +166,30 @@ module.exports = {
                         attacker,
                         message: `${attacker.name} uses a ${itemName}`
                     },
-                    encounterTable: gameContext.encounterTable
+                    encounterTable: encounterTable
                 }
             });
         }
 
         // Perform ability on everyone
-        for (var i in abilityTargets) {
-            var abilityTarget = abilityTargets[i];
+        for (let i in abilityTargets) {
+            let abilityTarget = abilityTargets[i];
 
-            var results = {};
+            let results = {};
 
             if (ability.element === "HEALING") {
-                results = await Commands.heal(attackerName, abilityTarget, ability, gameContext);
+                results = await Commands.heal(attackerName, abilityTarget, ability, pluginContext);
             } else if (ability.element === "BUFFING") {
-                results = await Commands.buff(attackerName, abilityTarget, ability, gameContext);
+                results = await Commands.buff(attackerName, abilityTarget, ability, pluginContext);
             } else if (ability.element === "CLEANSING") {
-                results = await Commands.cleanse(attackerName, abilityTarget, ability, gameContext);
+                results = await Commands.cleanse(attackerName, abilityTarget, ability, pluginContext);
             } else {
-                results = await Commands.hurt(attackerName, abilityTarget, ability, gameContext);
+                results = await Commands.hurt(attackerName, abilityTarget, ability, pluginContext);
             }
 
             // Announce results of attack
             if (results.damageType === "HEALING") {
-                eventUtil.sendEvent({
+                EventQueue.sendEvent({
                     type: "HEALING",
                     targets: ["chat", "panel"],
                     eventData: {
@@ -186,11 +198,11 @@ module.exports = {
                             defender: results.defender,
                             message: results.message
                         },
-                        encounterTable: gameContext.encounterTable
+                        encounterTable: encounterTable
                     }
                 });
             } else if (results.damageType === "BUFFING") {
-                eventUtil.sendEvent({
+                EventQueue.sendEvent({
                     type: "BUFFING",
                     targets: ["chat", "panel"],
                     eventData: {
@@ -199,11 +211,11 @@ module.exports = {
                             defender: results.defender,
                             message: results.message
                         },
-                        encounterTable: gameContext.encounterTable
+                        encounterTable: encounterTable
                     }
                 });
             } else if (results.damageType === "CLEANSING") {
-                eventUtil.sendEvent({
+                EventQueue.sendEvent({
                     type: "BUFFING",
                     targets: ["chat", "panel"],
                     eventData: {
@@ -212,7 +224,7 @@ module.exports = {
                             defender: results.defender,
                             message: results.message
                         },
-                        encounterTable: gameContext.encounterTable
+                        encounterTable: encounterTable
                     }
                 });
             } else if (
@@ -225,7 +237,7 @@ module.exports = {
                     message = `${results.attacker.name} scored a critical hit on ${results.defender.name} for ${results.damage} ${results.damageStat} damage.`;
                 }
 
-                eventUtil.sendEvent({
+                EventQueue.sendEvent({
                     type: "ATTACKED",
                     targets: ["chat", "panel"],
                     eventData: {
@@ -234,7 +246,7 @@ module.exports = {
                             defender: results.defender,
                             message
                         },
-                        encounterTable: gameContext.encounterTable
+                        encounterTable
                     }
                 });
             } else if (
@@ -243,7 +255,7 @@ module.exports = {
                 results.damageType !== "CLEANSING" && 
                 !results.flags.hit
             ) {
-                eventUtil.sendEvent({
+                EventQueue.sendEvent({
                     type: "ATTACKED",
                     targets: ["chat", "panel"],
                     eventData: {
@@ -252,14 +264,14 @@ module.exports = {
                             defender: results.defender,
                             message: `${results.attacker.name} used ${ability.name} on ${results.defender.name} and missed.`
                         },
-                        encounterTable: gameContext.encounterTable
+                        encounterTable
                     }
                 });
             }
 
             // Show trigger results
             for (const triggerResult of results.triggerResults) {
-                eventUtil.sendEvent({
+                EventQueue.sendEvent({
                     type: "INFO",
                     targets: ["chat", "panel"],
                     eventData: {
@@ -268,7 +280,7 @@ module.exports = {
                             defender: triggerResult.results.defender,
                             message: `${results.attacker.name} triggered ${triggerResult.trigger.ability.name}!`
                         },
-                        encounterTable: gameContext.encounterTable
+                        encounterTable
                     }
                 });
             }
@@ -276,18 +288,18 @@ module.exports = {
             if (results.flags.dead) {
                 if (results.defender.isMonster) {
                     if (results.defender.transmogName) {
-                        client.say(gameContext.botConfig.twitchChannel, `/ban ${results.defender.transmogName}`);
+                        client.say(botContext.botConfig.twitchChannel, `/ban ${results.defender.transmogName}`);
                     }
 
-                    delete gameContext.encounterTable[results.defender.spawnKey];
-                    var itemGets = await Commands.distributeLoot(results.defender, gameContext);
+                    delete encounterTable[results.defender.spawnKey];
+                    let itemGets = await Commands.distributeLoot(results.defender, pluginContext);
 
                     itemGets.forEach((itemGet) => {
-                        eventUtil.sendEvent(itemGet);
+                        EventQueue.sendEvent(itemGet);
                     })
                 }
                 
-                eventUtil.sendEvent({
+                EventQueue.sendEvent({
                     type: "DIED",
                     targets: ["chat", "panel"],
                     eventData: {
@@ -295,16 +307,16 @@ module.exports = {
                             defender: results.defender,
                             message: `${results.defender.name} was slain by ${results.attacker.name}.`
                         },
-                        encounterTable: gameContext.encounterTable
+                        encounterTable
                     }
                 });
 
-                eventUtil.sendContextUpdate();
+                EventQueue.sendContextUpdate();
             }
         }
 
         // Get basic user to update
-        var updatedAttacker = await Xhr.getUser(twitchContext.username);
+        let updatedAttacker = await Xhr.getUser(twitchContext.username);
 
         // Update ap
         updatedAttacker.ap -= ability.ap;
@@ -318,38 +330,38 @@ module.exports = {
         // Get basic user to update
         await Xhr.updateUser(updatedAttacker);
 
-        eventUtil.sendContextUpdate([updatedAttacker], true);
+        EventQueue.sendContextUpdate([updatedAttacker], true);
 
         // Set user cool down
-        var currBuffs = Commands.createBuffMap(twitchContext.username, gameContext);
-        gameContext.cooldownTable[twitchContext.username] = Math.min(11, 6 - Math.min(5, attacker.dex + currBuffs.dex));
+        let currBuffs = Commands.createBuffMap(twitchContext.username, pluginContext);
+        cooldownTable[twitchContext.username] = Math.min(11, 6 - Math.min(5, attacker.dex + currBuffs.dex));
 
     },
-    "!attack": async (twitchContext, gameContext, eventUtil) => {
-        if (!gameContext.botConfig.config.cbd) {
+    "!attack": async (twitchContext, botContext) => {
+        if (!botContext.botConfig.config.cbd) {
             throw "This channel does not have this command enabled";
         }
 
         if (twitchContext.tokens.length < 2) {
             throw "You must have a target for your attack.";
         }
-        var attacker = await Commands.getTarget(twitchContext.username, gameContext);
-        var defenderName = twitchContext.tokens[1].replace("@", "").toLowerCase();
+        let attacker = await Commands.getTarget(twitchContext.username, pluginContext);
+        let defenderName = twitchContext.tokens[1].replace("@", "").toLowerCase();
 
-        if (gameContext.cooldownTable[twitchContext.username]) {
+        if (cooldownTable[twitchContext.username]) {
             throw `${twitchContext.username} is on cooldown.`;
         }
 
-        var results = await Commands.attack(twitchContext.username, defenderName, gameContext);
+        let results = await Commands.attack(twitchContext.username, defenderName, pluginContext);
 
         // Set user cool down
-        var currBuffs = Commands.createBuffMap(twitchContext.username, gameContext);
-        gameContext.cooldownTable[twitchContext.username] = Math.min(11, 6 - Math.min(5, attacker.dex + currBuffs.dex));
+        let currBuffs = Commands.createBuffMap(twitchContext.username, pluginContext);
+        cooldownTable[twitchContext.username] = Math.min(11, 6 - Math.min(5, attacker.dex + currBuffs.dex));
 
         // Set user active if they attack
-        if (!gameContext.chattersActive[twitchContext.username]) {
-            gameContext.chattersActive[twitchContext.username] = 10 * 12;
-            eventUtil.sendEvent({
+        if (!botContext.chattersActive[twitchContext.username]) {
+            botContext.chattersActive[twitchContext.username] = 10 * 12;
+            EventQueue.sendEvent({
                 type: "JOIN",
                 targets: ["chat", "panel"],
                 eventData: {
@@ -359,7 +371,7 @@ module.exports = {
                         },
                         message: `${twitchContext.username} joins the brawl!`
                     },
-                    encounterTable: gameContext.encounterTable
+                    encounterTable
                 }
             });
         }
@@ -370,7 +382,7 @@ module.exports = {
                 message = `${results.attacker.name} scored a critical hit on ${results.defender.name} for ${results.damage} ${results.damageStat} damage.`;
             }
 
-            eventUtil.sendEvent({
+            EventQueue.sendEvent({
                 type: "ATTACKED",
                 targets: ["chat", "panel"],
                 eventData: {
@@ -379,11 +391,11 @@ module.exports = {
                         defender: results.defender,
                         message
                     },
-                    encounterTable: gameContext.encounterTable
+                    encounterTable
                 }
             });
         } else {
-            eventUtil.sendEvent({
+            EventQueue.sendEvent({
                 type: "ATTACKED",
                 targets: ["chat", "panel"],
                 eventData: {
@@ -392,14 +404,14 @@ module.exports = {
                         defender: results.defender,
                         message: `${results.attacker.name} attacked ${results.defender.name} and missed.`
                     },
-                    encounterTable: gameContext.encounterTable
+                    encounterTable
                 }
             });
         }
 
         // Show trigger results
         for (const triggerResult of results.triggerResults) {
-            eventUtil.sendEvent({
+            EventQueue.sendEvent({
                 type: "INFO",
                 targets: ["chat", "panel"],
                 eventData: {
@@ -408,7 +420,7 @@ module.exports = {
                         defender: triggerResult.results.defender,
                         message: `${results.attacker.name}'s ${results.attacker.equipment.hand.name}'s ${triggerResult.trigger.ability.name} activated!`
                     },
-                    encounterTable: gameContext.encounterTable
+                    encounterTable
                 }
             });
         }
@@ -416,20 +428,20 @@ module.exports = {
         if (results.flags.dead) {
             if (results.defender.isMonster) {
                 if (results.defender.transmogName) {
-                    client.say(gameContext.botConfig.twitchChannel, `/ban ${results.defender.transmogName}`);
+                    client.say(botContext.botConfig.twitchChannel, `/ban ${results.defender.transmogName}`);
                 }
 
-                delete gameContext.encounterTable[results.defender.spawnKey];
-                var itemGets = await Commands.distributeLoot(results.defender, gameContext);
+                delete encounterTable[results.defender.spawnKey];
+                let itemGets = await Commands.distributeLoot(results.defender, pluginContext);
 
                 itemGets.forEach((itemGet) => {
-                    eventUtil.sendEvent(itemGet);
+                    EventQueue.sendEvent(itemGet);
                 });
 
-                eventUtil.sendContextUpdate();
+                EventQueue.sendContextUpdate();
             }
 
-            eventUtil.sendEvent({
+            EventQueue.sendEvent({
                 type: "DIED",
                 targets: ["chat", "panel"],
                 eventData: {
@@ -437,20 +449,20 @@ module.exports = {
                         defender: results.defender,
                         message: `${results.defender.name} was slain by ${results.attacker.name}.`
                     },
-                    encounterTable: gameContext.encounterTable
+                    encounterTable
                 }
             });
         }
 
-        eventUtil.sendContextUpdate([results.attacker, results.defender], true);
+        EventQueue.sendContextUpdate([results.attacker, results.defender], true);
 
     },
-    "!transmog": async (twitchContext, gameContext, eventUtil) => {
-        if (!gameContext.botConfig.config.cbd) {
+    "!transmog": async (twitchContext, botContext) => {
+        if (!botContext.botConfig.config.cbd) {
             throw "This channel does not have this command enabled";
         }
 
-        if (twitchContext.username !== gameContext.botConfig.twitchChannel && !twitchContext.mod) {
+        if (twitchContext.username !== botContext.botConfig.twitchChannel && !twitchContext.mod) {
             throw "Only a broadcaster or mod can turn a viewer into a slime";
         }
 
@@ -459,42 +471,42 @@ module.exports = {
         }
 
         // If there are too many encounters, fail
-        if (Object.keys(gameContext.encounterTable).length >= gameContext.configTable.maxEncounters) {
-            throw `Only ${gameContext.configTable.maxEncounters} monster spawns allowed at a time`;
+        if (Object.keys(encounterTable).length >= botContext.configTable.maxEncounters) {
+            throw `Only ${botContext.configTable.maxEncounters} monster spawns allowed at a time`;
         }
 
-        var transmogName = twitchContext.tokens[1];
+        let transmogName = twitchContext.tokens[1];
         twitchContext.tokens[1] = twitchContext.tokens[1].replace("@", "").toLowerCase();
 
-        if (twitchContext.tokens[1] === gameContext.botConfig.twitchChannel) {
+        if (twitchContext.tokens[1] === botContext.botConfig.twitchChannel) {
             throw "You can't turn the broadcaster into a slime";
         }
 
-        var slimeName = twitchContext.tokens[1].toLowerCase() + "_the_slime";
-        var monster = await Commands.spawnMonster("SLIME", slimeName, gameContext);
+        let slimeName = twitchContext.tokens[1].toLowerCase() + "_the_slime";
+        let monster = await Commands.spawnMonster("SLIME", slimeName, pluginContext);
         monster.transmogName = transmogName;
-        gameContext.encounterTable[monster.spawnKey] = monster;
+        encounterTable[monster.spawnKey] = monster;
 
-        eventUtil.sendEvent({
+        EventQueue.sendEvent({
             type: "SPAWN",
             targets: ["chat", "panel"],
             eventData: {
                 results: {
                     message: `${twitchContext.tokens[1]} was turned into a slime and will be banned upon death.  Target name: ~${monster.spawnKey}.`
                 },
-                encounterTable: gameContext.encounterTable
+                encounterTable
             }
         });
 
-        eventUtil.sendContextUpdate();
+        EventQueue.sendContextUpdate();
 
     },
-    "!untransmog": async (twitchContext, gameContext, eventUtil) => {
-        if (!gameContext.botConfig.config.cbd) {
+    "!untransmog": async (twitchContext, botContext) => {
+        if (!botContext.botConfig.config.cbd) {
             throw "This channel does not have this command enabled";
         }
 
-        if (twitchContext.username !== gameContext.botConfig.twitchChannel && !twitchContext.mod) {
+        if (twitchContext.username !== botContext.botConfig.twitchChannel && !twitchContext.mod) {
             throw "Only a broadcaster or mod can revert a slime";
         }
 
@@ -504,28 +516,28 @@ module.exports = {
 
         twitchContext.tokens[1] = twitchContext.tokens[1].replace("@", "").toLowerCase();
 
-        var monsterName = twitchContext.tokens[1].toLowerCase() + "_the_slime";
+        let monsterName = twitchContext.tokens[1].toLowerCase() + "_the_slime";
 
-        if (!gameContext.encounterTable[monsterName]) {
+        if (!encounterTable[monsterName]) {
             throw `${twitchContext.tokens[1]} isn't a slime`;
         }
 
-        delete gameContext.encounterTable[monsterName];
+        delete encounterTable[monsterName];
 
-        eventUtil.sendContextUpdate();
+        EventQueue.sendContextUpdate();
     },
-    "!explore": async (twitchContext, gameContext, eventUtil) => {
-        if (!gameContext.botConfig.config.cbd) {
+    "!explore": async (twitchContext, botContext) => {
+        if (!botContext.botConfig.config.cbd) {
             throw "This channel does not have this command enabled";
         }
 
         // If there are too many encounters, fail
-        if (Object.keys(gameContext.encounterTable).length >= gameContext.configTable.maxEncounters) {
+        if (Object.keys(encounterTable).length >= botContext.configTable.maxEncounters) {
             throw `All adventurers are busy with monsters right now.`;
         }
 
-        var randomMonster = null;
-        var apCost = 5;
+        let randomMonster = null;
+        let apCost = 5;
         const maxRarity = Util.rollDice("1d100") < 10 ? 7 : 5;
         const itemDrop = Util.rollDice("1d100") <= 20;
 
@@ -536,13 +548,13 @@ module.exports = {
                 apCost = 10;
             }
 
-            const items = Object.keys(gameContext.itemTable).filter(name => gameContext.itemTable[name].rarity < maxRarity);
+            const items = Object.keys(itemTable).filter(name => itemTable[name].rarity < maxRarity);
             const foundItemKey = items[Util.randomNumber(items.length) - 1];
-            const foundItem = gameContext.itemTable[foundItemKey];
+            const foundItem = itemTable[foundItemKey];
 
             await Xhr.adjustPlayer(twitchContext.username, {ap: -apCost}, [foundItemKey]);
 
-            eventUtil.sendEvent({
+            EventQueue.sendEvent({
                 type: "ITEM_GET",
                 targets: ["chat", "panel"],
                 eventData: {
@@ -553,133 +565,133 @@ module.exports = {
                         item: foundItem,
                         message: `${twitchContext.username} found ${foundItem.name}!`
                     },
-                    encounterTable: gameContext.encounterTable
+                    encounterTable
                 }
             });
-            eventUtil.sendContextUpdate([twitchContext.caller], true);
+            EventQueue.sendContextUpdate([twitchContext.caller], true);
             return;
         }
 
         // Monster spawn
         if (twitchContext.tokens.length < 2) {
-            var lowLevelMonsters = Object.keys(gameContext.monsterTable).filter(name => gameContext.monsterTable[name].rarity < maxRarity);
+            let lowLevelMonsters = Object.keys(monsterTable).filter(name => monsterTable[name].rarity < maxRarity);
             randomMonster = lowLevelMonsters[Util.randomNumber(lowLevelMonsters.length) - 1];
         } else {
-            var dungeonMonsters = Object.keys(gameContext.monsterTable).filter(name => gameContext.monsterTable[name].rarity < maxRarity * 2 && gameContext.monsterTable[name].dungeon === twitchContext.tokens[1]);
+            let dungeonMonsters = Object.keys(monsterTable).filter(name => monsterTable[name].rarity < maxRarity * 2 && monsterTable[name].dungeon === twitchContext.tokens[1]);
             randomMonster = dungeonMonsters[Util.randomNumber(dungeonMonsters.length) - 1];
             apCost = 10;
         }
 
         // Retrieve monster from monster table
-        var monsterName = randomMonster;
-        var monster = await Commands.spawnMonster(monsterName, null, gameContext);
-        gameContext.encounterTable[monster.spawnKey] = monster;
+        let monsterName = randomMonster;
+        let monster = await Commands.spawnMonster(monsterName, null, pluginContext);
+        encounterTable[monster.spawnKey] = monster;
 
         // Expend AP
         await Xhr.adjustPlayer(twitchContext.username, {ap: -apCost});
 
-        eventUtil.sendEvent({
+        EventQueue.sendEvent({
             type: "SPAWN",
             targets: ["chat", "panel"],
             eventData: {
                 results: {
                     message: `${monster.name} has appeared!  Target name: ~${monster.spawnKey}.`
                 },
-                encounterTable: gameContext.encounterTable
+                encounterTable
             }
         });
 
-        eventUtil.sendContextUpdate(null, true);
+        EventQueue.sendContextUpdate(null, true);
     },
-    "!spawn": async (twitchContext, gameContext, eventUtil) => {
-        if (!gameContext.botConfig.config.cbd) {
+    "!spawn": async (twitchContext, botContext) => {
+        if (!botContext.botConfig.config.cbd) {
             throw "This channel does not have this command enabled";
         }
 
-        if (twitchContext.username !== gameContext.botConfig.twitchChannel && !twitchContext.mod) {
+        if (twitchContext.username !== botContext.botConfig.twitchChannel && !twitchContext.mod) {
             throw "Only a broadcaster or mod can spawn monsters";
         }
 
         // If there are too many encounters, fail
-        if (Object.keys(gameContext.encounterTable).length >= gameContext.configTable.maxEncounters) {
-            throw `Only ${gameContext.configTable.maxEncounters} monster spawns allowed at a time`;
+        if (Object.keys(encounterTable).length >= botContext.configTable.maxEncounters) {
+            throw `Only ${botContext.configTable.maxEncounters} monster spawns allowed at a time`;
         }
 
-        var monster = null;
+        let monster = null;
         if (twitchContext.tokens.length < 2) {
             // Retrieve a random monster from the present dungeon
-            const dungeonName = gameContext.configTable.currentDungeon;
+            const dungeonName = botContext.configTable.currentDungeon;
 
             if (!dungeonName) {
                 throw "If no current dungeon is defined, then the spawn command requires a monster name."
             }
 
             const maxRarity = Util.rollDice("1d100") < 10 ? 7 : 5;
-            const dungeonMonsters = Object.keys(gameContext.monsterTable).filter(name => gameContext.monsterTable[name].rarity < maxRarity * 2 && gameContext.monsterTable[name].dungeon === dungeonName);
+            const dungeonMonsters = Object.keys(monsterTable).filter(name => monsterTable[name].rarity < maxRarity * 2 && monsterTable[name].dungeon === dungeonName);
             const randomMonsterName = dungeonMonsters[Util.randomNumber(dungeonMonsters.length) - 1];
-            monster = await Commands.spawnMonster(randomMonsterName, null, gameContext);
+            monster = await Commands.spawnMonster(randomMonsterName, null, pluginContext);
         } else {
             // Retrieve monster from monster table
             const monsterName = twitchContext.tokens[1];
-            monster = await Commands.spawnMonster(monsterName, null, gameContext);
+            monster = await Commands.spawnMonster(monsterName, null, pluginContext);
         }
 
-        gameContext.encounterTable[monster.spawnKey] = monster;
+        encounterTable[monster.spawnKey] = monster;
 
-        eventUtil.sendEvent({
+        EventQueue.sendEvent({
             type: "SPAWN",
             targets: ["chat", "panel"],
             eventData: {
                 results: {
                     message: `${monster.name} has appeared!  Target name: ~${monster.spawnKey}.`
                 },
-                encounterTable: gameContext.encounterTable
+                encounterTable
             }
         });
 
-        eventUtil.sendContextUpdate();
+        EventQueue.sendContextUpdate();
 
     },
-    "!stats": async (twitchContext, gameContext, eventUtil) => {
-        if (!gameContext.botConfig.config.cbd) {
+    "!stats": async (twitchContext, botContext) => {
+        if (!botContext.botConfig.config.cbd) {
             throw "This channel does not have this command enabled";
         }
 
-        var username = twitchContext.username;
-        let buffs = Commands.createBuffMap(username, gameContext);
+        let username = twitchContext.username;
+        let buffs = Commands.createBuffMap(username, pluginContext);
         if (twitchContext.tokens[1]) {
             username = twitchContext.tokens[1].replace("@", "").toLowerCase();
         }
 
-        var user = await Xhr.getUser(username);
-        user = Util.expandUser(user, gameContext);
-        eventUtil.sendInfoToChat(`[${user.name}] HP: ${user.hp} -- AP: ${user.ap} -- STR: ${user.str} (${Util.sign(buffs.str)}) -- DEX: ${user.dex} (${Util.sign(buffs.dex)}) -- INT: ${user.int} (${Util.sign(buffs.int)}) -- HIT: ${user.hit} (${Util.sign(buffs.hit)}) -- AC: ${user.totalAC} (${Util.sign(buffs.ac)}) -- Cooldown: ${gameContext.cooldownTable[username] * 5 || "0"} seconds.`);
+        let user = await Xhr.getUser(username);
+        user = Util.expandUser(user, pluginContext);
+        EventQueue.sendInfoToChat(`[${user.name}] HP: ${user.hp} -- AP: ${user.ap} -- STR: ${user.str} (${Util.sign(buffs.str)}) -- DEX: ${user.dex} (${Util.sign(buffs.dex)}) -- INT: ${user.int} (${Util.sign(buffs.int)}) -- HIT: ${user.hit} (${Util.sign(buffs.hit)}) -- AC: ${user.totalAC} (${Util.sign(buffs.ac)}) -- Cooldown: ${cooldownTable[username] * 5 || "0"} seconds.`);
     },
-    "!buffs": async (twitchContext, gameContext, eventUtil) => {
-        if (!gameContext.botConfig.config.cbd) {
+    "!buffs": async (twitchContext, botContext) => {
+        if (!botContext.botConfig.config.cbd) {
             throw "This channel does not have this command enabled";
         }
 
-        var username = twitchContext.username;
-        var buffList = gameContext.buffTable[username] || [];
-        eventUtil.sendInfoToChat(`[${username} Buffs] ${buffList.map(buff => `${buff.name}(${buff.duration * 5} seconds)`).join(", ")}.`);
+        let username = twitchContext.username;
+        let buffList = buffTable[username] || [];
+        EventQueue.sendInfoToChat(`[${username} Buffs] ${buffList.map(buff => `${buff.name}(${buff.duration * 5} seconds)`).join(", ")}.`);
     },
-    "!targets": async (twitchContext, gameContext, eventUtil) => {
-        if (!gameContext.botConfig.config.cbd) {
+    "!targets": async (twitchContext, botContext) => {
+        if (!botContext.botConfig.config.cbd) {
             throw "This channel does not have this command enabled";
         }
 
-        var activeUsers = await Xhr.getActiveUsers(gameContext);
-        var monsterList = Object.keys(gameContext.encounterTable).map((name) => {
-            var monster = gameContext.encounterTable[name];
+        let activeUsers = await Xhr.getActiveUsers(pluginContext);
+        let monsterList = Object.keys(encounterTable).map((name) => {
+            let monster = encounterTable[name];
             if (monster.hp >= 0) {
                 return `${monster.name} (~${name})`;
             }
         });
-        eventUtil.sendInfoToChat(`Available targets are: ${[...activeUsers, ...monsterList]}`);
+        EventQueue.sendInfoToChat(`Available targets are: ${[...activeUsers, ...monsterList]}`);
     },
-    "!give": async (twitchContext, gameContext, eventUtil) => {
-        if (!gameContext.botConfig.config.cbd) {
+    "!give": async (twitchContext, botContext) => {
+        if (!botContext.botConfig.config.cbd) {
             throw "This channel does not have this command enabled";
         }
 
@@ -687,24 +699,24 @@ module.exports = {
             throw "Must provide a target and an item id to give";
         }
 
-        var itemId = twitchContext.tokens[1];
+        let itemId = twitchContext.tokens[1];
         user = twitchContext.tokens[2].replace("@", "").toLowerCase();
 
-        var results = await Commands.giveItemFromInventory(twitchContext.username, user, itemId, gameContext);
+        let results = await Commands.giveItemFromInventory(twitchContext.username, user, itemId, pluginContext);
 
-        eventUtil.sendEvent({
+        EventQueue.sendEvent({
             type: "ITEM_GIVE",
             targets: ["chat"],
             eventData: {
                 results,
-                encounterTable: gameContext.encounterTable
+                encounterTable
             }
         });
 
-        eventUtil.sendContextUpdate([results.giver, results.receiver], true);
+        EventQueue.sendContextUpdate([results.giver, results.receiver], true);
     },
-    "!gift": async (twitchContext, gameContext, eventUtil) => {
-        if (!gameContext.botConfig.config.cbd) {
+    "!gift": async (twitchContext, botContext) => {
+        if (!botContext.botConfig.config.cbd) {
             throw "This channel does not have this command enabled";
         }
 
@@ -712,45 +724,372 @@ module.exports = {
             throw "Must provide a target and an item id to give";
         }
 
-        var itemId = twitchContext.tokens[1];
+        let itemId = twitchContext.tokens[1];
         user = twitchContext.tokens[2].replace("@", "").toLowerCase();
 
         // Give from inventory if not a mod
-        if (twitchContext.username !== gameContext.botConfig.twitchChannel && !twitchContext.mod) {
+        if (twitchContext.username !== botContext.botConfig.twitchChannel && !twitchContext.mod) {
             throw "Only a mod can gift an item to someone";
         }
 
         // Give as mod
-        var results = await Commands.giveItem(twitchContext.username, user, itemId, target);
+        let results = await Commands.giveItem(twitchContext.username, user, itemId, twitchContext.target);
 
-        eventUtil.sendEvent({
+        EventQueue.sendEvent({
             type: "ITEM_GIFT",
             targets: ["chat"],
             eventData: {
                 results,
-                encounterTable: gameContext.encounterTable
+                encounterTable
             }
         });
     },
-    "!reset": async (twitchContext, gameContext, eventUtil) => {
-        if (!gameContext.botConfig.config.cbd) {
+    "!reset": async (twitchContext, botContext) => {
+        if (!botContext.botConfig.config.cbd) {
             throw "This channel does not have this command enabled";
         }
 
-        if (twitchContext.username !== gameContext.botConfig.twitchChannel && !twitchContext.mod) {
+        if (twitchContext.username !== botContext.botConfig.twitchChannel && !twitchContext.mod) {
             throw "Only a mod or broadcaster can refresh the tables";
         }
 
-        gameContext.encounterTable = {};
-        eventUtil.sendEvent({
+        encounterTable = {};
+        EventQueue.sendEvent({
             type: "INFO",
             targets: ["chat", "panel"],
             eventData: {
                 results: {
                     message: "Clearing encounter table."
                 },
-                encounterTable: gameContext.encounterTable
+                encounterTable
             }
         });
     }
+}
+
+exports.init = async (botContext) => {
+    itemTable = await Xhr.getItemTable()
+    jobTable = await Xhr.getJobTable();
+    monsterTable = await Xhr.getMonsterTable();
+    abilityTable = await Xhr.getAbilityTable();
+
+    console.log(`* All tables loaded`);
+
+    pluginContext = { itemTable, jobTable, monsterTable, abilityTable, encounterTable, cooldownTable, buffTable, dotTable, ...botContext};
+
+    try {
+        setInterval(async () => {
+            // Check for chatter activity timeouts
+            Object.keys(botContext.chattersActive).forEach(async (username) => {
+                botContext.chattersActive[username] -= 1;
+                if (botContext.chattersActive[username] === 0) {
+                    delete botContext.chattersActive[username];
+                    EventQueue.sendInfoToChat(`${username} has stepped back into the shadows.`);
+                }
+            });
+
+            // Tick down human cooldowns
+            Object.keys(cooldownTable).forEach(async (username) => {
+                cooldownTable[username] -= 1;
+                if (cooldownTable[username] <= 0) {
+                    delete cooldownTable[username];
+                    EventQueue.sendInfoToChat(`${username} can act again.`);
+                    let user = Xhr.getUser(username);
+                    // extWs.send(JSON.stringify({
+                    //     type: "COOLDOWN_OVER",
+                    //     channelId: TWITCH_EXT_CHANNEL_ID,
+                    //     jwt: createJwt(botContext.botConfig.sharedSecretKey),
+                    //     to: user.id,
+                    // }));
+                }
+            });
+
+            // Tick down buff timers
+            Object.keys(buffTable).forEach(async (username) => {
+                let buffs = buffTable[username] || [];
+                buffs.forEach((buff) => {
+                    buff.duration--;
+
+                    if (buff.duration <= 0) {
+                        sendInfoToChat(`${username}'s ${buff.name} buff has worn off.`);
+                    }
+                });
+                buffTable[username] = buffs.filter(buff => buff.duration > 0);
+
+                // If not a monster, send buff updates to user
+                if (!username.startsWith("~")) {
+                    let user = await Xhr.getUser(username);
+                    // extWs.send(JSON.stringify({
+                    //     type: "BUFF_UPDATE",
+                    //     channelId: TWITCH_EXT_CHANNEL_ID,
+                    //     jwt: createJwt(botContext.botConfig.sharedSecretKey),
+                    //     to: user.id,
+                    //     data: {
+                    //         buffs: buffTable[username]
+                    //     }
+                    // }));
+                }
+            });
+
+            // Tick down status timers
+            Object.keys(dotTable).forEach(async (username) => {
+                let effects = dotTable[username];
+                for (let effect of effects) {
+                    effect.tickCounter--;
+                    if (effect.tickCounter <= 0) {
+                        effect.tickCounter = effect.ability.procTime;
+                        effect.cycles--;
+
+                        // Perform damage
+                        let defender = null;
+                        try {
+                            defender = await Commands.getTarget(username, pluginContext);
+                            if (defender.hp <= 0) {
+                                effect.cycles = 0;
+                                continue;
+                            }
+                        } catch (e) {
+                            effect.cycles = 0;
+                            break;
+                        }
+                        let damageRoll = Util.rollDice(effect.ability.dmg);
+                
+                        if (!defender.isMonster) {
+                            let user = await Xhr.getUser(username);
+                            user[effect.ability.damageStat] -= damageRoll;
+                            await Xhr.updateUser(user);
+
+                            sendContextUpdate([user], true);
+                        } else {
+                            defender.hp -= damageRoll;
+                        }
+
+                        // Send panel update
+                        EventQueue.sendEvent({
+                            type: "ATTACKED",
+                            targets: ["chat", "panel"],
+                            eventData: {
+                                results: {
+                                    defender,
+                                    message: `${defender.name} took ${damageRoll} damage from ${effect.ability.name} ${defender.hp <= 0 ? " and died." : "."}`
+                                },
+                                encounterTable
+                            }
+                        });
+
+                        // Send update to all users if monster died.
+                        if (defender.hp <= 0 && defender.isMonster) {
+                            effect.cycles = 0;
+
+                            delete encounterTable[defender.spawnKey];
+
+                            let itemGets = await Commands.distributeLoot(defender, pluginContext);
+                            itemGets.forEach((itemGet) => {
+                                EventQueue.sendEvent(itemGet);
+                            });
+
+                            sendContextUpdate();
+                            continue;
+                        }
+
+                        if (effect.cycles <= 0) {
+                            sendInfoToChat(`${defender.name}'s ${effect.ability.name} status has worn off.`);
+                            sendContextUpdate();
+                        }
+                    }
+                }
+                dotTable[username] = effects.filter(effect => effect.cycles > 0);
+
+                // If not a monster, send effect updates to user
+                if (!username.startsWith("~")) {
+                    let user = await Xhr.getUser(username);
+                    // extWs.send(JSON.stringify({
+                    //     type: "STATUS_UPDATE",
+                    //     channelId: TWITCH_EXT_CHANNEL_ID,
+                    //     jwt: createJwt(botContext.botConfig.sharedSecretKey),
+                    //     to: user.id,
+                    //     data: {
+                    //         effects: dotTable[username]
+                    //     }
+                    // }));
+                }
+            })
+
+
+            // Do monster attacks
+            Object.keys(encounterTable).forEach(async (encounterName) => {
+                let encounter = encounterTable[encounterName];
+
+                if (encounter.hp <= 0) {
+                    return;
+                }
+
+                // If the monster has no tick, reset it.
+                if (encounter.tick === undefined) {
+                    let buffs = Commands.createBuffMap("~" + encounter.name, pluginContext);
+                    encounter.tick = Math.min(11, 6 - Math.min(5, encounter.dex + buffs.dex));
+                }
+
+                // If cooldown timer for monster is now zero, do an attack.
+                if (encounter.tick === 0) {
+                    let buffs = Commands.createBuffMap("~" + encounter.name, pluginContext);
+                    encounter.tick = Math.min(11, 6 - Math.min(5, encounter.dex + buffs.dex));
+
+                    // If no aggro, pick randomly.  If aggro, pick highest damage dealt.
+                    let target = null;
+                    if (!encounter.aggro || Object.keys(encounter.aggro).length <= 0) {
+                        let activeUsers = await Xhr.getActiveUsers(pluginContext);
+
+                        if (activeUsers.length > 0) {
+                            target = activeUsers[Math.floor(Math.random() * Math.floor(activeUsers.length))];
+                        }
+                    } else {
+                        Object.keys(encounter.aggro).forEach((attackerName) => {
+                            let attackerAggro = encounter.aggro[attackerName];
+                            if (target === null) {
+                                target = attackerName;
+                                return;
+                            }
+
+                            if (attackerAggro > encounter.aggro[target]) {
+                                target = attackerName;
+                            }
+                        });
+                    }
+
+                    // If a target was found
+                    if (target !== null) {
+                        let results = await Commands.attack("~" + encounterName, target, pluginContext);
+
+                        if (results.flags.hit) {
+                            let message = `${results.attacker.name} hit ${results.defender.name} for ${results.damage} damage.`;
+                            if (results.flags.crit) {
+                                message = `${results.attacker.name} scored a critical hit on ${results.defender.name} for ${results.damage} damage.`;
+                            }
+                            EventQueue.sendEvent({
+                                type: "ATTACK",
+                                targets: ["chat", "panel"],
+                                eventData: {
+                                    results: {
+                                        attacker: results.attacker,
+                                        defender: results.defender,
+                                        message
+                                    },
+                                    encounterTable
+                                }
+                            });
+                        } else {
+                            EventQueue.sendEvent({
+                                type: "ATTACK",
+                                targets: ["chat", "panel"],
+                                eventData: {
+                                    results: {
+                                        attacker: results.attacker,
+                                        defender: results.defender,
+                                        message: `${results.attacker.name} swung at ${results.defender.name} and missed.`
+                                    },
+                                    encounterTable
+                                }
+                            });
+                        }
+
+                        if (results.defender.hp <= 0) {
+                            EventQueue.sendEvent({
+                                type: "DIED",
+                                targets: ["chat", "panel"],
+                                eventData: {
+                                    results: {
+                                        attacker: results.attacker,
+                                        defender: results.defender,
+                                        message: `${results.defender.name} was slain by ${results.attacker.name}.`
+                                    },
+                                    encounterTable
+                                }
+                            });
+                        }
+
+                        EventQueue.sendContextUpdate([results.defender]);
+                        return;
+                    }
+                }
+
+                encounter.tick--;
+            });
+        }, 5 * 1000);
+    } catch (e) {
+        EventQueue.sendEvent({
+            type: "ERROR",
+            targets: ["chat"],
+            eventData: {
+                results: {
+                    message: e
+                },
+                encounterTable
+            }
+        });
+    };
+}
+
+exports.redemptionHook = async (message, rewardName) => {
+    if (rewardName.toUpperCase().startsWith("AP")) {
+        let groups = rewardName.match(/AP\s*\+\s*([0-9]+)/);
+        
+        if (!groups && groups.length < 2) {
+            EventQueue.sendEvent({
+                type: "INFO",
+                targets: ["chat"],
+                eventData: {
+                    results: {
+                        message: `Invalid reward name ${rewardName}`
+                    }
+                }
+            });
+            return;
+        }
+
+        let amount = groups[1];
+        await Xhr.chargeAP(message, parseInt(amount));
+        EventQueue.sendEvent({
+            type: "INFO",
+            targets: ["chat"],
+            eventData: {
+                results: {
+                    message: `@${message.userName} charged ${amount} AP.`
+                }
+            }
+        });
+    } else if (rewardName.toUpperCase().startsWith("REVIVE")) {
+        await Xhr.reviveAvatar(message);
+
+        EventQueue.sendEvent({
+            type: "INFO",
+            targets: ["chat"],
+            eventData: {
+                results: {
+                    message: `@${message.userName} revived.`
+                }
+            }
+        });
+    }  else if (rewardName.toUpperCase().startsWith("CREATE BATTLER")) {
+        await Xhr.createUser(message);
+        EventQueue.sendEvent({
+            type: "INFO",
+            targets: ["chat"],
+            eventData: {
+                results: {
+                    message: `@${message.userName} created a battler.`
+                }
+            }
+        });
+    }
+}
+
+exports.wsInitHook = (from) => {
+    EventQueue.sendEventToPanels({
+        to: from,
+        eventData: {
+            results: {},
+            encounterTable
+        }
+    });
 }

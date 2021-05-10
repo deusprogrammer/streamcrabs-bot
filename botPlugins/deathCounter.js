@@ -1,7 +1,9 @@
-module.exports = {
-    "!tools:death": async (twitchContext, gameContext, eventUtil) => {
+const EventQueue = require('../eventQueue');
+
+exports.commands = {
+    "!tools:death": async (twitchContext, botContext) => {
         // Check if mod
-        if (twitchContext.username !== gameContext.botConfig.twitchChannel && !twitchContext.mod) {
+        if (twitchContext.username !== botContext.botConfig.twitchChannel && !twitchContext.mod) {
             throw "Only a mod can increment the death counter";
         }
 
@@ -10,7 +12,7 @@ module.exports = {
             count = parseInt(twitchContext.tokens[1]);
         }
 
-        eventUtil.sendEvent({
+        EventQueue.sendEvent({
             type: "DEATH_COUNT",
             targets: ["panel"],
             eventData: {
@@ -20,3 +22,7 @@ module.exports = {
         });
     }
 }
+
+exports.init = async (botContext) => {}
+exports.redemptionHook = async (message, rewardName) => {}
+exports.wsInitHook = () => {}
