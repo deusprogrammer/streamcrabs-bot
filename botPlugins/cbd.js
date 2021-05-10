@@ -15,25 +15,34 @@ let dotTable = {};
 let pluginContext = {};
 
 let sendContextUpdate = async (targets, botContext, shouldRefresh = false) => {
+    console.log("CHATTERS: " + JSON.stringify(botContext.chattersActive, null, 5));
     let players = await Xhr.getActiveUsers(botContext);
-
-    let data = {
-        players,
-        monsters: Object.keys(encounterTable).map(key => `~${key}`),
-        shouldRefresh
-    };
     
     if (targets) {
-        data = {
-            players,
-            monsters: Object.keys(encounterTable).map(key => `~${key}`),
-            buffs: buffTable[target.name],
-            cooldown: cooldownTable[target.name],
-            shouldRefresh
-        }
-    }
-
-    sendContextUpdate(targets, data, shouldRefresh);
+        targets.forEach((target) => {
+            EventQueue.sendEventTo(target.id, 
+            {
+                type: "CONTEXT",
+                data: {
+                    players,
+                    monsters: Object.keys(encounterTable).map(key => `~${key}`),
+                    buffs: buffTable[target.name],
+                    cooldown: cooldownTable[target.name],
+                    shouldRefresh
+                }
+            });
+        });
+    } else {
+        EventQueue.sendEventTo("ALL", 
+        {
+            type: "CONTEXT",
+            data: {
+                players,
+                monsters: Object.keys(encounterTable).map(key => `~${key}`),
+                shouldRefresh
+            }
+        }, shouldRefresh);
+    }    
 }
 
 exports.commands = {

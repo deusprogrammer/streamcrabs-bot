@@ -145,7 +145,7 @@ const connectWs = () => {
     });
 }
 
-const sendContextUpdate = async (targets, data, shouldRefresh = false) => {
+const sendContextUpdate = async (data) => {
     if (targets) {
         targets.forEach((target) => {
             extWs.send(JSON.stringify({
@@ -177,6 +177,13 @@ const sendEventToPanels = async (event) => {
 const sendEventToUser = async (user, event) => {
     event.channelId = TWITCH_EXT_CHANNEL_ID;
     event.to = user.id;
+    event.jwt = createJwt(eventContext.botContext.botConfig.sharedSecretKey);
+    extWs.send(JSON.stringify(event));
+}
+
+const sendEventTo = async (to, event) => {
+    event.channelId = TWITCH_EXT_CHANNEL_ID;
+    event.to = to;
     event.jwt = createJwt(eventContext.botContext.botConfig.sharedSecretKey);
     extWs.send(JSON.stringify(event));
 }
@@ -270,6 +277,7 @@ let startEventListener = async (botContext) => {
 exports.sendEvent = sendEvent;
 exports.sendEventToPanels = sendEventToPanels;
 exports.sendEventToUser = sendEventToUser;
+exports.sendEventTo = sendEventTo;
 exports.sendContextUpdate = sendContextUpdate;
 exports.sendInfoToChat = sendInfoToChat;
 exports.sendErrorToChat = sendErrorToChat;
