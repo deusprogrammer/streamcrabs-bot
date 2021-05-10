@@ -14,7 +14,9 @@ let dotTable = {};
 
 let pluginContext = {};
 
-let sendContextUpdate = (targets, shouldRefresh = false) => {
+let sendContextUpdate = (targets, botContext, shouldRefresh = false) => {
+    let players = await Xhr.getActiveUsers(botContext);
+
     let data = {
         players,
         monsters: Object.keys(encounterTable).map(key => `~${key}`),
@@ -57,7 +59,7 @@ exports.commands = {
             });
         }
 
-        sendContextUpdate();
+        sendContextUpdate(null, botContext);
     },
     "!use": async (twitchContext, botContext) => {
         if (!botContext.botConfig.config.cbd) {
@@ -331,7 +333,7 @@ exports.commands = {
                     }
                 });
 
-                sendContextUpdate();
+                sendContextUpdate(null, botContext);
             }
         }
 
@@ -458,7 +460,7 @@ exports.commands = {
                     EventQueue.sendEvent(itemGet);
                 });
 
-                sendContextUpdate();
+                sendContextUpdate(null, botContext);
             }
 
             EventQueue.sendEvent({
@@ -474,7 +476,7 @@ exports.commands = {
             });
         }
 
-        sendContextUpdate([results.attacker, results.defender], true);
+        sendContextUpdate([results.attacker, results.defender], botContext, true);
 
     },
     "!transmog": async (twitchContext, botContext) => {
@@ -518,7 +520,7 @@ exports.commands = {
             }
         });
 
-        sendContextUpdate();
+        sendContextUpdate(null, botContext);
 
     },
     "!untransmog": async (twitchContext, botContext) => {
@@ -544,7 +546,7 @@ exports.commands = {
 
         delete encounterTable[monsterName];
 
-        sendContextUpdate();
+        sendContextUpdate(null, botContext);
     },
     "!explore": async (twitchContext, botContext) => {
         if (!botContext.botConfig.config.cbd) {
@@ -588,7 +590,7 @@ exports.commands = {
                     encounterTable
                 }
             });
-            sendContextUpdate([twitchContext.caller], true);
+            sendContextUpdate([twitchContext.caller], botContext, true);
             return;
         }
 
@@ -621,7 +623,7 @@ exports.commands = {
             }
         });
 
-        sendContextUpdate(null, true);
+        sendContextUpdate(null, botContext, true);
     },
     "!spawn": async (twitchContext, botContext) => {
         if (!botContext.botConfig.config.cbd) {
@@ -669,7 +671,7 @@ exports.commands = {
             }
         });
 
-        sendContextUpdate();
+        sendContextUpdate(null, botContext);
 
     },
     "!stats": async (twitchContext, botContext) => {
@@ -733,7 +735,7 @@ exports.commands = {
             }
         });
 
-        sendContextUpdate([results.giver, results.receiver], true);
+        sendContextUpdate([results.giver, results.receiver], botContext, true);
     },
     "!gift": async (twitchContext, botContext) => {
         if (!botContext.botConfig.config.cbd) {
@@ -873,7 +875,7 @@ exports.init = async (botContext) => {
                             user[effect.ability.damageStat] -= damageRoll;
                             await Xhr.updateUser(user);
 
-                            sendContextUpdate([user], true);
+                            sendContextUpdate([user], botContext, true);
                         } else {
                             defender.hp -= damageRoll;
                         }
@@ -902,13 +904,13 @@ exports.init = async (botContext) => {
                                 EventQueue.sendEvent(itemGet);
                             });
 
-                            sendContextUpdate();
+                            sendContextUpdate(null, botContext);
                             continue;
                         }
 
                         if (effect.cycles <= 0) {
                             sendInfoToChat(`${defender.name}'s ${effect.ability.name} status has worn off.`);
-                            sendContextUpdate();
+                            sendContextUpdate(null, botContext);
                         }
                     }
                 }
@@ -1019,7 +1021,7 @@ exports.init = async (botContext) => {
                             });
                         }
 
-                        sendContextUpdate([results.defender]);
+                        sendContextUpdate([results.defender], botContext);
                         return;
                     }
                 }
@@ -1096,7 +1098,7 @@ exports.redemptionHook = async (message, rewardName) => {
         return;
     }
 
-    EventQueue.sendContextUpdate();
+    sendContextUpdate(null, botContext);
 }
 
 exports.wsInitHook = (from) => {
