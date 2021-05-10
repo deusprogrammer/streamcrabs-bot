@@ -1,4 +1,4 @@
-const EventQueue = require('../eventQueue');
+const EventQueue = require('../components/base/eventQueue');
 
 let requestList = [];
 

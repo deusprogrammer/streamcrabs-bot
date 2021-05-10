@@ -1,13 +1,13 @@
 const tmi = require('tmi.js');
 const WebSocket = require('ws');
 
-const Xhr = require('./xhr');
+const Xhr = require('./components/base/xhr');
+const EventQueue = require('./components/base/eventQueue');
 
 const cbdPlugin = require('./botPlugins/cbd');
 const requestPlugin = require('./botPlugins/requests');
 const deathCounterPlugin = require('./botPlugins/deathCounter');
 const cameraObscuraPlugin = require('./botPlugins/cameraObscura');
-const eventUtil = require('./eventQueue');
 
 const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
@@ -96,7 +96,7 @@ async function onMessageHandler(target, context, msg, self) {
         try {
             switch (context.tokens[0]) {
                 case "!help":
-                    eventUtil.sendInfoToChat(`Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system.`);
+                    EventQueue.sendInfoToChat(`Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system.`);
                     break;
                 case "!config":
                     if (context.username !== botConfig.twitchChannel && !context.mod) {
@@ -114,19 +114,19 @@ async function onMessageHandler(target, context, msg, self) {
 
                     break;
                 case "!about":
-                    eventUtil.sendInfoToChat(`Chat battler dungeon version ${versionNumber} written by thetruekingofspace`);
+                    EventQueue.sendInfoToChat(`Chat battler dungeon version ${versionNumber} written by thetruekingofspace`);
                     break;
                 default:
                     if (!commands[context.tokens[0]]) {
                         throw `${context.tokens[0]} is an invalid command.`;
                     }
 
-                    await commands[context.tokens[0]](context, botContext, eventUtil);
+                    await commands[context.tokens[0]](context, botContext);
             }
         } catch (e) {
             console.error(e.message + ": " + e.stack);
-            eventUtil.sendErrorToChat(new Error(e));
-            eventUtil.sendContextUpdate([caller]);
+            EventQueue.sendErrorToChat(new Error(e));
+            EventQueue.sendContextUpdate([caller]);
         }
     }
 }
@@ -143,14 +143,14 @@ async function onConnectedHandler(addr, port) {
 
     // Initialize all plugins
     for (let plugin of plugins) {
-        plugin.init(botContext, eventUtil);
+        plugin.init(botContext, EventQueue);
     }
 
     // Start queue consumer
-    await eventUtil.startEventListener(botContext);
+    await EventQueue.startEventListener(botContext);
 
     // Announce restart
-    eventUtil.sendInfoToChat(`Twitch Dungeon version ${versionNumber} is online.  All systems nominal.`);
+    EventQueue.sendInfoToChat(`Twitch Dungeon version ${versionNumber} is online.  All systems nominal.`);
 }
 
 // MIKU'S HEART

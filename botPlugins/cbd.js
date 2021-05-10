@@ -1,7 +1,7 @@
 const Util = require('../util');
 const Xhr = require('../xhr');
-const Commands = require('../commands');
-const EventQueue = require('../eventQueue');
+const Commands = require('../components/cbd/commands');
+const EventQueue = require('../components/base/eventQueue');
 
 let itemTable = {}
 let jobTable = {};
@@ -13,6 +13,26 @@ let buffTable = {};
 let dotTable = {};
 
 let pluginContext = {};
+
+let sendContextUpdate = (targets, shouldRefresh = false) => {
+    let data = {
+        players,
+        monsters: Object.keys(encounterTable).map(key => `~${key}`),
+        shouldRefresh
+    };
+    
+    if (targets) {
+        data = {
+            players,
+            monsters: Object.keys(encounterTable).map(key => `~${key}`),
+            buffs: buffTable[target.name],
+            cooldown: cooldownTable[target.name],
+            shouldRefresh
+        }
+    }
+
+    sendContextUpdate(targets, data, shouldRefresh);
+}
 
 exports.commands = {
     "!ready": async (twitchContext, botContext) => {
@@ -37,7 +57,7 @@ exports.commands = {
             });
         }
 
-        EventQueue.sendContextUpdate();
+        sendContextUpdate();
     },
     "!use": async (twitchContext, botContext) => {
         if (!botContext.botConfig.config.cbd) {
@@ -311,7 +331,7 @@ exports.commands = {
                     }
                 });
 
-                EventQueue.sendContextUpdate();
+                sendContextUpdate();
             }
         }
 
@@ -330,7 +350,7 @@ exports.commands = {
         // Get basic user to update
         await Xhr.updateUser(updatedAttacker);
 
-        EventQueue.sendContextUpdate([updatedAttacker], true);
+        EsendContextUpdate([updatedAttacker], true);
 
         // Set user cool down
         let currBuffs = Commands.createBuffMap(twitchContext.username, pluginContext);
@@ -438,7 +458,7 @@ exports.commands = {
                     EventQueue.sendEvent(itemGet);
                 });
 
-                EventQueue.sendContextUpdate();
+                sendContextUpdate();
             }
 
             EventQueue.sendEvent({
@@ -454,7 +474,7 @@ exports.commands = {
             });
         }
 
-        EventQueue.sendContextUpdate([results.attacker, results.defender], true);
+        sendContextUpdate([results.attacker, results.defender], true);
 
     },
     "!transmog": async (twitchContext, botContext) => {
@@ -498,7 +518,7 @@ exports.commands = {
             }
         });
 
-        EventQueue.sendContextUpdate();
+        sendContextUpdate();
 
     },
     "!untransmog": async (twitchContext, botContext) => {
@@ -524,7 +544,7 @@ exports.commands = {
 
         delete encounterTable[monsterName];
 
-        EventQueue.sendContextUpdate();
+        sendContextUpdate();
     },
     "!explore": async (twitchContext, botContext) => {
         if (!botContext.botConfig.config.cbd) {
@@ -568,7 +588,7 @@ exports.commands = {
                     encounterTable
                 }
             });
-            EventQueue.sendContextUpdate([twitchContext.caller], true);
+            sendContextUpdate([twitchContext.caller], true);
             return;
         }
 
@@ -601,7 +621,7 @@ exports.commands = {
             }
         });
 
-        EventQueue.sendContextUpdate(null, true);
+        sendContextUpdate(null, true);
     },
     "!spawn": async (twitchContext, botContext) => {
         if (!botContext.botConfig.config.cbd) {
@@ -649,7 +669,7 @@ exports.commands = {
             }
         });
 
-        EventQueue.sendContextUpdate();
+        sendContextUpdate();
 
     },
     "!stats": async (twitchContext, botContext) => {
@@ -713,7 +733,7 @@ exports.commands = {
             }
         });
 
-        EventQueue.sendContextUpdate([results.giver, results.receiver], true);
+        sendContextUpdate([results.giver, results.receiver], true);
     },
     "!gift": async (twitchContext, botContext) => {
         if (!botContext.botConfig.config.cbd) {
@@ -795,12 +815,9 @@ exports.init = async (botContext) => {
                     delete cooldownTable[username];
                     EventQueue.sendInfoToChat(`${username} can act again.`);
                     let user = Xhr.getUser(username);
-                    // extWs.send(JSON.stringify({
-                    //     type: "COOLDOWN_OVER",
-                    //     channelId: TWITCH_EXT_CHANNEL_ID,
-                    //     jwt: createJwt(botContext.botConfig.sharedSecretKey),
-                    //     to: user.id,
-                    // }));
+                    EventQueue.sendEventToUser(user, {
+                        type: "COOLDOWN_OVER"
+                    });
                 }
             });
 
@@ -819,15 +836,12 @@ exports.init = async (botContext) => {
                 // If not a monster, send buff updates to user
                 if (!username.startsWith("~")) {
                     let user = await Xhr.getUser(username);
-                    // extWs.send(JSON.stringify({
-                    //     type: "BUFF_UPDATE",
-                    //     channelId: TWITCH_EXT_CHANNEL_ID,
-                    //     jwt: createJwt(botContext.botConfig.sharedSecretKey),
-                    //     to: user.id,
-                    //     data: {
-                    //         buffs: buffTable[username]
-                    //     }
-                    // }));
+                    EventQueue.sendEventToUser(user,{
+                        type: "BUFF_UPDATE",
+                        data: {
+                            buffs: buffTable[username]
+                        }
+                    });
                 }
             });
 
@@ -903,15 +917,12 @@ exports.init = async (botContext) => {
                 // If not a monster, send effect updates to user
                 if (!username.startsWith("~")) {
                     let user = await Xhr.getUser(username);
-                    // extWs.send(JSON.stringify({
-                    //     type: "STATUS_UPDATE",
-                    //     channelId: TWITCH_EXT_CHANNEL_ID,
-                    //     jwt: createJwt(botContext.botConfig.sharedSecretKey),
-                    //     to: user.id,
-                    //     data: {
-                    //         effects: dotTable[username]
-                    //     }
-                    // }));
+                    EventQueue.sendEventToUser(user, {
+                        type: "STATUS_UPDATE",
+                        data: {
+                            effects: dotTable[username]
+                        }
+                    });
                 }
             })
 
@@ -1008,7 +1019,7 @@ exports.init = async (botContext) => {
                             });
                         }
 
-                        EventQueue.sendContextUpdate([results.defender]);
+                        sendContextUpdate([results.defender]);
                         return;
                     }
                 }
@@ -1081,7 +1092,11 @@ exports.redemptionHook = async (message, rewardName) => {
                 }
             }
         });
+    } else {
+        return;
     }
+
+    EventQueue.sendContextUpdate();
 }
 
 exports.wsInitHook = (from) => {

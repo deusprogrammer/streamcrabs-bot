@@ -1,4 +1,4 @@
-const EventQueue = require('../eventQueue');
+const EventQueue = require('../components/base/eventQueue');
 
 exports.commands = {
     "!tools:death": async (twitchContext, botContext) => {

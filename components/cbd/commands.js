@@ -1,5 +1,5 @@
-var Xhr = require('./xhr');
-var Util = require('./util');
+var Xhr = require('../base/xhr');
+var Util = require('../base/util');
 
 const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 

@@ -145,8 +145,7 @@ const connectWs = () => {
     });
 }
 
-const sendContextUpdate = async (targets, shouldRefresh = false) => {
-    let players = await Xhr.getActiveUsers(eventContext.botContext);
+const sendContextUpdate = async (targets, data, shouldRefresh = false) => {
     if (targets) {
         targets.forEach((target) => {
             extWs.send(JSON.stringify({
@@ -154,13 +153,7 @@ const sendContextUpdate = async (targets, shouldRefresh = false) => {
                 channelId: TWITCH_EXT_CHANNEL_ID,
                 jwt: createJwt(eventContext.botContext.botConfig.sharedSecretKey),
                 to: target.id,
-                data: {
-                    players,
-                    monsters: Object.keys(encounterTable).map(key => `~${key}`),
-                    buffs: buffTable[target.name],
-                    cooldown: cooldownTable[target.name],
-                    shouldRefresh
-                }
+                data
             }));
         });
     } else {
@@ -169,11 +162,7 @@ const sendContextUpdate = async (targets, shouldRefresh = false) => {
             channelId: TWITCH_EXT_CHANNEL_ID,
             jwt: createJwt(eventContext.botContext.botConfig.sharedSecretKey),
             to: "ALL",
-            data: {
-                players,
-                monsters: Object.keys(encounterTable).map(key => `~${key}`),
-                shouldRefresh
-            }
+            data
         }));
     }
 }
@@ -185,9 +174,9 @@ const sendEventToPanels = async (event) => {
     extWs.send(JSON.stringify(event));
 }
 
-const sendEventToPanel = async (event) => {
+const sendEventToUser = async (user, event) => {
     event.channelId = TWITCH_EXT_CHANNEL_ID;
-    event.to = "PANEL";
+    event.to = user.id;
     event.jwt = createJwt(eventContext.botContext.botConfig.sharedSecretKey);
     extWs.send(JSON.stringify(event));
 }
@@ -280,7 +269,7 @@ let startEventListener = async (botContext) => {
 
 exports.sendEvent = sendEvent;
 exports.sendEventToPanels = sendEventToPanels;
-exports.sendEventToPanel = sendEventToPanel;
+exports.sendEventToUser = sendEventToUser;
 exports.sendContextUpdate = sendContextUpdate;
 exports.sendInfoToChat = sendInfoToChat;
 exports.sendErrorToChat = sendErrorToChat;
