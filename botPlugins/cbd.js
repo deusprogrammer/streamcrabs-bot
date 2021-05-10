@@ -14,7 +14,7 @@ let dotTable = {};
 
 let pluginContext = {};
 
-let sendContextUpdate = (targets, botContext, shouldRefresh = false) => {
+let sendContextUpdate = async (targets, botContext, shouldRefresh = false) => {
     let players = await Xhr.getActiveUsers(botContext);
 
     let data = {
