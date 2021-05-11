@@ -361,7 +361,7 @@ exports.commands = {
         // Get basic user to update
         await Xhr.updateUser(updatedAttacker);
 
-        EsendContextUpdate([updatedAttacker], true);
+        sendContextUpdate([updatedAttacker], true);
 
         // Set user cool down
         let currBuffs = Commands.createBuffMap(twitchContext.username, pluginContext);
