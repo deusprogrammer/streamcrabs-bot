@@ -26,8 +26,6 @@ let startListener = async (messageQueue, ws, context, plugins) => {
         for (let plugin of plugins) {
             plugin.redemptionHook(message, rewardName, messageQueue);
         }
-
-        //sendContextUpdate(ws, context, null, true);
     });
 
     return pubSubClient;
