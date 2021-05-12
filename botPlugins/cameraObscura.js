@@ -12,7 +12,7 @@ exports.redemptionHook = async (message, rewardName) => {
             return !element.startsWith("*");
         })
         let n = Math.floor((Math.random() * enabledAudio.length));
-        let url = enabledAudio[n] + "/file";
+        let url = enabledAudio[n];
 
         EventQueue.sendEvent({
             type: "CUSTOM_RANDOM_SOUND",
@@ -29,7 +29,7 @@ exports.redemptionHook = async (message, rewardName) => {
             return !element.startsWith("*");
         })
         let n = Math.floor((Math.random() * enabledVideos.length));
-        let url = enabledVideos[n] + "/file";
+        let url = enabledVideos[n];
 
         EventQueue.sendEvent({
             type: "RANDOM_CUSTOM_VIDEO",
