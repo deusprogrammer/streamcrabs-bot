@@ -9,10 +9,10 @@ exports.redemptionHook = async (message, rewardName) => {
     if (rewardName.toUpperCase() === "PLAY RANDOM SOUND") {
         let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
         let enabledAudio = botConfig.audioPool.filter((element) => {
-            return !element.startsWith("*");
+            return !element.url.startsWith("*");
         })
         let n = Math.floor((Math.random() * enabledAudio.length));
-        let url = enabledAudio[n];
+        let url = enabledAudio[n].url;
 
         EventQueue.sendEvent({
             type: "CUSTOM_RANDOM_SOUND",
@@ -26,10 +26,10 @@ exports.redemptionHook = async (message, rewardName) => {
     }  else if (rewardName.toUpperCase() === "RANDOM VIDEO") {
         let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
         let enabledVideos = botConfig.videoPool.filter((element) => {
-            return !element.startsWith("*");
+            return !element.url.startsWith("*");
         })
         let n = Math.floor((Math.random() * enabledVideos.length));
-        let url = enabledVideos[n];
+        let url = enabledVideos[n].url;
 
         EventQueue.sendEvent({
             type: "RANDOM_CUSTOM_VIDEO",
