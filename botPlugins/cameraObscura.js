@@ -14,6 +14,9 @@ exports.redemptionHook = async (message, rewardName) => {
         let n = Math.floor((Math.random() * enabledAudio.length));
         let url = enabledAudio[n].url;
 
+        console.log("Sound index: " + n);
+        console.log("Sound URL:   " + url);
+
         EventQueue.sendEvent({
             type: "CUSTOM_RANDOM_SOUND",
             targets: ["panel"],
@@ -30,6 +33,9 @@ exports.redemptionHook = async (message, rewardName) => {
         })
         let n = Math.floor((Math.random() * enabledVideos.length));
         let url = enabledVideos[n].url;
+
+        console.log("Video index: " + n);
+        console.log("Video URL:   " + url);
 
         EventQueue.sendEvent({
             type: "RANDOM_CUSTOM_VIDEO",
