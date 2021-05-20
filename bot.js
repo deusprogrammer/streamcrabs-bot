@@ -63,7 +63,7 @@ const startBot = async () => {
 };
 startBot();
 
-let commands = {...cbdPlugin.commands, ...deathCounterPlugin.commands, ...requestPlugin.commands};
+let commands = {...cbdPlugin.commands, ...deathCounterPlugin.commands, ...requestPlugin.commands, ...cameraObscuraPlugin.commands};
 let plugins = [cbdPlugin, deathCounterPlugin, requestPlugin, cameraObscuraPlugin];
 
 // Called every time a message comes in
@@ -126,7 +126,7 @@ async function onMessageHandler(target, context, msg, self) {
         } catch (e) {
             console.error(e.message + ": " + e.stack);
             EventQueue.sendErrorToChat(new Error(e));
-            EventQueue.sendContextUpdate([caller]);
+            //EventQueue.sendContextUpdate([caller]);
         }
     }
 }

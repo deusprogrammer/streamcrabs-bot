@@ -145,27 +145,27 @@ const connectWs = () => {
     });
 }
 
-const sendContextUpdate = async (data) => {
-    if (targets) {
-        targets.forEach((target) => {
-            extWs.send(JSON.stringify({
-                type: "CONTEXT",
-                channelId: TWITCH_EXT_CHANNEL_ID,
-                jwt: createJwt(eventContext.botContext.botConfig.sharedSecretKey),
-                to: target.id,
-                data
-            }));
-        });
-    } else {
-        extWs.send(JSON.stringify({
-            type: "CONTEXT",
-            channelId: TWITCH_EXT_CHANNEL_ID,
-            jwt: createJwt(eventContext.botContext.botConfig.sharedSecretKey),
-            to: "ALL",
-            data
-        }));
-    }
-}
+// const sendContextUpdate = async (data) => {
+//     if (targets) {
+//         targets.forEach((target) => {
+//             extWs.send(JSON.stringify({
+//                 type: "CONTEXT",
+//                 channelId: TWITCH_EXT_CHANNEL_ID,
+//                 jwt: createJwt(eventContext.botContext.botConfig.sharedSecretKey),
+//                 to: target.id,
+//                 data
+//             }));
+//         });
+//     } else {
+//         extWs.send(JSON.stringify({
+//             type: "CONTEXT",
+//             channelId: TWITCH_EXT_CHANNEL_ID,
+//             jwt: createJwt(eventContext.botContext.botConfig.sharedSecretKey),
+//             to: "ALL",
+//             data
+//         }));
+//     }
+// }
 
 const sendEventToPanels = async (event) => {
     event.channelId = TWITCH_EXT_CHANNEL_ID;
@@ -278,7 +278,7 @@ exports.sendEvent = sendEvent;
 exports.sendEventToPanels = sendEventToPanels;
 exports.sendEventToUser = sendEventToUser;
 exports.sendEventTo = sendEventTo;
-exports.sendContextUpdate = sendContextUpdate;
+// exports.sendContextUpdate = sendContextUpdate;
 exports.sendInfoToChat = sendInfoToChat;
 exports.sendErrorToChat = sendErrorToChat;
 exports.startEventListener = startEventListener;

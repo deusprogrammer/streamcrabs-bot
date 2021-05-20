@@ -17,6 +17,15 @@ const getBotConfig = async (channel) => {
     return res.data;
 }
 
+const getVideo = async (id) => {
+    console.log("SEARCHING FOR ID: " + id);
+    let result = await axios.get(`https://deusprogrammer.com/api/dubs/videos/${id}`, {
+        headers
+    });
+
+    return result.data;
+}
+
 const getItemTable = () => {
     return axios.get(`${BATTLE_API_URL}/items`, {
         headers
@@ -237,6 +246,7 @@ const reviveAvatar = async (message) => {
 }
 
 module.exports = {
+    getVideo,
     getUser,
     getItem,
     getSealedItem,
