@@ -171,15 +171,15 @@ const updateUser = async (user) => {
     })
 }
 
-const createUser = async (message) => {
+const createUser = async (userName, userId) => {
     try {
         await axios.post(`${PROFILE_API_URL}/users`, {
-            username: message.userName,
+            username: userName,
             password: Util.randomUuid(),
             connected: {
                 twitch: {
-                    userId: message.userId,
-                    name: message.userName
+                    userId: userId,
+                    name: userName
                 }
             }
         }, {
@@ -187,8 +187,8 @@ const createUser = async (message) => {
         });
 
         await axios.post(`${BATTLE_API_URL}/users`, {
-            id: message.userId,
-            name: message.userName,
+            id: userId,
+            name: userName,
             currentJob: {
                 id: "SQUIRE"
             },
@@ -225,16 +225,16 @@ const createUser = async (message) => {
     }
 }
 
-const chargeAP = async (message, amount) => {
-    let user = await getUser(message.userName, false);
+const chargeAP = async (userName, amount) => {
+    let user = await getUser(userName, false);
 
     user.ap += amount;
 
     await updateUser(user);
 }
 
-const reviveAvatar = async (message) => {
-    let user = await getUser(message.userName, false);
+const reviveAvatar = async (userName) => {
+    let user = await getUser(userName, false);
 
     if (user.hp > 0) {
         return;

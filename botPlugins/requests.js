@@ -73,7 +73,9 @@ exports.commands = {
 }
 
 exports.init = async (botContext) => {}
-exports.redemptionHook = async (message, rewardName) => {}
+exports.bitsHook = async (bits, message, userName, userId) => {}
+exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, monthsSubbed) => {}
+exports.redemptionHook = async (rewardName, userName, userId) => {}
 exports.wsInitHook = () => {
     console.log(JSON.stringify(requestList, null, 5));
     EventQueue.sendEvent({

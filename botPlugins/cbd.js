@@ -1052,7 +1052,41 @@ exports.init = async (botContext) => {
     };
 }
 
-exports.redemptionHook = async (message, rewardName) => {
+exports.bitsHook = async (bits, message, userName, userId) => {
+    let user = await Xhr.getUser(userName);
+
+    if (!user) {
+        await Xhr.createUser(userName, userId);
+        return;
+    }
+
+    user.gold += bits;
+    await Xhr.updateUser(user);
+}
+exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, monthsSubbed) => {
+    if (gifter) {
+        let gifterUser = await Xhr.getUser(gifter);
+
+        if (!gifterUser) {
+            await Xhr.createUser(gifter, gifterId);
+            return;
+        }
+
+        gifterUser.gold += 1000;
+        await Xhr.updateUser(gifterUser);
+    }
+
+    let gifteeUser = await Xhr.getUser(giftee);
+
+    if (!gifteeUser) {
+        await Xhr.createUser(giftee, gifteeId);
+        return;
+    }
+
+    gifteeUser.gold += 1000;
+    await Xhr.updateUser(gifteeUser);
+}
+exports.redemptionHook = async (rewardName, userName, userId) => {
     if (rewardName.toUpperCase().startsWith("AP")) {
         let groups = rewardName.match(/AP\s*\+\s*([0-9]+)/);
         
@@ -1070,36 +1104,36 @@ exports.redemptionHook = async (message, rewardName) => {
         }
 
         let amount = groups[1];
-        await Xhr.chargeAP(message, parseInt(amount));
+        await Xhr.chargeAP(userName, parseInt(amount));
         EventQueue.sendEvent({
             type: "INFO",
             targets: ["chat"],
             eventData: {
                 results: {
-                    message: `@${message.userName} charged ${amount} AP.`
+                    message: `@${userName} charged ${amount} AP.`
                 }
             }
         });
     } else if (rewardName.toUpperCase().startsWith("REVIVE")) {
-        await Xhr.reviveAvatar(message);
+        await Xhr.reviveAvatar(userName);
 
         EventQueue.sendEvent({
             type: "INFO",
             targets: ["chat"],
             eventData: {
                 results: {
-                    message: `@${message.userName} revived.`
+                    message: `@${userName} revived.`
                 }
             }
         });
     }  else if (rewardName.toUpperCase().startsWith("CREATE BATTLER")) {
-        await Xhr.createUser(message);
+        await Xhr.createUser(userName, userId);
         EventQueue.sendEvent({
             type: "INFO",
             targets: ["chat"],
             eventData: {
                 results: {
-                    message: `@${message.userName} created a battler.`
+                    message: `@${userName} created a battler.`
                 }
             }
         });

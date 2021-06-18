@@ -232,7 +232,7 @@ let eventContext = {
 let startEventListener = async (botContext) => {
     eventContext.botContext = botContext;
     connectWs();
-    await Redemption.startListener(queue, extWs, eventContext.botContext, botContext.plugins);
+    await Redemption.startListener(queue, eventContext.botContext, botContext.plugins);
     setInterval(async () => {
         let message = queue.pop();
 

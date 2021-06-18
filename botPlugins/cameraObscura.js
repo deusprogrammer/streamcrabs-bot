@@ -66,7 +66,9 @@ exports.commands = {
     }
 }
 exports.init = async (botContext) => {}
-exports.redemptionHook = async (message, rewardName) => {
+exports.bitsHook = async (bits, message, userName, userId) => {}
+exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, monthsSubbed) => {}
+exports.redemptionHook = async (rewardName, userName, userId)
     if (rewardName.toUpperCase() === "PLAY RANDOM SOUND") {
         let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
         let enabledAudio = botConfig.audioPool.filter((element) => {
@@ -75,14 +77,11 @@ exports.redemptionHook = async (message, rewardName) => {
         let n = Math.floor((Math.random() * enabledAudio.length));
         let url = enabledAudio[n].url;
 
-        console.log("Sound index: " + n);
-        console.log("Sound URL:   " + url);
-
         EventQueue.sendEvent({
             type: "CUSTOM_RANDOM_SOUND",
             targets: ["panel"],
             eventData: {
-                requester: message.userName,
+                requester: userName,
                 url,
                 results: {}
             }
@@ -94,16 +93,15 @@ exports.redemptionHook = async (message, rewardName) => {
         })
         let n = Math.floor((Math.random() * enabledVideos.length));
         let url = enabledVideos[n].url;
-
-        console.log("Video index: " + n);
-        console.log("Video URL:   " + url);
+        let chromaKey = enabledVideos[n].chromaKey;
 
         EventQueue.sendEvent({
             type: "RANDOM_CUSTOM_VIDEO",
             targets: ["panel"],
             eventData: {
-                requester: message.userName,
+                requester: userName,
                 url,
+                chromaKey,
                 results: {}
             }
         });
@@ -112,7 +110,7 @@ exports.redemptionHook = async (message, rewardName) => {
             type: "BIRDUP",
             targets: ["panel"],
             eventData: {
-                requester: message.userName,
+                requester: userName,
                 results: {}
             }
         })
@@ -121,7 +119,7 @@ exports.redemptionHook = async (message, rewardName) => {
             type: "BADAPPLE",
             targets: ["panel"],
             eventData: {
-                requester: message.userName,
+                requester: userName,
                 results: {}
             }
         })
