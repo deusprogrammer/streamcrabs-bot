@@ -8,14 +8,14 @@ let currentVideoId = null;
 let removeGold = async (username, amount) => {
     let user = await Xhr.getUser(username);
     if (user.gold < amount) {
-        throw new Error(`You don't have enough gold.  This redemption is worth ${amount}g and you only have ${user.gold}`);
+        throw `You don't have enough gold.  This redemption is worth ${amount}g.  Use !stats to check your gold.`;
     }
     user.gold -= amount;
     await Xhr.updateUser(user);
 }
 
 let playRandomVideo = async (twitchContext, botContext) => {
-    removeGold(twitchContext.username, 500);
+    await removeGold(twitchContext.username, 500);
 
     let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
     let enabledVideos = botConfig.videoPool.filter((element) => {
@@ -24,6 +24,8 @@ let playRandomVideo = async (twitchContext, botContext) => {
     let n = Math.floor((Math.random() * enabledVideos.length));
     let url = enabledVideos[n].url;
     let chromaKey = enabledVideos[n].chromaKey;
+
+    EventQueue.sendInfoToChat(`${twitchContext.username} redeemed a random video`);
 
     EventQueue.sendEvent({
         type: "RANDOM_CUSTOM_VIDEO",
@@ -38,7 +40,7 @@ let playRandomVideo = async (twitchContext, botContext) => {
 }
 
 let playRandomSound = async (twitchContext, botContext) => {
-    removeGold(twitchContext.username, 100);
+    await removeGold(twitchContext.username, 100);
 
     let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
     let enabledAudio = botConfig.audioPool.filter((element) => {
@@ -46,6 +48,8 @@ let playRandomSound = async (twitchContext, botContext) => {
     })
     let n = Math.floor((Math.random() * enabledAudio.length));
     let url = enabledAudio[n].url;
+
+    EventQueue.sendInfoToChat(`${twitchContext.username} redeemed a random sound`);
 
     EventQueue.sendEvent({
         type: "CUSTOM_RANDOM_SOUND",
@@ -59,7 +63,9 @@ let playRandomSound = async (twitchContext, botContext) => {
 }
 
 let playBirdUp = async (twitchContext, botContext) => {
-    removeGold(twitchContext.username, 200);
+    await removeGold(twitchContext.username, 200);
+
+    EventQueue.sendInfoToChat(`${twitchContext.username} redeemed bird up`);
 
     EventQueue.sendEvent({
         type: "BIRDUP",
@@ -72,7 +78,9 @@ let playBirdUp = async (twitchContext, botContext) => {
 }
 
 let playBadApple = async (twitchContext, botContext) => {
-    removeGold(twitchContext.username, 1000);
+    await removeGold(twitchContext.username, 1000);
+
+    EventQueue.sendInfoToChat(`${twitchContext.username} redeemed bad apple`);
 
     EventQueue.sendEvent({
         type: "BADAPPLE",
@@ -86,16 +94,16 @@ let playBadApple = async (twitchContext, botContext) => {
 
 exports.commands = {
     "!rewards:redeem:video": async (twitchContext, botContext) => {
-        playRandomVideo(twitchContext, botContext);
+        await playRandomVideo(twitchContext, botContext);
     },
     "!rewards:redeem:audio": async (twitchContext, botContext) => {
-        playRandomSound(twitchContext, botContext);
+        await playRandomSound(twitchContext, botContext);
     },
     "!rewards:redeem:birdup": async (twitchContext, botContext) => {
-        playBirdUp(twitchContext, botContext);
+        await playBirdUp(twitchContext, botContext);
     },
     "!rewards:redeem:badapple": async (twitchContext, botContext) => {
-        playBadApple(twitchContext, botContext)
+        await playBadApple(twitchContext, botContext)
     },
     "!games:wtd:start": async (twitchContext, botContext) => {
         // Check if mod
@@ -103,7 +111,7 @@ exports.commands = {
             throw "Only a mod can trigger What the Dub";
         }
 
-        if (twitchContext.tokens.length < 1) {
+        if (twitchContext.tokens.length < 2) {
             throw "You must provide a video id";
         }
         let videoId = twitchContext.tokens[1];
