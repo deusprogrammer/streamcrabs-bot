@@ -3,6 +3,8 @@ const Xhr = require('../components/base/xhr');
 const Commands = require('../components/cbd/commands');
 const EventQueue = require('../components/base/eventQueue');
 
+const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
+
 let itemTable = {}
 let jobTable = {};
 let monsterTable = {};
@@ -1069,8 +1071,8 @@ exports.bitsHook = async (bits, message, userName, userId) => {
         });
     }
 
-    user.gold += bits;
-    await Xhr.updateUser(user);
+    await Xhr.addCurrency(user, bits);
+
     EventQueue.sendEvent({
         type: "INFO",
         targets: ["chat"],
@@ -1099,7 +1101,10 @@ exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, mont
             });
         }
 
-        gifterUser.gold += 1000;
+        if (tier !== "prime") {
+            await Xhr.addCurrency(gifterUser, parseInt(tier));
+        }
+
         await Xhr.updateUser(gifterUser);
         EventQueue.sendEvent({
             type: "INFO",
@@ -1127,7 +1132,10 @@ exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, mont
         });
     }
 
-    gifteeUser.gold += 1000;
+    if (tier !== "prime") {
+        await Xhr.addCurrency(gifteeUser, parseInt(tier));
+    }
+
     await Xhr.updateUser(gifteeUser);
     EventQueue.sendEvent({
         type: "INFO",

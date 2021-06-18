@@ -18,13 +18,15 @@ let startListener = async (messageQueue, context, plugins) => {
     // Create pubsub subscription listener
     pubSubClient.onSubscription(userId, async (subMessage) => {
         let gifter = subMessage.gifterName;
+        let gifterId = subMessage.gifterId;
         let giftee = subMessage.userName;
+        let gifteeId = subMessage.userId;
         let tier = subMessage.subPlan;
         let monthsSubbed = subMessage.months;
 
         // Run through subscription plugin hooks
         for (let plugin of plugins) {
-            plugin.subscriptionHook(gifter, giftee, tier, monthsSubbed, messageQueue);
+            plugin.subscriptionHook(gifter, gifterId, giftee, gifteeId, tier, monthsSubbed, messageQueue);
         }
     });
 

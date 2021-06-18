@@ -4,6 +4,7 @@ const Util = require('./util');
 const BATTLE_BOT_ACCESS_TOKEN = process.env.TWITCH_BOT_ACCESS_TOKEN;
 const BATTLE_API_URL = process.env.BATTLE_API_URL;
 const PROFILE_API_URL = process.env.PROFILE_API_URL;
+const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
 const headers = {
     "X-Access-Token": BATTLE_BOT_ACCESS_TOKEN
@@ -168,7 +169,25 @@ const updateSealedItem = async (item) => {
 const updateUser = async (user) => {
     await axios.put(`${BATTLE_API_URL}/users/${user.name}`, user, {
         headers
-    })
+    });
+}
+
+const addCurrency = async (user, amount) => {
+    // If currencies isn't defined, define it.
+    if (!user.currencies) {
+        user.currencies = {};
+    }
+
+    // If currency for this channel isn't defined, define it.
+    if (!user.currencies[TWITCH_EXT_CHANNEL_ID]) {
+        user.currencies[TWITCH_EXT_CHANNEL_ID] = 0;
+    }
+
+    // Increase currency
+    user.currencies[TWITCH_EXT_CHANNEL_ID] += amount;
+
+    // Save user
+    await updateUser(user);
 }
 
 const createUser = async (userName, userId) => {
@@ -223,7 +242,7 @@ const createUser = async (userName, userId) => {
 
         return user;
     } catch (e) {
-        console.error("Error creating battler");
+        console.error("Error creating battler: " + e);
     }
 }
 
@@ -259,6 +278,7 @@ module.exports = {
     getMonsterTable,
     getAbilityTable,
     adjustPlayer,
+    addCurrency,
     updateUser,
     updateMonster,
     createUser,
