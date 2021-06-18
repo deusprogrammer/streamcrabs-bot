@@ -7,6 +7,11 @@ let currentVideoId = null;
 
 let removeGold = async (username, amount) => {
     let user = await Xhr.getUser(username);
+
+    if (!user) {
+        throw `${username} doesn't have a battler.  Please donate any number of bits to create one or use the channel point reward "Create Battler" if this channel supports it.`
+    }
+
     if (user.gold < amount) {
         throw `You don't have enough gold.  This redemption is worth ${amount}g.  Use !stats to check your gold.`;
     }
