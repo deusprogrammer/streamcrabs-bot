@@ -10,8 +10,6 @@ let startListener = async (messageQueue, context, plugins) => {
     const authProvider = new StaticAuthProvider(clientId, accessToken, ["channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"], "user");
     const apiClient = new ApiClient({ authProvider });
 
-    console.log("AUTH PROVIDER: " + authProvider.currentScopes);
-
     // Setup pubsub listener
     const pubSubClient = new PubSubClient();
     await pubSubClient.registerUserListener(apiClient);

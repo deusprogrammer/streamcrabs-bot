@@ -1058,10 +1058,28 @@ exports.bitsHook = async (bits, message, userName, userId) => {
 
     if (!user) {
         user = await Xhr.createUser(userName, userId);
+        EventQueue.sendEvent({
+            type: "INFO",
+            targets: ["chat"],
+            eventData: {
+                results: {
+                    message: `@${userName} got 1000 gold for subscribing.`
+                }
+            }
+        });
     }
 
     user.gold += bits;
     await Xhr.updateUser(user);
+    EventQueue.sendEvent({
+        type: "INFO",
+        targets: ["chat"],
+        eventData: {
+            results: {
+                message: `@${userName} got ${bits} gold for cheering.`
+            }
+        }
+    });
 }
 exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, monthsSubbed) => {
     console.log("SUBSCRIPTION: " + giftee);
@@ -1070,20 +1088,56 @@ exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, mont
 
         if (!gifterUser) {
             gifterUser = await Xhr.createUser(gifter, gifterId);
+            EventQueue.sendEvent({
+                type: "INFO",
+                targets: ["chat"],
+                eventData: {
+                    results: {
+                        message: `@${gifter} created a battler.`
+                    }
+                }
+            });
         }
 
         gifterUser.gold += 1000;
         await Xhr.updateUser(gifterUser);
+        EventQueue.sendEvent({
+            type: "INFO",
+            targets: ["chat"],
+            eventData: {
+                results: {
+                    message: `@${gifter} got 1000 gold for gifting a sub.`
+                }
+            }
+        });
     }
 
     let gifteeUser = await Xhr.getUser(giftee);
 
     if (!gifteeUser) {
         gifteeUser = await Xhr.createUser(giftee, gifteeId);
+        EventQueue.sendEvent({
+            type: "INFO",
+            targets: ["chat"],
+            eventData: {
+                results: {
+                    message: `@${giftee} got 1000 gold for subscribing.`
+                }
+            }
+        });
     }
 
     gifteeUser.gold += 1000;
     await Xhr.updateUser(gifteeUser);
+    EventQueue.sendEvent({
+        type: "INFO",
+        targets: ["chat"],
+        eventData: {
+            results: {
+                message: `@${giftee} got 1000 gold for subscribing.`
+            }
+        }
+    });
 }
 exports.redemptionHook = async (rewardName, userName, userId) => {
     if (rewardName.toUpperCase().startsWith("AP")) {
