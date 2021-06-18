@@ -137,7 +137,7 @@ exports.commands = {
     },
     "!rewards:gold": async (twitchContext, botContext) => {
         let user = await Xhr.getUser(twitchContext.username);
-        EventQueue.sendInfoToChat(`${twitchContext.username} has ${user.currencies[TWITCH_EXT_CHANNEL_ID]}g`);
+        EventQueue.sendInfoToChat(`${twitchContext.username} has ${user.currencies[TWITCH_EXT_CHANNEL_ID] ? user.currencies[TWITCH_EXT_CHANNEL_ID] : 0}g`);
     },
     "!games:wtd:start": async (twitchContext, botContext) => {
         // Check if mod
