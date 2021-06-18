@@ -319,7 +319,7 @@ exports.commands = {
             if (results.flags.dead) {
                 if (results.defender.isMonster) {
                     if (results.defender.transmogName) {
-                        client.say(botContext.botConfig.twitchChannel, `/ban ${results.defender.transmogName}`);
+                        EventQueue.sendInfoToChat(`/ban ${results.defender.transmogName}`);
                     }
 
                     delete encounterTable[results.defender.spawnKey];
@@ -459,7 +459,7 @@ exports.commands = {
         if (results.flags.dead) {
             if (results.defender.isMonster) {
                 if (results.defender.transmogName) {
-                    client.say(botContext.botConfig.twitchChannel, `/ban ${results.defender.transmogName}`);
+                    EventQueue.sendInfoToChat(`/ban ${results.defender.transmogName}`);
                 }
 
                 delete encounterTable[results.defender.spawnKey];
