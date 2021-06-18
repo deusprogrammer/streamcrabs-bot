@@ -68,7 +68,7 @@ exports.commands = {
 exports.init = async (botContext) => {}
 exports.bitsHook = async (bits, message, userName, userId) => {}
 exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, monthsSubbed) => {}
-exports.redemptionHook = async (rewardName, userName, userId)
+exports.redemptionHook = async (rewardName, userName, userId) => {
     if (rewardName.toUpperCase() === "PLAY RANDOM SOUND") {
         let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
         let enabledAudio = botConfig.audioPool.filter((element) => {

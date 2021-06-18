@@ -186,7 +186,7 @@ const createUser = async (userName, userId) => {
             headers
         });
 
-        await axios.post(`${BATTLE_API_URL}/users`, {
+        let user = {
             id: userId,
             name: userName,
             currentJob: {
@@ -217,11 +217,13 @@ const createUser = async (userName, userId) => {
                 "POTION"
             ],
             gold: 100
-        }, {
-            headers
-        });
-    } catch (e) {
+        };
 
+        await axios.post(`${BATTLE_API_URL}/users`, user, headers);
+
+        return user;
+    } catch (e) {
+        console.error("Error creating battler");
     }
 }
 

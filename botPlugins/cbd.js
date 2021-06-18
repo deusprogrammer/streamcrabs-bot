@@ -1053,23 +1053,23 @@ exports.init = async (botContext) => {
 }
 
 exports.bitsHook = async (bits, message, userName, userId) => {
+    console.log("BITS: " + userName + " - " + bits);
     let user = await Xhr.getUser(userName);
 
     if (!user) {
-        await Xhr.createUser(userName, userId);
-        return;
+        user = await Xhr.createUser(userName, userId);
     }
 
     user.gold += bits;
     await Xhr.updateUser(user);
 }
 exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, monthsSubbed) => {
+    console.log("SUBSCRIPTION: " + giftee);
     if (gifter) {
         let gifterUser = await Xhr.getUser(gifter);
 
         if (!gifterUser) {
-            await Xhr.createUser(gifter, gifterId);
-            return;
+            gifterUser = await Xhr.createUser(gifter, gifterId);
         }
 
         gifterUser.gold += 1000;
@@ -1079,8 +1079,7 @@ exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, mont
     let gifteeUser = await Xhr.getUser(giftee);
 
     if (!gifteeUser) {
-        await Xhr.createUser(giftee, gifteeId);
-        return;
+        gifteeUser = await Xhr.createUser(giftee, gifteeId);
     }
 
     gifteeUser.gold += 1000;

@@ -1,14 +1,16 @@
 const { PubSubClient } = require('twitch-pubsub-client');
 const { ApiClient } = require('twitch');
-const { StaticAuthProvider } = require('twitch-auth');
+const { StaticAuthProvider, RefreshableAuthProvider } = require('twitch-auth');
 
 
 let startListener = async (messageQueue, context, plugins) => {
     const clientId = process.env.TWITCH_BOT_CLIENT_ID;
     const accessToken = context.botConfig.accessToken;
     const userId = context.botConfig.twitchChannelId;
-    const authProvider = new StaticAuthProvider(clientId, accessToken);
+    const authProvider = new StaticAuthProvider(clientId, accessToken, ["channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"], "user");
     const apiClient = new ApiClient({ authProvider });
+
+    console.log("AUTH PROVIDER: " + authProvider.currentScopes);
 
     // Setup pubsub listener
     const pubSubClient = new PubSubClient();
