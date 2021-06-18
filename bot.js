@@ -117,16 +117,11 @@ async function onMessageHandler(target, context, msg, self) {
                     EventQueue.sendInfoToChat(`Chat battler dungeon version ${versionNumber} written by thetruekingofspace`);
                     break;
                 default:
-                    if (!commands[context.tokens[0]]) {
-                        throw `${context.tokens[0]} is an invalid command.`;
-                    }
-
                     await commands[context.tokens[0]](context, botContext);
             }
         } catch (e) {
             console.error(e.message + ": " + e.stack);
             EventQueue.sendErrorToChat(new Error(e));
-            //EventQueue.sendContextUpdate([caller]);
         }
     }
 }
