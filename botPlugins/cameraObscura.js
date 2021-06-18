@@ -13,7 +13,7 @@ let removeGold = async (username, amount) => {
     }
 
     if (!user.currencies || !user.currencies[TWITCH_EXT_CHANNEL_ID] || user.currencies[TWITCH_EXT_CHANNEL_ID] < amount) {
-        throw `You don't have enough gold.  This redemption is worth ${amount}g.  Use !stats to check your gold.`;
+        throw `You don't have enough gold.  This redemption is worth ${amount}g.  Use !rewards:gold to check your gold.`;
     }
     user.currencies[TWITCH_EXT_CHANNEL_ID] -= amount;
 
@@ -134,6 +134,10 @@ exports.commands = {
         await Xhr.addCurrency(user, amount);
 
         EventQueue.sendInfoToChat(`A mod just gifted ${amount}g to ${twitchContext.username}`);
+    },
+    "!rewards:gold": async (twitchContext, botContext) => {
+        let user = await Xhr.getUser(twitchContext.username);
+        EventQueue.sendInfoToChat(`${twitchContext.username} has ${user.currencies[TWITCH_EXT_CHANNEL_ID]}g`);
     },
     "!games:wtd:start": async (twitchContext, botContext) => {
         // Check if mod
