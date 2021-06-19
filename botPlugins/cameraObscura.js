@@ -131,6 +131,11 @@ exports.commands = {
         console.log("USER:   " + targetUser);
 
         let user = await Xhr.getUser(targetUser);
+
+        if (!user) {
+            throw `Cannot give gold to ${targetUser}, they do not has a battler yet.`;
+        }
+
         await Xhr.addCurrency(user, amount);
 
         EventQueue.sendInfoToChat(`A mod just gifted ${amount}g to ${twitchContext.username}`);

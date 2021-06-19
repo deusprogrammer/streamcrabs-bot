@@ -204,7 +204,12 @@ const createUser = async (userName, userId) => {
         }, {
             headers
         });
+    } catch (e) {
+        console.log("Failed to create user " + e);
+        throw e;
+    }
 
+    try {
         let user = {
             id: userId,
             name: userName,
@@ -235,14 +240,16 @@ const createUser = async (userName, userId) => {
                 "POTION",
                 "POTION"
             ],
-            gold: 100
+            gold: 100,
+            currencies: []
         };
 
-        await axios.post(`${BATTLE_API_URL}/users`, user, headers);
+        await axios.post(`${BATTLE_API_URL}/users`, user, {headers});
 
         return user;
     } catch (e) {
         console.error("Error creating battler: " + e);
+        throw e;
     }
 }
 

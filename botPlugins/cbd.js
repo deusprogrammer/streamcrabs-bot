@@ -48,6 +48,10 @@ let sendContextUpdate = async (targets, botContext, shouldRefresh = false) => {
 }
 
 exports.commands = {
+    "!cbd:create": async (twitchContext, botContext) => {
+        await Xhr.createUser(twitchContext.username, twitchContext.caller.id);
+        EventQueue.sendInfoToChat(`${twitchContext.username} just created a battler!`);
+    },
     "!ready": async (twitchContext, botContext) => {
         if (!botContext.botConfig.config.cbd) {
             throw "This channel does not have this command enabled";
