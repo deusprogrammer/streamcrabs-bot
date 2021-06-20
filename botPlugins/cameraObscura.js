@@ -105,14 +105,14 @@ exports.commands = {
     "!rewards:redeem:audio": async (twitchContext, botContext) => {
         await playRandomSound(twitchContext, botContext);
     },
-    "!rewards:redeem:birdup": async (twitchContext, botContext) => {
-        await playBirdUp(twitchContext, botContext);
-    },
-    "!rewards:redeem:badapple": async (twitchContext, botContext) => {
-        await playBadApple(twitchContext, botContext)
-    },
+    // "!rewards:redeem:birdup": async (twitchContext, botContext) => {
+    //     await playBirdUp(twitchContext, botContext);
+    // },
+    // "!rewards:redeem:badapple": async (twitchContext, botContext) => {
+    //     await playBadApple(twitchContext, botContext)
+    // },
     "!rewards:list": async (twitchContext, botContext) => {
-        EventQueue.sendInfoToChat("The rewards are sound(100g), birdup(200g), video(500g), and badapple(1000g)");
+        EventQueue.sendInfoToChat("The rewards are sound(100g), video(500g)");
     },
     "!rewards:give": async (twitchContext, botContext) => {
         // Check if mod
@@ -126,9 +126,6 @@ exports.commands = {
 
         let amount = parseInt(twitchContext.tokens[1]);
         let targetUser = twitchContext.tokens[2].replace("@", "").toLowerCase();
-
-        console.log("AMOUNT: " + amount);
-        console.log("USER:   " + targetUser);
 
         let user = await Xhr.getUser(targetUser);
 
