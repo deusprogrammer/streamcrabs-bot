@@ -117,7 +117,9 @@ async function onMessageHandler(target, context, msg, self) {
                     EventQueue.sendInfoToChat(`Chat battler dungeon version ${versionNumber} written by thetruekingofspace`);
                     break;
                 default:
-                    await commands[context.tokens[0]](context, botContext);
+                    if (commands[context.tokens[0]]) {
+                        await commands[context.tokens[0]](context, botContext);
+                    }
             }
         } catch (e) {
             console.error(e.message + ": " + e.stack);
