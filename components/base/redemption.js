@@ -35,10 +35,11 @@ let startListener = async (messageQueue, context, plugins) => {
         let bits = bitMessage.bits;
         let message = bitMessage.message;
         let userName = bitMessage.userName;
+        let userId = bitMessage.userId;
 
         // Run through bit plugin hooks
         for (let plugin of plugins) {
-            plugin.bitsHook(bits, message, userName, messageQueue);
+            plugin.bitsHook(bits, message, userName, userId, messageQueue);
         }
     })
 
