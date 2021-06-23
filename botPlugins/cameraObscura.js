@@ -135,7 +135,7 @@ exports.commands = {
 
         await Xhr.addCurrency(user, amount);
 
-        EventQueue.sendInfoToChat(`A mod just gifted ${amount}g to ${twitchContext.username}`);
+        EventQueue.sendInfoToChat(`A mod just gifted ${amount}g to ${targetUser}`);
     },
     "!rewards:gold": async (twitchContext, botContext) => {
         let user = await Xhr.getUser(twitchContext.username);
