@@ -17,41 +17,53 @@ let startListener = async (messageQueue, context, plugins) => {
 
     // Create pubsub subscription listener
     pubSubClient.onSubscription(userId, async (subMessage) => {
-        let gifter = subMessage.gifterName;
-        let gifterId = subMessage.gifterId;
-        let giftee = subMessage.userName;
-        let gifteeId = subMessage.userId;
-        let tier = subMessage.subPlan;
-        let monthsSubbed = subMessage.months;
+        try {
+            let gifter = subMessage.gifterName;
+            let gifterId = subMessage.gifterId;
+            let giftee = subMessage.userName;
+            let gifteeId = subMessage.userId;
+            let tier = subMessage.subPlan;
+            let monthsSubbed = subMessage.months;
 
-        // Run through subscription plugin hooks
-        for (let plugin of plugins) {
-            plugin.subscriptionHook(gifter, gifterId, giftee, gifteeId, tier, monthsSubbed, messageQueue);
+            // Run through subscription plugin hooks
+            for (let plugin of plugins) {
+                plugin.subscriptionHook(gifter, gifterId, giftee, gifteeId, tier, monthsSubbed, messageQueue);
+            }
+        } catch (error) {
+            console.error("SUB FAILURE: " + error);
         }
     });
 
     // Create pubsub bits listener
     pubSubClient.onBits(userId, async (bitMessage) => {
-        let bits = bitMessage.bits;
-        let message = bitMessage.message;
-        let userName = bitMessage.userName;
-        let userId = bitMessage.userId;
+        try {
+            let bits = bitMessage.bits;
+            let message = bitMessage.message;
+            let userName = bitMessage.userName;
+            let userId = bitMessage.userId;
 
-        // Run through bit plugin hooks
-        for (let plugin of plugins) {
-            plugin.bitsHook(bits, message, userName, userId, messageQueue);
+            // Run through bit plugin hooks
+            for (let plugin of plugins) {
+                plugin.bitsHook(bits, message, userName, userId, messageQueue);
+            }
+        } catch (error) {
+            console.error("BIT FAILURE: " + error);
         }
     })
 
     // Create pubsub redemption listener
     pubSubClient.onRedemption(userId, async (redemptionMessage) => {
-        let rewardName = redemptionMessage.rewardName;
-        let userName = redemptionMessage.userName;
-        let userId = redemptionMessage.userId;
+        try {
+            let rewardName = redemptionMessage.rewardName;
+            let userName = redemptionMessage.userName;
+            let userId = redemptionMessage.userId;
 
-        // Run through redemption plugin hooks
-        for (let plugin of plugins) {
-            plugin.redemptionHook(rewardName, userName, userId, messageQueue);
+            // Run through redemption plugin hooks
+            for (let plugin of plugins) {
+                plugin.redemptionHook(rewardName, userName, userId, messageQueue);
+            }
+        } catch (error) {
+            console.error("REDEMPTION FAILURE: " + error);
         }
     });
 
