@@ -1109,7 +1109,6 @@ exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, mont
             await Xhr.addCurrency(gifterUser, parseInt(tier));
         }
 
-        await Xhr.updateUser(gifterUser);
         EventQueue.sendEvent({
             type: "INFO",
             targets: ["chat"],
@@ -1140,7 +1139,6 @@ exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, mont
         await Xhr.addCurrency(gifteeUser, parseInt(tier));
     }
 
-    await Xhr.updateUser(gifteeUser);
     EventQueue.sendEvent({
         type: "INFO",
         targets: ["chat"],
