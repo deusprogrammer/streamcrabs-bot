@@ -10,6 +10,9 @@ const headers = {
     "X-Access-Token": BATTLE_BOT_ACCESS_TOKEN
 }
 
+const maxContentLength = Infinity;
+const maxBodyLength = Infinity;
+
 const getBotConfig = async (channel) => {
     let res = await axios.get(`${BATTLE_API_URL}/bots/${channel}`, {
         headers
@@ -56,7 +59,9 @@ const getMonsterTable = () => {
 
 const updateMonster = async (monster) => {
     return axios.put(`${BATTLE_API_URL}/monsters/${monster.id}`, monster, {
-        headers
+        headers,
+        maxBodyLength,
+        maxContentLength
     })
 }
 
@@ -162,13 +167,17 @@ const getSealedItem = async (itemId) => {
 
 const updateSealedItem = async (item) => {
     await axios.put(`${BATTLE_API_URL}/sealed-items/${item.id}`, item, {
-        headers
+        headers,
+        maxBodyLength,
+        maxContentLength
     })
 }
 
 const updateUser = async (user) => {
     await axios.put(`${BATTLE_API_URL}/users/${user.name}`, user, {
-        headers
+        headers,
+        maxBodyLength,
+        maxContentLength
     });
 }
 
@@ -202,7 +211,9 @@ const createUser = async (userName, userId) => {
                 }
             }
         }, {
-            headers
+            headers,
+            maxBodyLength,
+            maxContentLength
         });
     } catch (e) {
         console.log("Failed to create user " + e);
@@ -244,7 +255,12 @@ const createUser = async (userName, userId) => {
             currencies: []
         };
 
-        await axios.post(`${BATTLE_API_URL}/users`, user, {headers});
+        await axios.post(`${BATTLE_API_URL}/users`, user, 
+            {
+                headers,
+                maxBodyLength,
+                maxContentLength
+            });
 
         return user;
     } catch (e) {

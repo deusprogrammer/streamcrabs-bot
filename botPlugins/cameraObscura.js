@@ -139,6 +139,11 @@ exports.commands = {
     },
     "!rewards:gold": async (twitchContext, botContext) => {
         let user = await Xhr.getUser(twitchContext.username);
+
+        if (!user) {
+            throw `${twitchContext.username} does not has a battler yet.  Please create one with channel points or the "!cbd:create" command.`;
+        }
+
         EventQueue.sendInfoToChat(`${twitchContext.username} has ${user.currencies[TWITCH_EXT_CHANNEL_ID] ? user.currencies[TWITCH_EXT_CHANNEL_ID] : 0}g`);
     },
     "!games:wtd:start": async (twitchContext, botContext) => {

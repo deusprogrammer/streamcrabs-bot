@@ -1204,7 +1204,7 @@ exports.redemptionHook = async (rewardName, userName, userId) => {
         return;
     }
 
-    sendContextUpdate(null, botContext);
+    //sendContextUpdate(null, botContext);
 }
 
 exports.wsInitHook = (from) => {
