@@ -241,7 +241,7 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
         hit = false;
         message = `${attacker.name} ==> ${defender.name} MISS`;
     } else {
-        modifiedDamageRoll *= 0.5;
+        modifiedDamageRoll = Math.ceil(modifiedDamageRoll * 0.5);
         message = `${attacker.name} ==> ${defender.name} -${modifiedDamageRoll}${ability.dmgStat}`;
     }
 
