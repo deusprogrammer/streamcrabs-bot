@@ -20,9 +20,10 @@ let removeGold = async (username, amount) => {
     await Xhr.updateUser(user);
 }
 
-let playRandomVideo = async (twitchContext, botContext) => {
+let playRandomVideo = async (twitchContext) => {
     await removeGold(twitchContext.username, 500);
 
+    let requestMatch = twitchContext.command.match(/!rewards:redeem:video (.*)/);
     let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
     let enabledVideos = botConfig.videoPool.filter((element) => {
         return !element.url.startsWith("*");
@@ -31,7 +32,19 @@ let playRandomVideo = async (twitchContext, botContext) => {
     let url = enabledVideos[n].url;
     let chromaKey = enabledVideos[n].chromaKey;
 
-    EventQueue.sendInfoToChat(`${twitchContext.username} redeemed a random video for 500g.`);
+    if (requestMatch) {
+        console.log("REQUESTED: " + requestMatch[1]);
+        let found = enabledVideos.filter((element) => {
+            return element.name.toLowerCase() === requestMatch[1].toLowerCase();
+        });
+
+        if (found) {
+            url = found[0].url;
+            chromaKey = found[0].chromaKey;
+        }
+    } 
+
+    EventQueue.sendInfoToChat(`${twitchContext.username} redeemed a video for 500g.`);
 
     EventQueue.sendEvent({
         type: "RANDOM_CUSTOM_VIDEO",
@@ -45,9 +58,10 @@ let playRandomVideo = async (twitchContext, botContext) => {
     });
 }
 
-let playRandomSound = async (twitchContext, botContext) => {
+let playRandomSound = async (twitchContext) => {
     await removeGold(twitchContext.username, 100);
 
+    let requestMatch = twitchContext.command.match(/!rewards:redeem:audio (.*)/);
     let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
     let enabledAudio = botConfig.audioPool.filter((element) => {
         return !element.url.startsWith("*");
@@ -55,7 +69,19 @@ let playRandomSound = async (twitchContext, botContext) => {
     let n = Math.floor((Math.random() * enabledAudio.length));
     let url = enabledAudio[n].url;
 
-    EventQueue.sendInfoToChat(`${twitchContext.username} redeemed a random sound for 100g`);
+    if (requestMatch) {
+        let found = enabledAudio.filter((element) => {
+            return element.name.toLowerCase() === requestMatch[1].toLowerCase();
+        });
+
+        console.log("FOUND: " + found.length);
+
+        if (found) {
+            url = found[0].url;
+        }
+    } 
+
+    EventQueue.sendInfoToChat(`${twitchContext.username} redeemed a sound for 100g`);
 
     EventQueue.sendEvent({
         type: "CUSTOM_RANDOM_SOUND",
@@ -99,11 +125,11 @@ let playBadApple = async (twitchContext, botContext) => {
 }
 
 exports.commands = {
-    "!rewards:redeem:video": async (twitchContext, botContext) => {
-        await playRandomVideo(twitchContext, botContext);
+    "!rewards:redeem:video": async (twitchContext) => {
+        await playRandomVideo(twitchContext);
     },
-    "!rewards:redeem:audio": async (twitchContext, botContext) => {
-        await playRandomSound(twitchContext, botContext);
+    "!rewards:redeem:audio": async (twitchContext) => {
+        await playRandomSound(twitchContext);
     },
     // "!rewards:redeem:birdup": async (twitchContext, botContext) => {
     //     await playBirdUp(twitchContext, botContext);
