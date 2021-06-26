@@ -235,7 +235,7 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
         crit = true;
         message = `${attacker.name} ==> ${defender.name} -${modifiedDamageRoll}${ability.dmgStat}`;
     } else if (modifiedAttackRoll >= defender.totalAC + defenderBuffs.ac || isTrigger) {
-        modified *= 1.0;
+        modifiedDamageRoll *= 1.0;
         message = `${attacker.name} ==> ${defender.name} -${modifiedDamageRoll}${ability.dmgStat}`;
     } else if (attackRoll === 1) {
         hit = false;
