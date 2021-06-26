@@ -231,14 +231,15 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
     console.log(`DAMAGE ROLL ${modifiedDamageRoll} (${damageRoll} + ${attacker.str} + ${ability.mods.str} + ${attackerBuffs.str})`);
 
     if (attackRoll === 20 && !isTrigger) {
-        modifiedDamageRoll *= 2;
+        modifiedDamageRoll *= 2.0;
         crit = true;
         message = `${attacker.name} ==> ${defender.name} -${modifiedDamageRoll}${ability.dmgStat}`;
     } else if (modifiedAttackRoll >= defender.totalAC + defenderBuffs.ac || isTrigger) {
+        modified *= 1.0;
         message = `${attacker.name} ==> ${defender.name} -${modifiedDamageRoll}${ability.dmgStat}`;
     } else {
-        message = `${attacker.name} ==> ${defender.name} MISS`;
-        hit = false;
+        modifiedDamageRoll *= 0.5;
+        message = `${attacker.name} ==> ${defender.name}  -${modifiedDamageRoll}${ability.dmgStat}`;
     }
 
     if (hit && modifiedDamageRoll >= defender.hp && ability.dmgStat === "HP") {
