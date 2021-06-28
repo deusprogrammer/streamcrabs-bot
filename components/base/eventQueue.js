@@ -10,6 +10,9 @@ const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 // Queue for messages to avoid flooding
 let queue = [];
 
+// List of panels that have initialized
+let panels = {};
+
 /* 
 * CHAT BOT 
 */
@@ -80,9 +83,14 @@ const connectWs = () => {
         // If it's just a panel listener requesting initialization, just do it marrrrrrk.
         if (event.type === "PANEL_INIT") {
             for (let plugin of eventContext.botContext.plugins) {
-                plugin.wsInitHook();
+                plugin.wsInitHook(event);
             }
 
+            // Add panel to list for enabling and disabling functionality
+            panels[event.name] = Date.now();
+            return;
+        } else if (event.type === "PANEL_PING") {
+            panels[event.name] = Date.now();
             return;
         }
 
@@ -274,6 +282,10 @@ let startEventListener = async (botContext) => {
     }, 500);
 }
 
+const isPanelInitialized = (panelName) => {
+    return Date.now() - panels[panelName] <= 30000;
+}
+
 exports.sendEvent = sendEvent;
 exports.sendEventToPanels = sendEventToPanels;
 exports.sendEventToUser = sendEventToUser;
@@ -282,3 +294,4 @@ exports.sendEventTo = sendEventTo;
 exports.sendInfoToChat = sendInfoToChat;
 exports.sendErrorToChat = sendErrorToChat;
 exports.startEventListener = startEventListener;
+exports.isPanelInitialized = isPanelInitialized;

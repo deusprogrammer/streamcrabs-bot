@@ -30,6 +30,7 @@ let playRandomVideo = async (twitchContext) => {
     })
     let n = Math.floor((Math.random() * enabledVideos.length));
     let url = enabledVideos[n].url;
+    let mediaName = enabledVideos[n].name;
     let chromaKey = enabledVideos[n].chromaKey;
 
     if (requestMatch) {
@@ -40,6 +41,7 @@ let playRandomVideo = async (twitchContext) => {
 
         if (found) {
             url = found[0].url;
+            mediaName = found[0].name;
             chromaKey = found[0].chromaKey;
         }
     } 
@@ -51,6 +53,7 @@ let playRandomVideo = async (twitchContext) => {
         targets: ["panel"],
         eventData: {
             requester: twitchContext.username,
+            mediaName,
             url,
             chromaKey,
             results: {}
@@ -68,6 +71,7 @@ let playRandomSound = async (twitchContext) => {
     })
     let n = Math.floor((Math.random() * enabledAudio.length));
     let url = enabledAudio[n].url;
+    let mediaName = enabledAudio[n].name;
 
     if (requestMatch) {
         let found = enabledAudio.filter((element) => {
@@ -78,6 +82,7 @@ let playRandomSound = async (twitchContext) => {
 
         if (found) {
             url = found[0].url;
+            mediaName = found[0].name;
         }
     } 
 
@@ -88,6 +93,7 @@ let playRandomSound = async (twitchContext) => {
         targets: ["panel"],
         eventData: {
             requester: twitchContext.username,
+            mediaName,
             url,
             results: {}
         }
@@ -126,21 +132,25 @@ let playBadApple = async (twitchContext, botContext) => {
 
 exports.commands = {
     "!rewards:redeem:video": async (twitchContext) => {
+        if (!EventQueue.isPanelInitialized("MULTI")) {
+            EventQueue.sendInfoToChat("Video panel is not available for this stream");
+            return;
+        }
+
         await playRandomVideo(twitchContext);
     },
     "!rewards:redeem:audio": async (twitchContext) => {
+        if (!EventQueue.isPanelInitialized("SOUND_PLAYER")) {
+            EventQueue.sendInfoToChat("Sound panel is not available for this stream");
+            return;
+        }
+
         await playRandomSound(twitchContext);
     },
-    // "!rewards:redeem:birdup": async (twitchContext, botContext) => {
-    //     await playBirdUp(twitchContext, botContext);
-    // },
-    // "!rewards:redeem:badapple": async (twitchContext, botContext) => {
-    //     await playBadApple(twitchContext, botContext)
-    // },
     "!rewards:list": async (twitchContext, botContext) => {
         EventQueue.sendInfoToChat("The rewards are sound(100g), video(500g)");
     },
-    "!rewards:give": async (twitchContext, botContext) => {
+    "!rewards:give:gold": async (twitchContext, botContext) => {
         // Check if mod
         if (twitchContext.username !== botContext.botConfig.twitchChannel && !twitchContext.mod) {
             throw "Only a mod can give currency";
@@ -241,12 +251,14 @@ exports.redemptionHook = async (rewardName, userName, userId) => {
         })
         let n = Math.floor((Math.random() * enabledAudio.length));
         let url = enabledAudio[n].url;
+        let mediaName = enabledAudio[n].name;
 
         EventQueue.sendEvent({
             type: "CUSTOM_RANDOM_SOUND",
             targets: ["panel"],
             eventData: {
                 requester: userName,
+                mediaName,
                 url,
                 results: {}
             }
@@ -258,6 +270,7 @@ exports.redemptionHook = async (rewardName, userName, userId) => {
         })
         let n = Math.floor((Math.random() * enabledVideos.length));
         let url = enabledVideos[n].url;
+        let mediaName = enabledVideos[n].name;
         let chromaKey = enabledVideos[n].chromaKey;
 
         EventQueue.sendEvent({
@@ -265,6 +278,7 @@ exports.redemptionHook = async (rewardName, userName, userId) => {
             targets: ["panel"],
             eventData: {
                 requester: userName,
+                mediaName,
                 url,
                 chromaKey,
                 results: {}
