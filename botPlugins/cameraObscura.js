@@ -245,6 +245,10 @@ exports.bitsHook = async (bits, message, userName, userId) => {}
 exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, monthsSubbed) => {}
 exports.redemptionHook = async (rewardName, userName, userId) => {
     if (rewardName.toUpperCase() === "PLAY RANDOM SOUND") {
+        if (!EventQueue.isPanelInitialized("SOUND_PLAYER")) {
+            EventQueue.sendInfoToChat("Sound panel is not available for this stream");
+            return;
+        }
         let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
         let enabledAudio = botConfig.audioPool.filter((element) => {
             return !element.url.startsWith("*");
@@ -264,6 +268,11 @@ exports.redemptionHook = async (rewardName, userName, userId) => {
             }
         });
     }  else if (rewardName.toUpperCase() === "RANDOM VIDEO") {
+        if (!EventQueue.isPanelInitialized("MULTI")) {
+            EventQueue.sendInfoToChat("Video panel is not available for this stream");
+            return;
+        }
+
         let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
         let enabledVideos = botConfig.videoPool.filter((element) => {
             return !element.url.startsWith("*");
@@ -285,6 +294,11 @@ exports.redemptionHook = async (rewardName, userName, userId) => {
             }
         });
     } else if (rewardName.toUpperCase() === "BIRD UP") {
+        if (!EventQueue.isPanelInitialized("MULTI")) {
+            EventQueue.sendInfoToChat("Video panel is not available for this stream");
+            return;
+        }
+
         EventQueue.sendEvent({
             type: "BIRDUP",
             targets: ["panel"],
@@ -294,6 +308,11 @@ exports.redemptionHook = async (rewardName, userName, userId) => {
             }
         });
     } else if (rewardName.toUpperCase() === "BAD APPLE") {
+        if (!EventQueue.isPanelInitialized("MULTI")) {
+            EventQueue.sendInfoToChat("Video panel is not available for this stream");
+            return;
+        }
+        
         EventQueue.sendEvent({
             type: "BADAPPLE",
             targets: ["panel"],
