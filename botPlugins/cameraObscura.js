@@ -228,12 +228,14 @@ exports.commands = {
         let substitution = requestMatch[1];
 
         let videoData = await Xhr.getVideo(currentVideoId);
+        let requester = twitchContext.username;
 
         EventQueue.sendEvent({
             type: "DUB",
             targets: ["panel"],
             eventData: {
                 results: {},
+                requester,
                 videoData,
                 substitution
             }
@@ -312,7 +314,7 @@ exports.redemptionHook = async (rewardName, userName, userId) => {
             EventQueue.sendInfoToChat("Video panel is not available for this stream");
             return;
         }
-        
+
         EventQueue.sendEvent({
             type: "BADAPPLE",
             targets: ["panel"],
