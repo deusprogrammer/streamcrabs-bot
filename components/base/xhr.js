@@ -2,12 +2,15 @@ const axios = require('axios');
 const Util = require('./util');
 
 const BATTLE_BOT_ACCESS_TOKEN = process.env.TWITCH_BOT_ACCESS_TOKEN;
+const BATTLE_BOT_JWT = process.env.TWITCH_BOT_JWT;
 const BATTLE_API_URL = process.env.BATTLE_API_URL;
 const PROFILE_API_URL = process.env.PROFILE_API_URL;
+const WTD_API_URL = "https://deusprogrammer.com/api/dubs";
 const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
 const headers = {
-    "X-Access-Token": BATTLE_BOT_ACCESS_TOKEN
+    "X-Access-Token": BATTLE_BOT_ACCESS_TOKEN,
+    "Authorization": `Bearer ${BATTLE_BOT_JWT}`
 }
 
 const maxContentLength = Infinity;
@@ -23,7 +26,7 @@ const getBotConfig = async (channel) => {
 
 const getVideo = async (id) => {
     console.log("SEARCHING FOR ID: " + id);
-    let result = await axios.get(`https://deusprogrammer.com/api/dubs/videos/${id}`, {
+    let result = await axios.get(`${WTD_API_URL}/videos/${id}`, {
         headers
     });
 
@@ -252,15 +255,15 @@ const createUser = async (userName, userId) => {
                 "POTION"
             ],
             gold: 100,
-            currencies: []
+            currencies: {}
         };
 
         await axios.post(`${BATTLE_API_URL}/users`, user, 
-            {
-                headers,
-                maxBodyLength,
-                maxContentLength
-            });
+        {
+            headers,
+            maxBodyLength,
+            maxContentLength
+        });
 
         return user;
     } catch (e) {

@@ -21,8 +21,6 @@ let removeGold = async (username, amount) => {
 }
 
 let playRandomVideo = async (twitchContext) => {
-    await removeGold(twitchContext.username, 500);
-
     let requestMatch = twitchContext.command.match(/!rewards:redeem:video (.*)/);
     let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
     let enabledVideos = botConfig.videoPool.filter((element) => {
@@ -34,18 +32,18 @@ let playRandomVideo = async (twitchContext) => {
     let chromaKey = enabledVideos[n].chromaKey;
 
     if (requestMatch) {
-        console.log("REQUESTED: " + requestMatch[1]);
         let found = enabledVideos.filter((element) => {
             return element.name.toLowerCase() === requestMatch[1].toLowerCase();
         });
 
-        if (found) {
+        if (found && found.length > 0) {
             url = found[0].url;
             mediaName = found[0].name;
             chromaKey = found[0].chromaKey;
         }
-    } 
+    }
 
+    await removeGold(twitchContext.username, 500);
     EventQueue.sendInfoToChat(`${twitchContext.username} redeemed a video for 500g.`);
 
     EventQueue.sendEvent({
@@ -62,8 +60,6 @@ let playRandomVideo = async (twitchContext) => {
 }
 
 let playRandomSound = async (twitchContext) => {
-    await removeGold(twitchContext.username, 100);
-
     let requestMatch = twitchContext.command.match(/!rewards:redeem:audio (.*)/);
     let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
     let enabledAudio = botConfig.audioPool.filter((element) => {
@@ -78,14 +74,13 @@ let playRandomSound = async (twitchContext) => {
             return element.name.toLowerCase() === requestMatch[1].toLowerCase();
         });
 
-        console.log("FOUND: " + found.length);
-
-        if (found) {
+        if (found && found.length > 0) {
             url = found[0].url;
             mediaName = found[0].name;
         }
     } 
 
+    await removeGold(twitchContext.username, 100);
     EventQueue.sendInfoToChat(`${twitchContext.username} redeemed a sound for 100g`);
 
     EventQueue.sendEvent({
@@ -192,9 +187,14 @@ exports.commands = {
             throw "You must provide a video id";
         }
         let videoId = twitchContext.tokens[1];
-        currentVideoId = videoId;
 
         let videoData = await Xhr.getVideo(videoId);
+
+        if (!videoData) {
+            throw new Error("No video with that id is available");
+        }
+
+        currentVideoId = videoId;
 
         EventQueue.sendEvent({
             type: "DUB",
