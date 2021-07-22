@@ -1058,7 +1058,11 @@ exports.init = async (botContext) => {
     };
 }
 
-exports.bitsHook = async (bits, message, userName, userId) => {
+exports.bitsHook = async (bits, message, userName, userId, botContext) => {
+    if (!botContext.botConfig.config.rewards) {
+        throw "This channel does not have this command enabled";
+    }
+
     console.log("BITS: " + userName + " - " + bits);
     let user = await Xhr.getUser(userName);
 
@@ -1087,9 +1091,13 @@ exports.bitsHook = async (bits, message, userName, userId) => {
         }
     });
 }
-exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, monthsSubbed) => {
+exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, monthsSubbed, botContext) => {
+    if (!botContext.botConfig.config.rewards) {
+        throw "This channel does not have this command enabled";
+    }
+
     console.log("SUBSCRIPTION: " + giftee);
-    if (gifter) {
+    if (gifter && gifter !== giftee) {
         let gifterUser = await Xhr.getUser(gifter);
 
         if (!gifterUser) {
@@ -1149,7 +1157,7 @@ exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, mont
         }
     });
 }
-exports.redemptionHook = async (rewardName, userName, userId) => {
+exports.redemptionHook = async (rewardName, userName, userId, botContext) => {
     if (rewardName.toUpperCase().startsWith("AP")) {
         let groups = rewardName.match(/AP\s*\+\s*([0-9]+)/);
         

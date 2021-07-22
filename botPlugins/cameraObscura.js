@@ -95,38 +95,12 @@ let playRandomSound = async (twitchContext) => {
     });
 }
 
-let playBirdUp = async (twitchContext, botContext) => {
-    await removeGold(twitchContext.username, 200);
-
-    EventQueue.sendInfoToChat(`${twitchContext.username} redeemed bird up for 200g`);
-
-    EventQueue.sendEvent({
-        type: "BIRDUP",
-        targets: ["panel"],
-        eventData: {
-            requester: twitchContext.username,
-            results: {}
-        }
-    });
-}
-
-let playBadApple = async (twitchContext, botContext) => {
-    await removeGold(twitchContext.username, 1000);
-
-    EventQueue.sendInfoToChat(`${twitchContext.username} redeemed bad apple for 1000g`);
-
-    EventQueue.sendEvent({
-        type: "BADAPPLE",
-        targets: ["panel"],
-        eventData: {
-            requester: twitchContext.username,
-            results: {}
-        }
-    });
-}
-
 exports.commands = {
     "!rewards:redeem:video": async (twitchContext) => {
+        if (!botContext.botConfig.config.rewards) {
+            throw "This channel does not have this command enabled";
+        }
+
         if (!EventQueue.isPanelInitialized("MULTI")) {
             EventQueue.sendInfoToChat("Video panel is not available for this stream");
             return;
@@ -135,6 +109,10 @@ exports.commands = {
         await playRandomVideo(twitchContext);
     },
     "!rewards:redeem:audio": async (twitchContext) => {
+        if (!botContext.botConfig.config.rewards) {
+            throw "This channel does not have this command enabled";
+        }
+
         if (!EventQueue.isPanelInitialized("SOUND_PLAYER")) {
             EventQueue.sendInfoToChat("Sound panel is not available for this stream");
             return;
@@ -146,6 +124,10 @@ exports.commands = {
         EventQueue.sendInfoToChat("The rewards are sound(100g), video(500g)");
     },
     "!rewards:give:gold": async (twitchContext, botContext) => {
+        if (!botContext.botConfig.config.rewards) {
+            throw "This channel does not have this command enabled";
+        }
+
         // Check if mod
         if (twitchContext.username !== botContext.botConfig.twitchChannel && !twitchContext.mod) {
             throw "Only a mod can give currency";
@@ -169,6 +151,10 @@ exports.commands = {
         EventQueue.sendInfoToChat(`A mod just gifted ${amount}g to ${targetUser}`);
     },
     "!rewards:gold": async (twitchContext, botContext) => {
+        if (!botContext.botConfig.config.rewards) {
+            throw "This channel does not have this command enabled";
+        }
+        
         let user = await Xhr.getUser(twitchContext.username);
 
         if (!user) {

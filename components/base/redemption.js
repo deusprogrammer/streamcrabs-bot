@@ -27,7 +27,7 @@ let startListener = async (messageQueue, context, plugins) => {
 
             // Run through subscription plugin hooks
             for (let plugin of plugins) {
-                plugin.subscriptionHook(gifter, gifterId, giftee, gifteeId, tier, monthsSubbed, messageQueue);
+                plugin.subscriptionHook(gifter, gifterId, giftee, gifteeId, tier, monthsSubbed, messageQueue, context);
             }
         } catch (error) {
             console.error("SUB FAILURE: " + error);
@@ -44,7 +44,7 @@ let startListener = async (messageQueue, context, plugins) => {
 
             // Run through bit plugin hooks
             for (let plugin of plugins) {
-                plugin.bitsHook(bits, message, userName, userId, messageQueue);
+                plugin.bitsHook(bits, message, userName, userId, messageQueue, context);
             }
         } catch (error) {
             console.error("BIT FAILURE: " + error);
@@ -52,7 +52,7 @@ let startListener = async (messageQueue, context, plugins) => {
     })
 
     // Create pubsub redemption listener
-    pubSubClient.onRedemption(userId, async (redemptionMessage) => {
+    pubSubClient.onRedemption(userId, async (redemptionMessage, botContext) => {
         try {
             let rewardName = redemptionMessage.rewardName;
             let userName = redemptionMessage.userName;
@@ -60,7 +60,7 @@ let startListener = async (messageQueue, context, plugins) => {
 
             // Run through redemption plugin hooks
             for (let plugin of plugins) {
-                plugin.redemptionHook(rewardName, userName, userId, messageQueue);
+                plugin.redemptionHook(rewardName, userName, userId, messageQueue, context);
             }
         } catch (error) {
             console.error("REDEMPTION FAILURE: " + error);
