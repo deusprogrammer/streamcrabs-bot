@@ -1060,7 +1060,7 @@ exports.init = async (botContext) => {
 
 exports.bitsHook = async (bits, message, userName, userId, botContext) => {
     if (!botContext.botConfig.config.rewards) {
-        throw "This channel does not have this command enabled";
+        return;
     }
 
     console.log("BITS: " + userName + " - " + bits);
@@ -1093,7 +1093,7 @@ exports.bitsHook = async (bits, message, userName, userId, botContext) => {
 }
 exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, monthsSubbed, botContext) => {
     if (!botContext.botConfig.config.rewards) {
-        throw "This channel does not have this command enabled";
+        return;
     }
 
     console.log("SUBSCRIPTION: " + giftee);
