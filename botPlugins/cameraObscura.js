@@ -96,7 +96,7 @@ let playRandomSound = async (twitchContext) => {
 }
 
 exports.commands = {
-    "!rewards:redeem:video": async (twitchContext) => {
+    "!rewards:redeem:video": async (twitchContext, botContext) => {
         if (!botContext.botConfig.config.rewards) {
             throw "This channel does not have this command enabled";
         }
@@ -108,7 +108,7 @@ exports.commands = {
 
         await playRandomVideo(twitchContext);
     },
-    "!rewards:redeem:audio": async (twitchContext) => {
+    "!rewards:redeem:audio": async (twitchContext, botContext) => {
         if (!botContext.botConfig.config.rewards) {
             throw "This channel does not have this command enabled";
         }
