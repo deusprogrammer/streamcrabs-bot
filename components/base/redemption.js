@@ -52,7 +52,7 @@ let startListener = async (messageQueue, context, plugins) => {
     })
 
     // Create pubsub redemption listener
-    pubSubClient.onRedemption(userId, async (redemptionMessage, botContext) => {
+    pubSubClient.onRedemption(userId, async (redemptionMessage) => {
         try {
             let rewardName = redemptionMessage.rewardName;
             let userName = redemptionMessage.userName;

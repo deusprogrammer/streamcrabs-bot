@@ -1058,7 +1058,7 @@ exports.init = async (botContext) => {
     };
 }
 
-exports.bitsHook = async (bits, message, userName, userId, botContext) => {
+exports.bitsHook = async (bits, message, userName, userId, messageQueue, botContext) => {
     if (!botContext.botConfig.config.rewards) {
         return;
     }
@@ -1091,7 +1091,7 @@ exports.bitsHook = async (bits, message, userName, userId, botContext) => {
         }
     });
 }
-exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, monthsSubbed, botContext) => {
+exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, monthsSubbed, messageQueue, botContext) => {
     if (!botContext.botConfig.config.rewards) {
         return;
     }
@@ -1157,7 +1157,7 @@ exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, mont
         }
     });
 }
-exports.redemptionHook = async (rewardName, userName, userId, botContext) => {
+exports.redemptionHook = async (rewardName, userName, userId, messageQueue, botContext) => {
     if (rewardName.toUpperCase().startsWith("AP")) {
         let groups = rewardName.match(/AP\s*\+\s*([0-9]+)/);
         
