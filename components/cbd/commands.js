@@ -1,5 +1,6 @@
-var Xhr = require('../base/xhr');
-var Util = require('../base/util');
+const Xhr = require('../base/xhr');
+const Util = require('../base/util');
+const EventQueue = require('../base/eventQueue');
 
 const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
@@ -206,11 +207,11 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
         throw `@${defenderName} is already dead.`;
     }
 
-    if (ability.target === "ENEMY" && !defender.isMonster) {
-        throw `${ability.name} cannot target battlers`;
-    } else if (ability.target === "CHAT" && defender.isMonster) {
-        throw `${ability.name} cannot target monsters`;
-    }
+    // if (ability.target === "ENEMY" && !defender.isMonster) {
+    //     throw `${ability.name} cannot target battlers`;
+    // } else if (ability.target === "CHAT" && defender.isMonster) {
+    //     throw `${ability.name} cannot target monsters`;
+    // }
 
     let attackerBuffs = createBuffMap(attackerName, context);
     let defenderBuffs = createBuffMap(defenderName, context);
@@ -255,48 +256,6 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
             endStatus = `[${defender.name} lost ${modifiedDamageRoll}${ability.dmgStat}]`;
         }
     }
-
-    // TODO Test this once Twitch finishes dragging their heels on testing my extension.
-    // Simplified adjustments
-    // const defenderChanges = {};
-
-    // if (hit) {
-    //     defenderChanges[ability.dmgStat.toLowerCase()] = -modifiedDamageRoll;
-    //     if (ability.ignoreDamageMods) {
-    //         defenderChanges[ability.dmgStat.toLowerCase()] = -damageRoll;
-    //     }
-
-    //     // If this ability does DOT, then add an entry to the dotTable
-    //     if (ability.procTime > 0 && !dead) {
-    //         if (!context.dotTable[defenderName]) {
-    //             context.dotTable[defenderName] = [];
-    //         }
-
-    //         // Check for existing effect
-    //         let existingEffect = context.dotTable[defenderName].find(entry => entry.ability.id === ability.id);
-    //         if (!existingEffect) {
-    //             // Add new effect
-    //             context.dotTable[defenderName].push({
-    //                 ability, 
-    //                 tickCounter: ability.procTime,
-    //                 cycles: ability.maxProcs
-    //             });
-    //         } else {
-    //             // Reset cycles left if already existing
-    //             existingEffect.cycles = ability.maxProcs;
-    //         }
-    //     }
-    // }
-
-    // Xhr.adjustPlayer(defender.name, defenderChanges, null, null, context);
-
-    // // Set aggro
-    // if (defender.isMonster) {
-    //     if (!defender.aggro[attackerName]) {
-    //         defender.aggro[attackerName] = 0;
-    //     }
-    //     defender.aggro[attackerName] += modifiedDamageRoll;
-    // }
 
     // Get current, unexpanded version
     if (!attacker.isMonster) {
@@ -678,10 +637,197 @@ const spawnMonster = async (monsterName, personalName, context) => {
     return spawn;
 }
 
+const use = async (attackerName, defenderName, abilityName, pluginContext) => {
+    let encounterTable = pluginContext.encounterTable;
+    let targets = await Xhr.getActiveUsers(pluginContext);
+    let aliveMonsters = Object.keys(encounterTable).map(monster => "~" + monster);
+    let ability = pluginContext.abilityTable[abilityName];
+
+    let attacker = await getTarget(attackerName, pluginContext);
+
+    if (!ability) {
+        throw `Ability named ${abilityName} doesn't exist.`;
+    }
+
+    let abilityTargets = [];
+    if (!defenderName) {
+        if (ability.area === "ONE" && ability.target !== "CHAT") {
+            throw `${abilityName} cannot target all opponents.  You must specify a target.`;
+        } else if (ability.area === "ONE" && ability.target === "CHAT") {
+            abilityTargets = [attackerName];
+        } else if (ability.area == "ALL" && ability.target === "ENEMY") {
+            if (!attacker.isMonster) {
+                abilityTargets = aliveMonsters;
+            } else {
+                abilityTargets = targets;
+            }
+        } else if (ability.area == "ALL" && ability.target === "CHAT") {
+            if (!attacker.isMonster) {
+                abilityTargets = targets;
+            } else {
+                abilityTargets = aliveMonsters;
+            }
+        } else {
+            abilityTargets = [...targets, ...aliveMonsters];
+        }
+    } else {
+        if (ability.area === "ALL") {
+            throw `${abilityName} cannot target just one opponent.`;
+        }
+
+        abilityTargets = [defenderName];
+    }
+
+    // Perform ability on everyone
+    for (let i in abilityTargets) {
+        let abilityTarget = abilityTargets[i];
+
+        let results = {};
+
+        if (ability.element === "HEALING") {
+            results = await heal(attackerName, abilityTarget, ability, pluginContext);
+        } else if (ability.element === "BUFFING") {
+            results = await buff(attackerName, abilityTarget, ability, pluginContext);
+        } else if (ability.element === "CLEANSING") {
+            results = await cleanse(attackerName, abilityTarget, ability, pluginContext);
+        } else {
+            results = await hurt(attackerName, abilityTarget, ability, pluginContext);
+        }
+
+        // Announce results of attack
+        if (results.damageType === "HEALING") {
+            EventQueue.sendEvent({
+                type: "HEALING",
+                targets: ["chat", "panel"],
+                eventData: {
+                    results: {
+                        attacker: results.attacker,
+                        defender: results.defender,
+                        message: results.message
+                    },
+                    encounterTable: encounterTable
+                }
+            });
+        } else if (results.damageType === "BUFFING") {
+            EventQueue.sendEvent({
+                type: "BUFFING",
+                targets: ["chat", "panel"],
+                eventData: {
+                    results: {
+                        attacker: results.attacker,
+                        defender: results.defender,
+                        message: results.message
+                    },
+                    encounterTable: encounterTable
+                }
+            });
+        } else if (results.damageType === "CLEANSING") {
+            EventQueue.sendEvent({
+                type: "BUFFING",
+                targets: ["chat", "panel"],
+                eventData: {
+                    results: {
+                        attacker: results.attacker,
+                        defender: results.defender,
+                        message: results.message
+                    },
+                    encounterTable: encounterTable
+                }
+            });
+        } else if (
+                results.damageType !== "HEALING" &&
+                results.damageType !== "BUFFING" && 
+                results.damageType !== "CLEANSING" && 
+                results.flags.hit) {
+            let message = `${results.attacker.name} hit ${results.defender.name} for ${results.damage} ${results.damageStat} damage.`;
+            if (results.flags.crit) {
+                message = `${results.attacker.name} scored a critical hit on ${results.defender.name} for ${results.damage} ${results.damageStat} damage.`;
+            }
+
+            EventQueue.sendEvent({
+                type: "ATTACKED",
+                targets: ["chat", "panel"],
+                eventData: {
+                    results: {
+                        attacker: results.attacker,
+                        defender: results.defender,
+                        message
+                    },
+                    encounterTable
+                }
+            });
+        } else if (
+            results.damageType !== "HEALING" &&
+            results.damageType !== "BUFFING" &&
+            results.damageType !== "CLEANSING" && 
+            !results.flags.hit
+        ) {
+            EventQueue.sendEvent({
+                type: "ATTACKED",
+                targets: ["chat", "panel"],
+                eventData: {
+                    results: {
+                        attacker: results.attacker,
+                        defender: results.defender,
+                        message: `${results.attacker.name} used ${ability.name} on ${results.defender.name} and missed.`
+                    },
+                    encounterTable
+                }
+            });
+        }
+
+        // Show trigger results
+        for (const triggerResult of results.triggerResults) {
+            EventQueue.sendEvent({
+                type: "INFO",
+                targets: ["chat", "panel"],
+                eventData: {
+                    results: {
+                        attacker: triggerResult.results.attacker,
+                        defender: triggerResult.results.defender,
+                        message: `${results.attacker.name} triggered ${triggerResult.trigger.ability.name}!`
+                    },
+                    encounterTable
+                }
+            });
+        }
+
+        if (results.flags.dead) {
+            if (results.defender.isMonster) {
+                if (results.defender.transmogName) {
+                    EventQueue.sendInfoToChat(`/ban ${results.defender.transmogName}`);
+                }
+
+                delete encounterTable[results.defender.spawnKey];
+                let itemGets = await distributeLoot(results.defender, pluginContext);
+
+                itemGets.forEach((itemGet) => {
+                    EventQueue.sendEvent(itemGet);
+                })
+            }
+            
+            EventQueue.sendEvent({
+                type: "DIED",
+                targets: ["chat", "panel"],
+                eventData: {
+                    results: {
+                        defender: results.defender,
+                        message: `${results.defender.name} was slain by ${results.attacker.name}.`
+                    },
+                    encounterTable
+                }
+            });
+
+            //sendContextUpdate(null, botContext);
+        }
+    }
+}
+
 module.exports = {
     getTarget,
     createBuffMap,
     distributeLoot,
+    use,
     attack,
     heal,
     buff,

@@ -17,7 +17,6 @@ let dotTable = {};
 let pluginContext = {};
 
 let sendContextUpdate = async (targets, botContext, shouldRefresh = false) => {
-    console.log("CHATTERS: " + JSON.stringify(botContext.chattersActive, null, 5));
     let players = await Xhr.getActiveUsers(botContext);
     
     if (targets) {
@@ -107,40 +106,38 @@ exports.commands = {
             });
         }
 
-        let isItem = false;
-        let itemName = "";
-        let foundIndex = -1;
         let attackerName = twitchContext.username;
         let abilityName = twitchContext.tokens[1].toUpperCase();
         let defenderName = twitchContext.tokens[2] ? twitchContext.tokens[2].replace("@", "").toLowerCase() : null;
+        let foundIndex = -1;
+        let isItem = false;
+        let itemName = null;
         let attacker = await Commands.getTarget(attackerName, pluginContext);
-        let targets = await Xhr.getActiveUsers(pluginContext);
-        let aliveMonsters = Object.keys(encounterTable).map(monster => "~" + monster);
 
         if (abilityName.startsWith("#")) {
             itemName = abilityName.substring(1).toUpperCase();
             let item = itemTable[itemName];
             foundIndex = attacker.inventory.findIndex(inventoryItem => inventoryItem.id === itemName);
-
+    
             if (!item) {
                 throw(`Item with id ${itemName} doesn't exist.`);
             }
-
+    
             if (foundIndex < 0) {
                 throw(`User doesn't have ${item.name} to use.`)
             }
-
+    
             if (item.type.toUpperCase() !== "CONSUMABLE") {
                 throw(`${item.name} is not consumable`);
             }
-
-
+    
+    
             abilityName = item.use;
             isItem = true;
         }
-
+    
         let ability = abilityTable[abilityName];
-
+    
         if (!ability) {
             throw `Ability named ${abilityName} doesn't exist goofball.`;
         }
@@ -148,38 +145,17 @@ exports.commands = {
         if (!attacker) {
             throw `${attackerName} doesn't have a battler.`;
         }
-
+    
         if (!isItem && !attacker.abilities[abilityName]) {
             throw `${attackerName} doesn't have ability ${abilityName}.`;
         }
-
+    
         if (isItem) {
             ability.ap = 0;
         }
-
+    
         if (Math.max(0, attacker.ap) < ability.ap) {
             throw `@${attackerName} needs ${ability.ap} AP to use this ability.`;
-        }
-
-        let abilityTargets = [];
-        if (!defenderName) {
-            if (ability.area === "ONE" && ability.target !== "CHAT") {
-                throw `${abilityName} cannot target all opponents.  You must specify a target.`;
-            } else if (ability.area === "ONE" && ability.target === "CHAT") {
-                abilityTargets = [attackerName];
-            } else if (ability.area == "ALL" && ability.target === "ENEMY") {
-                abilityTargets = aliveMonsters;
-            } else if (ability.area == "ALL" && ability.target === "CHAT") {
-                abilityTargets = targets;
-            } else {
-                abilityTargets = [...targets, ...aliveMonsters];
-            }
-        } else {
-            if (ability.area === "ALL") {
-                throw `${abilityName} cannot target just one opponent.`;
-            }
-
-            abilityTargets = [defenderName];
         }
 
         if (!isItem) {
@@ -188,8 +164,8 @@ exports.commands = {
                 targets: ["chat", "panel"],
                 eventData: {
                     results: {
-                        attacker,
-                        message: `${attacker.name} uses ${ability.name}`
+                        attacker: {},
+                        message: `${attackerName} uses ${abilityName}`
                     },
                     encounterTable
                 }
@@ -200,160 +176,18 @@ exports.commands = {
                 targets: ["chat", "panel"],
                 eventData: {
                     results: {
-                        attacker,
-                        message: `${attacker.name} uses a ${itemName}`
+                        attacker: {},
+                        message: `${attackerName} uses a ${itemName}`
                     },
                     encounterTable: encounterTable
                 }
             });
         }
 
-        // Perform ability on everyone
-        for (let i in abilityTargets) {
-            let abilityTarget = abilityTargets[i];
+        await Commands.use(attackerName, defenderName, abilityName, pluginContext);
 
-            let results = {};
-
-            if (ability.element === "HEALING") {
-                results = await Commands.heal(attackerName, abilityTarget, ability, pluginContext);
-            } else if (ability.element === "BUFFING") {
-                results = await Commands.buff(attackerName, abilityTarget, ability, pluginContext);
-            } else if (ability.element === "CLEANSING") {
-                results = await Commands.cleanse(attackerName, abilityTarget, ability, pluginContext);
-            } else {
-                results = await Commands.hurt(attackerName, abilityTarget, ability, pluginContext);
-            }
-
-            // Announce results of attack
-            if (results.damageType === "HEALING") {
-                EventQueue.sendEvent({
-                    type: "HEALING",
-                    targets: ["chat", "panel"],
-                    eventData: {
-                        results: {
-                            attacker: results.attacker,
-                            defender: results.defender,
-                            message: results.message
-                        },
-                        encounterTable: encounterTable
-                    }
-                });
-            } else if (results.damageType === "BUFFING") {
-                EventQueue.sendEvent({
-                    type: "BUFFING",
-                    targets: ["chat", "panel"],
-                    eventData: {
-                        results: {
-                            attacker: results.attacker,
-                            defender: results.defender,
-                            message: results.message
-                        },
-                        encounterTable: encounterTable
-                    }
-                });
-            } else if (results.damageType === "CLEANSING") {
-                EventQueue.sendEvent({
-                    type: "BUFFING",
-                    targets: ["chat", "panel"],
-                    eventData: {
-                        results: {
-                            attacker: results.attacker,
-                            defender: results.defender,
-                            message: results.message
-                        },
-                        encounterTable: encounterTable
-                    }
-                });
-            } else if (
-                    results.damageType !== "HEALING" &&
-                    results.damageType !== "BUFFING" && 
-                    results.damageType !== "CLEANSING" && 
-                    results.flags.hit) {
-                let message = `${results.attacker.name} hit ${results.defender.name} for ${results.damage} ${results.damageStat} damage.`;
-                if (results.flags.crit) {
-                    message = `${results.attacker.name} scored a critical hit on ${results.defender.name} for ${results.damage} ${results.damageStat} damage.`;
-                }
-
-                EventQueue.sendEvent({
-                    type: "ATTACKED",
-                    targets: ["chat", "panel"],
-                    eventData: {
-                        results: {
-                            attacker: results.attacker,
-                            defender: results.defender,
-                            message
-                        },
-                        encounterTable
-                    }
-                });
-            } else if (
-                results.damageType !== "HEALING" &&
-                results.damageType !== "BUFFING" &&
-                results.damageType !== "CLEANSING" && 
-                !results.flags.hit
-            ) {
-                EventQueue.sendEvent({
-                    type: "ATTACKED",
-                    targets: ["chat", "panel"],
-                    eventData: {
-                        results: {
-                            attacker: results.attacker,
-                            defender: results.defender,
-                            message: `${results.attacker.name} used ${ability.name} on ${results.defender.name} and missed.`
-                        },
-                        encounterTable
-                    }
-                });
-            }
-
-            // Show trigger results
-            for (const triggerResult of results.triggerResults) {
-                EventQueue.sendEvent({
-                    type: "INFO",
-                    targets: ["chat", "panel"],
-                    eventData: {
-                        results: {
-                            attacker: triggerResult.results.attacker,
-                            defender: triggerResult.results.defender,
-                            message: `${results.attacker.name} triggered ${triggerResult.trigger.ability.name}!`
-                        },
-                        encounterTable
-                    }
-                });
-            }
-
-            if (results.flags.dead) {
-                if (results.defender.isMonster) {
-                    if (results.defender.transmogName) {
-                        EventQueue.sendInfoToChat(`/ban ${results.defender.transmogName}`);
-                    }
-
-                    delete encounterTable[results.defender.spawnKey];
-                    let itemGets = await Commands.distributeLoot(results.defender, pluginContext);
-
-                    itemGets.forEach((itemGet) => {
-                        EventQueue.sendEvent(itemGet);
-                    })
-                }
-                
-                EventQueue.sendEvent({
-                    type: "DIED",
-                    targets: ["chat", "panel"],
-                    eventData: {
-                        results: {
-                            defender: results.defender,
-                            message: `${results.defender.name} was slain by ${results.attacker.name}.`
-                        },
-                        encounterTable
-                    }
-                });
-
-                sendContextUpdate(null, botContext);
-            }
-        }
-
-        // Get basic user to update
-        let updatedAttacker = await Xhr.getUser(twitchContext.username);
+        // Get basic user to update ap
+        let updatedAttacker = await Xhr.getUser(attackerName);
 
         // Update ap
         updatedAttacker.ap -= ability.ap;
@@ -367,12 +201,11 @@ exports.commands = {
         // Get basic user to update
         await Xhr.updateUser(updatedAttacker);
 
-        sendContextUpdate([updatedAttacker], true);
-
         // Set user cool down
         let currBuffs = Commands.createBuffMap(twitchContext.username, pluginContext);
         cooldownTable[twitchContext.username] = Math.min(11, 6 - Math.min(5, attacker.dex + currBuffs.dex));
 
+        sendContextUpdate([updatedAttacker], botContext, true);
     },
     "!attack": async (twitchContext, botContext) => {
         if (!botContext.botConfig.config.cbd) {
@@ -943,7 +776,6 @@ exports.init = async (botContext) => {
                 }
             })
 
-
             // Do monster attacks
             Object.keys(encounterTable).forEach(async (encounterName) => {
                 let encounter = encounterTable[encounterName];
@@ -987,9 +819,47 @@ exports.init = async (botContext) => {
 
                     // If a target was found
                     if (target !== null) {
-                        let results = await Commands.attack("~" + encounterName, target, pluginContext);
+                        // Check for ability triggers.
+                        let chanceSum = 0;
+                        encounter.actions.forEach((action) => {
+                            chanceSum += action.chance;
+                        });
 
-                        if (results.flags.hit) {
+                        // Roll dice
+                        let diceRoll = Util.rollDice("1d" + chanceSum);
+                        
+                        // Figure out which action triggers
+                        let lowerThreshold = 0;
+                        let triggeredAction = "ATTACK";
+                        let ability = null;
+                        encounter.actions.forEach((action) => {
+                            let upperThreshold = lowerThreshold + action.chance;
+
+                            if (diceRoll > lowerThreshold && diceRoll <= upperThreshold) {
+                                triggeredAction = action.abilityId;
+                                ability = abilityTable[triggeredAction];
+                            }
+
+                            lowerThreshold = upperThreshold;
+                        });
+
+                        console.log("TRIGGERED ACTION: " + triggeredAction);
+
+                        let results = null;
+                        if (triggeredAction !== "ATTACK" && ability.area === "ONE") {
+                            console.log("SINGLE TARGET ABILITY");
+                            EventQueue.sendInfoToChat(`${encounter.name} uses ${ability.name}`);
+                            results = await Commands.use("~" + encounterName, target, triggeredAction, pluginContext);
+                        } else if (triggeredAction !== "ATTACK" && ability.area === "ALL") {
+                            console.log("MULTI TARGET ABILITY");
+                            EventQueue.sendInfoToChat(`${encounter.name} uses ${ability.name}`);
+                            results = await Commands.use("~" + encounterName, null, triggeredAction, pluginContext);
+                        } else {
+                            console.log("REGULAR ATTACK");
+                            results = await Commands.attack("~" + encounterName, target, pluginContext);
+                        }
+
+                        if (results && results.flags && results.flags.hit) {
                             let message = `${results.attacker.name} hit ${results.defender.name} for ${results.damage} damage.`;
                             if (results.flags.crit) {
                                 message = `${results.attacker.name} scored a critical hit on ${results.defender.name} for ${results.damage} damage.`;
@@ -1006,7 +876,7 @@ exports.init = async (botContext) => {
                                     encounterTable
                                 }
                             });
-                        } else {
+                        } else if (results && results.flags && !results.flags.hit) {
                             EventQueue.sendEvent({
                                 type: "ATTACK",
                                 targets: ["chat", "panel"],
@@ -1021,7 +891,7 @@ exports.init = async (botContext) => {
                             });
                         }
 
-                        if (results.defender.hp <= 0) {
+                        if (results && results.defender && results.defender.hp <= 0) {
                             EventQueue.sendEvent({
                                 type: "DIED",
                                 targets: ["chat", "panel"],
@@ -1036,7 +906,10 @@ exports.init = async (botContext) => {
                             });
                         }
 
-                        sendContextUpdate([results.defender], botContext);
+                        if (results) {
+                            sendContextUpdate([results.defender], botContext);
+                        }
+
                         return;
                     }
                 }
