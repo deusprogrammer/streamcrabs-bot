@@ -650,16 +650,16 @@ exports.init = async (botContext) => {
     try {
         setInterval(async () => {
             // Check for chatter activity timeouts
-            Object.keys(botContext.chattersActive).forEach(async (username) => {
+            for (let username in botContext.chattersActive) {
                 botContext.chattersActive[username] -= 1;
                 if (botContext.chattersActive[username] === 0) {
                     delete botContext.chattersActive[username];
                     EventQueue.sendInfoToChat(`${username} has stepped back into the shadows.`);
                 }
-            });
+            };
 
             // Tick down human cooldowns
-            Object.keys(cooldownTable).forEach(async (username) => {
+            for (let username in cooldownTable) {
                 cooldownTable[username] -= 1;
                 if (cooldownTable[username] <= 0) {
                     delete cooldownTable[username];
@@ -669,10 +669,10 @@ exports.init = async (botContext) => {
                         type: "COOLDOWN_OVER"
                     });
                 }
-            });
+            };
 
             // Tick down buff timers
-            Object.keys(buffTable).forEach(async (username) => {
+            for(let username in buffTable) {
                 let buffs = buffTable[username] || [];
                 buffs.forEach((buff) => {
                     buff.duration--;
@@ -693,10 +693,10 @@ exports.init = async (botContext) => {
                         }
                     });
                 }
-            });
+            };
 
             // Tick down status timers
-            Object.keys(dotTable).forEach(async (username) => {
+            for (let username in dotTable) {
                 let effects = dotTable[username];
                 for (let effect of effects) {
                     effect.tickCounter--;
@@ -774,10 +774,10 @@ exports.init = async (botContext) => {
                         }
                     });
                 }
-            })
+            }
 
             // Do monster attacks
-            Object.keys(encounterTable).forEach(async (encounterName) => {
+            for (let encounterName in encounterTable) {
                 let encounter = encounterTable[encounterName];
 
                 if (encounter.hp <= 0) {
@@ -843,71 +843,84 @@ exports.init = async (botContext) => {
                             lowerThreshold = upperThreshold;
                         });
 
-                        console.log("TRIGGERED ACTION: " + triggeredAction);
-
                         let results = null;
                         if (triggeredAction !== "ATTACK" && ability.area === "ONE") {
-                            console.log("SINGLE TARGET ABILITY");
                             EventQueue.sendInfoToChat(`${encounter.name} uses ${ability.name}`);
-                            results = await Commands.use("~" + encounterName, target, triggeredAction, pluginContext);
+                            if (ability.target === "ENEMY") {
+                                results = await Commands.use("~" + encounterName, target, triggeredAction, pluginContext);
+                            } else {
+                                if (ability.element === "HEALING") {
+                                    let lowestHP = encounter;
+                                    let lowestHPKey = encounterName;
+                                    for (otherEncounterKey in encounterTable) {
+                                        let otherEncounter = encounterTable[otherEncounterKey];
+                                        if (otherEncounter.hp < lowestHP.hp) {
+                                            lowestHP = otherEncounter;
+                                            lowestHPKey = otherEncounterKey;
+                                        }
+                                    }
+
+                                    results = await Commands.use("~" + encounterName, "~" + lowestHPKey, triggeredAction, pluginContext);
+                                } else if (ability.element === "CLEANSING") {
+                                    // TODO Add cleansing AI
+                                }
+                            }
                         } else if (triggeredAction !== "ATTACK" && ability.area === "ALL") {
-                            console.log("MULTI TARGET ABILITY");
                             EventQueue.sendInfoToChat(`${encounter.name} uses ${ability.name}`);
                             results = await Commands.use("~" + encounterName, null, triggeredAction, pluginContext);
                         } else {
-                            console.log("REGULAR ATTACK");
                             results = await Commands.attack("~" + encounterName, target, pluginContext);
-                        }
 
-                        if (results && results.flags && results.flags.hit) {
-                            let message = `${results.attacker.name} hit ${results.defender.name} for ${results.damage} damage.`;
-                            if (results.flags.crit) {
-                                message = `${results.attacker.name} scored a critical hit on ${results.defender.name} for ${results.damage} damage.`;
+                            if (results && results.flags && results.flags.hit) {
+                                let message = `${results.attacker.name} hit ${results.defender.name} for ${results.damage} damage.`;
+                                if (results.flags.crit) {
+                                    message = `${results.attacker.name} scored a critical hit on ${results.defender.name} for ${results.damage} damage.`;
+                                }
+                                EventQueue.sendEvent({
+                                    type: "ATTACK",
+                                    targets: ["chat", "panel"],
+                                    eventData: {
+                                        results: {
+                                            attacker: results.attacker,
+                                            defender: results.defender,
+                                            message
+                                        },
+                                        encounterTable
+                                    }
+                                });
+                            } else if (results && results.flags && !results.flags.hit) {
+                                EventQueue.sendEvent({
+                                    type: "ATTACK",
+                                    targets: ["chat", "panel"],
+                                    eventData: {
+                                        results: {
+                                            attacker: results.attacker,
+                                            defender: results.defender,
+                                            message: `${results.attacker.name} swung at ${results.defender.name} and missed.`
+                                        },
+                                        encounterTable
+                                    }
+                                });
                             }
-                            EventQueue.sendEvent({
-                                type: "ATTACK",
-                                targets: ["chat", "panel"],
-                                eventData: {
-                                    results: {
-                                        attacker: results.attacker,
-                                        defender: results.defender,
-                                        message
-                                    },
-                                    encounterTable
-                                }
-                            });
-                        } else if (results && results.flags && !results.flags.hit) {
-                            EventQueue.sendEvent({
-                                type: "ATTACK",
-                                targets: ["chat", "panel"],
-                                eventData: {
-                                    results: {
-                                        attacker: results.attacker,
-                                        defender: results.defender,
-                                        message: `${results.attacker.name} swung at ${results.defender.name} and missed.`
-                                    },
-                                    encounterTable
-                                }
-                            });
-                        }
-
-                        if (results && results.defender && results.defender.hp <= 0) {
-                            EventQueue.sendEvent({
-                                type: "DIED",
-                                targets: ["chat", "panel"],
-                                eventData: {
-                                    results: {
-                                        attacker: results.attacker,
-                                        defender: results.defender,
-                                        message: `${results.defender.name} was slain by ${results.attacker.name}.`
-                                    },
-                                    encounterTable
-                                }
-                            });
-                        }
-
-                        if (results) {
-                            sendContextUpdate([results.defender], botContext);
+    
+                            if (results && results.defender && results.defender.hp <= 0) {
+                                EventQueue.sendEvent({
+                                    type: "DIED",
+                                    targets: ["chat", "panel"],
+                                    eventData: {
+                                        results: {
+                                            attacker: results.attacker,
+                                            defender: results.defender,
+                                            message: `${results.defender.name} was slain by ${results.attacker.name}.`
+                                        },
+                                        encounterTable
+                                    }
+                                });
+                            }
+    
+                            if (results) {
+                                sendContextUpdate([results.defender], botContext);
+                            }
                         }
 
                         return;
@@ -915,7 +928,7 @@ exports.init = async (botContext) => {
                 }
 
                 encounter.tick--;
-            });
+            };
         }, 5 * 1000);
     } catch (e) {
         EventQueue.sendEvent({

@@ -355,11 +355,11 @@ const buff = async (attackerName, defenderName, ability, context) => {
 
     let defender = await getTarget(defenderName, context);
 
-    if (ability.target === "ENEMY" && !defender.isMonster) {
-        throw `${ability.name} cannot target battlers`;
-    } else if (ability.target === "CHAT" && defender.isMonster) {
-        throw `${ability.name} cannot target monsters`;
-    }
+    // if (ability.target === "ENEMY" && !defender.isMonster) {
+    //     throw `${ability.name} cannot target battlers`;
+    // } else if (ability.target === "CHAT" && defender.isMonster) {
+    //     throw `${ability.name} cannot target monsters`;
+    // }
 
     let tokens  = ability.buffs.split(";");
     let changes = tokens.map((token) => {
@@ -426,11 +426,11 @@ const cleanse = async (attackerName, defenderName, ability, context) => {
 
     let defender = await getTarget(defenderName, context);
 
-    if (ability.target === "ENEMY" && !defender.isMonster) {
-        throw `${ability.name} cannot target battlers`;
-    } else if (ability.target === "CHAT" && defender.isMonster) {
-        throw `${ability.name} cannot target monsters`;
-    }
+    // if (ability.target === "ENEMY" && !defender.isMonster) {
+    //     throw `${ability.name} cannot target battlers`;
+    // } else if (ability.target === "CHAT" && defender.isMonster) {
+    //     throw `${ability.name} cannot target monsters`;
+    // }
 
     let effectsRemoved = [];
     let tokens  = ability.buffs.split(";");
@@ -491,11 +491,11 @@ const heal = async (attackerName, defenderName, ability, context) => {
 
     let defender = await getTarget(defenderName, context);
 
-    if (ability.target === "ENEMY" && !defender.isMonster) {
-        throw `${ability.name} cannot target battlers`;
-    } else if (ability.target === "CHAT" && defender.isMonster) {
-        throw `${ability.name} cannot target monsters`;
-    }
+    // if (ability.target === "ENEMY" && !defender.isMonster) {
+    //     throw `${ability.name} cannot target battlers`;
+    // } else if (ability.target === "CHAT" && defender.isMonster) {
+    //     throw `${ability.name} cannot target monsters`;
+    // }
 
     var healingAmount = Math.max(1, Util.rollDice(ability.dmg));
 
@@ -580,63 +580,6 @@ const attack = async (attackerName, defenderName, context) => {
     return results;
 }
 
-const spawnMonster = async (monsterName, personalName, context) => {
-    // Retrieve monster from monster table
-    let monsterCopy = context.monsterTable[monsterName.toUpperCase()];
-
-    if (!monsterCopy) {
-        throw `${monsterName} is not a valid monster`;
-    }
-
-    // Make deep copy
-    let monster = {...monsterCopy};
-    monster.drops = monsterCopy.drops.filter((drop) => {
-        return !drop.exclusiveTaken;
-    }).map((drop) => {  
-        return {...drop};
-    });
-    monster.actions = monsterCopy.actions.map((action) => {
-        return {...action};
-    })
-
-    console.log("SPAWNED: " + JSON.stringify(monster, null, 5));
-
-    // Set type here temporarily until we add to DB
-    let type = monster.type || "MOB";
-    let abbrev = "";
-    switch (type) {
-        case "MOB":
-            abbrev = "M";
-            break;
-        case "ELITE":
-            abbrev = "E";
-            break;
-        case "BOSS":
-            abbrev = "B";
-            break;
-        case "RARE":
-            abbrev = "R";
-            break;
-    }
-
-    // Pick either the provided name or the default name
-    var name = personalName || monster.name;
-
-    // Copy monster into it's own object
-    var index = 0;
-    while (context.encounterTable[abbrev + (++index)]);
-    let spawn = {
-        ...monster,
-        aggro: {},
-        name,
-        spawnKey: abbrev + index,
-        maxHp: monster.hp,
-        actionCooldown: Math.min(11, 6 - Math.min(5, monster.dex))
-    };
-
-    return spawn;
-}
-
 const use = async (attackerName, defenderName, abilityName, pluginContext) => {
     let encounterTable = pluginContext.encounterTable;
     let targets = await Xhr.getActiveUsers(pluginContext);
@@ -649,11 +592,19 @@ const use = async (attackerName, defenderName, abilityName, pluginContext) => {
         throw `Ability named ${abilityName} doesn't exist.`;
     }
 
+    // Temporary patch until values are changed in UI and DB.
+    if (ability.target === "CHAT") {
+        ability.target = "FRIENDLY";
+    }
+
+    // TODO Determine if target is valid
+
+    // Determine if command syntax is valid given the ability area.
     let abilityTargets = [];
     if (!defenderName) {
-        if (ability.area === "ONE" && ability.target !== "CHAT") {
+        if (ability.area === "ONE" && ability.target !== "FRIENDLY") {
             throw `${abilityName} cannot target all opponents.  You must specify a target.`;
-        } else if (ability.area === "ONE" && ability.target === "CHAT") {
+        } else if (ability.area === "ONE" && ability.target === "FRIENDLY") {
             abilityTargets = [attackerName];
         } else if (ability.area == "ALL" && ability.target === "ENEMY") {
             if (!attacker.isMonster) {
@@ -661,7 +612,7 @@ const use = async (attackerName, defenderName, abilityName, pluginContext) => {
             } else {
                 abilityTargets = targets;
             }
-        } else if (ability.area == "ALL" && ability.target === "CHAT") {
+        } else if (ability.area == "ALL" && ability.target === "FRIENDLY") {
             if (!attacker.isMonster) {
                 abilityTargets = targets;
             } else {
@@ -821,6 +772,63 @@ const use = async (attackerName, defenderName, abilityName, pluginContext) => {
             //sendContextUpdate(null, botContext);
         }
     }
+}
+
+const spawnMonster = async (monsterName, personalName, context) => {
+    // Retrieve monster from monster table
+    let monsterCopy = context.monsterTable[monsterName.toUpperCase()];
+
+    if (!monsterCopy) {
+        throw `${monsterName} is not a valid monster`;
+    }
+
+    // Make deep copy
+    let monster = {...monsterCopy};
+    monster.drops = monsterCopy.drops.filter((drop) => {
+        return !drop.exclusiveTaken;
+    }).map((drop) => {  
+        return {...drop};
+    });
+    monster.actions = monsterCopy.actions.map((action) => {
+        return {...action};
+    })
+
+    console.log("SPAWNED: " + JSON.stringify(monster, null, 5));
+
+    // Set type here temporarily until we add to DB
+    let type = monster.type || "MOB";
+    let abbrev = "";
+    switch (type) {
+        case "MOB":
+            abbrev = "M";
+            break;
+        case "ELITE":
+            abbrev = "E";
+            break;
+        case "BOSS":
+            abbrev = "B";
+            break;
+        case "RARE":
+            abbrev = "R";
+            break;
+    }
+
+    // Pick either the provided name or the default name
+    var name = personalName || monster.name;
+
+    // Copy monster into it's own object
+    var index = 0;
+    while (context.encounterTable[abbrev + (++index)]);
+    let spawn = {
+        ...monster,
+        aggro: {},
+        name,
+        spawnKey: abbrev + index,
+        maxHp: monster.hp,
+        actionCooldown: Math.min(11, 6 - Math.min(5, monster.dex))
+    };
+
+    return spawn;
 }
 
 module.exports = {
