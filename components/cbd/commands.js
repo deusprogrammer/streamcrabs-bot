@@ -223,6 +223,7 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
     let hit = true;
     let crit = false;
     let dead = false;
+    let encounterTable = context.encounterTable;
 
     if (ability.ignoreDamageMods) {
         modifiedDamageRoll = damageRoll;
@@ -270,6 +271,7 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
         defender.aggro[attackerName] += modifiedDamageRoll;
     }
 
+    // Determine if proc damage occurs
     if (hit) {
         defender[ability.dmgStat.toLowerCase()] -= modifiedDamageRoll;
 
@@ -305,6 +307,70 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
         defender = Util.expandUser(defender, context);
     }
 
+    // Send messages for damage dealing
+    if (hit) {
+        let damage = ability.ignoreDamageMods ? damageRoll : modifiedDamageRoll;
+        let damageStat = ability.dmgStat;
+        let damageSource = ability.name !== "attack" ? ability.name : attacker.name;
+        let message = `${damageSource} dealt ${damage} ${damageStat} damage to ${defender.name}.`;
+        if (crit) {
+            message = `${damageSource} dealt ${damage} ${damageStat} critical damage to ${defender.name}.`;
+        }
+
+        await EventQueue.sendEvent({
+            type: "ATTACKED",
+            targets: ["chat", "panel"],
+            eventData: {
+                results: {
+                    attacker: attacker,
+                    defender: defender,
+                    message
+                },
+                encounterTable
+            }
+        });
+    } else {
+        await EventQueue.sendEvent({
+            type: "ATTACKED",
+            targets: ["chat", "panel"],
+            eventData: {
+                results: {
+                    attacker: attacker,
+                    defender: defender,
+                    message: `${attacker.name} attacked ${defender.name} and missed.`
+                },
+                encounterTable
+            }
+        });
+    }
+
+    if (dead) {
+        if (defender.isMonster) {
+            if (defender.transmogName) {
+                await EventQueue.sendInfoToChat(`/ban ${defender.transmogName}`);
+            }
+
+            delete encounterTable[defender.spawnKey];
+            let itemGets = await distributeLoot(defender, context);
+
+            itemGets.forEach(async (itemGet) => {
+                await EventQueue.sendEvent(itemGet);
+            });
+        }
+
+        await EventQueue.sendEvent({
+            type: "DIED",
+            targets: ["chat", "panel"],
+            eventData: {
+                results: {
+                    defender: defender,
+                    message: `${defender.name} was slain by ${attacker.name}.`
+                },
+                encounterTable
+            }
+        });
+    }
+
     // Perform triggers
     let triggerResults = [];
     if (hit && !dead && performTriggers) {
@@ -313,15 +379,26 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
             let results = null;
             let ability = context.abilityTable[trigger.abilityId];
             trigger.ability = ability;
+            await EventQueue.sendEvent({
+                type: "INFO",
+                targets: ["chat", "panel"],
+                eventData: {
+                    results: {
+                        attacker: attacker,
+                        defender: defender,
+                        message: `${attacker.name}'s ${attacker.equipment.hand.name}'s ${trigger.ability.name} activated!`
+                    },
+                    encounterTable: context.encounterTable
+                }
+            });
             if (triggerRoll <= trigger.chance) {
                 if (ability.element === "HEALING") {
                     results = await heal(attackerName, attackerName, ability, context);
                 } else if (ability.element === "BUFFING") {
                     results = await buff(attackerName, defenderName, ability, context);
                 } else {
-                    results = await hurt(attackerName, defenderName, ability, context, true, false);
+                    results = await hurt(attackerName, defenderName, ability, context, true, true);
                 }
-                triggerResults.push({trigger, results});
             }
         }
     }
@@ -398,6 +475,19 @@ const buff = async (attackerName, defenderName, ability, context) => {
     }
     context.buffTable[defenderName] = existingBuffs;
 
+    await EventQueue.sendEvent({
+        type: "HEALING",
+        targets: ["chat", "panel"],
+        eventData: {
+            results: {
+                attacker,
+                defender,
+                message: `${defender.name} is affected by ${ability.name}`
+            },
+            encounterTable: context.encounterTable
+        }
+    });
+
     return {
         attacker,
         defender,
@@ -461,8 +551,20 @@ const cleanse = async (attackerName, defenderName, ability, context) => {
     } else {
         message = `${defender.name} is cured of ${effectsRemoved.slice(0, effectsRemoved.length - 1).join(", ")} and ${effectsRemoved[effectsRemoved.length - 1]}`;
     }
-    
 
+    await EventQueue.sendEvent({
+        type: "HEALING",
+        targets: ["chat", "panel"],
+        eventData: {
+            results: {
+                attacker,
+                defender,
+                message
+            },
+            encounterTable: context.encounterTable
+        }
+    });
+    
     return {
         attacker,
         defender,
@@ -530,6 +632,19 @@ const heal = async (attackerName, defenderName, ability, context) => {
         await Xhr.updateUser(defender);
         defender = Util.expandUser(defender, context);
     }
+
+    await EventQueue.sendEvent({
+        type: "HEALING",
+        targets: ["chat", "panel"],
+        eventData: {
+            results: {
+                attacker,
+                defender,
+                message: `${ability.name} healed ${defender.name} for ${healingAmount} ${ability.dmgStat}`
+            },
+            encounterTable: context.encounterTable
+        }
+    });
 
     return {
         attacker,
@@ -647,129 +762,28 @@ const use = async (attackerName, defenderName, abilityName, pluginContext) => {
 
         // Announce results of attack
         if (results.damageType === "HEALING") {
-            EventQueue.sendEvent({
-                type: "HEALING",
-                targets: ["chat", "panel"],
-                eventData: {
-                    results: {
-                        attacker: results.attacker,
-                        defender: results.defender,
-                        message: results.message
-                    },
-                    encounterTable: encounterTable
-                }
-            });
+            
         } else if (results.damageType === "BUFFING") {
-            EventQueue.sendEvent({
-                type: "BUFFING",
-                targets: ["chat", "panel"],
-                eventData: {
-                    results: {
-                        attacker: results.attacker,
-                        defender: results.defender,
-                        message: results.message
-                    },
-                    encounterTable: encounterTable
-                }
-            });
+            
         } else if (results.damageType === "CLEANSING") {
-            EventQueue.sendEvent({
-                type: "BUFFING",
-                targets: ["chat", "panel"],
-                eventData: {
-                    results: {
-                        attacker: results.attacker,
-                        defender: results.defender,
-                        message: results.message
-                    },
-                    encounterTable: encounterTable
-                }
-            });
+
         } else if (
                 results.damageType !== "HEALING" &&
                 results.damageType !== "BUFFING" && 
                 results.damageType !== "CLEANSING" && 
                 results.flags.hit) {
-            let message = `${results.attacker.name} hit ${results.defender.name} for ${results.damage} ${results.damageStat} damage.`;
-            if (results.flags.crit) {
-                message = `${results.attacker.name} scored a critical hit on ${results.defender.name} for ${results.damage} ${results.damageStat} damage.`;
-            }
-
-            EventQueue.sendEvent({
-                type: "ATTACKED",
-                targets: ["chat", "panel"],
-                eventData: {
-                    results: {
-                        attacker: results.attacker,
-                        defender: results.defender,
-                        message
-                    },
-                    encounterTable
-                }
-            });
+            
         } else if (
             results.damageType !== "HEALING" &&
             results.damageType !== "BUFFING" &&
             results.damageType !== "CLEANSING" && 
             !results.flags.hit
         ) {
-            EventQueue.sendEvent({
-                type: "ATTACKED",
-                targets: ["chat", "panel"],
-                eventData: {
-                    results: {
-                        attacker: results.attacker,
-                        defender: results.defender,
-                        message: `${results.attacker.name} used ${ability.name} on ${results.defender.name} and missed.`
-                    },
-                    encounterTable
-                }
-            });
-        }
 
-        // Show trigger results
-        for (const triggerResult of results.triggerResults) {
-            EventQueue.sendEvent({
-                type: "INFO",
-                targets: ["chat", "panel"],
-                eventData: {
-                    results: {
-                        attacker: triggerResult.results.attacker,
-                        defender: triggerResult.results.defender,
-                        message: `${results.attacker.name} triggered ${triggerResult.trigger.ability.name}!`
-                    },
-                    encounterTable
-                }
-            });
         }
 
         if (results.flags.dead) {
-            if (results.defender.isMonster) {
-                if (results.defender.transmogName) {
-                    EventQueue.sendInfoToChat(`/ban ${results.defender.transmogName}`);
-                }
 
-                delete encounterTable[results.defender.spawnKey];
-                let itemGets = await distributeLoot(results.defender, pluginContext);
-
-                itemGets.forEach((itemGet) => {
-                    EventQueue.sendEvent(itemGet);
-                })
-            }
-            
-            EventQueue.sendEvent({
-                type: "DIED",
-                targets: ["chat", "panel"],
-                eventData: {
-                    results: {
-                        defender: results.defender,
-                        message: `${results.defender.name} was slain by ${results.attacker.name}.`
-                    },
-                    encounterTable
-                }
-            });
-
-            //sendContextUpdate(null, botContext);
         }
     }
 }
