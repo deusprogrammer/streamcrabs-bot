@@ -1,5 +1,6 @@
 const {spawn} = require('child_process');
 const crypto = require('crypto');
+const {rando} = require('@nastyox/rando.js');
 
 function shuffle(a) {
     for (let i = a.length - 1; i > 0; i--) {
@@ -50,7 +51,8 @@ const rollDice = (dice, of) => {
     // Otherwise roll dice
     let total = 0;
     for (var i = 0; i < parseInt(tokens[0]); i++) {
-        total += Math.floor(Math.random() * Math.floor(parseInt(tokens[1]))) + 1;
+        total += rando(1, parseInt(tokens[1]));
+        //total += Math.floor(Math.random() * Math.floor(parseInt(tokens[1]))) + 1;
     }
     return total;
 }
@@ -71,6 +73,7 @@ const expandUser = (userData, context) => {
     userData.hit = userData.currentJob.hit;
     userData.maxHp = userData.currentJob.hp;
     userData.abilities = {};
+    userData.resistances = {};
     Object.keys(userData.equipment).forEach((slot) => {
         let item = userData.equipment[slot];
         let itemData = context.itemTable[item.id];
@@ -83,6 +86,15 @@ const expandUser = (userData, context) => {
         userData.dex += itemData.mods.dex;
         userData.int += itemData.mods.int;
         userData.hit += itemData.mods.hit;
+
+        userData.resistances.fire       += itemData.resistances.fire;
+        userData.resistances.ice        += itemData.resistances.ice;
+        userData.resistances.lightning  += itemData.resistances.lightning;
+        userData.resistances.water      += itemData.resistances.water;
+        userData.resistances.earth      += itemData.resistances.earth;
+        userData.resistances.light      += itemData.resistances.light;
+        userData.resistances.dark       += itemData.resistances.dark;
+
         itemData.abilities.forEach((abilityId) => {
             userData.abilities[abilityId] = context.abilityTable[abilityId];
         });

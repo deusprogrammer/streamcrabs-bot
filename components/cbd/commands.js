@@ -216,10 +216,18 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
     let attackerBuffs = createBuffMap(attackerName, context);
     let defenderBuffs = createBuffMap(defenderName, context);
 
+
+    // Find resistance
+    let resistance = defender.resistances[ability.element.toLowerCase()];
+    if (!resistance) {
+        resistance = 0;
+    }
+    resistance = (100 - (resistance * 5))/100;
+
     let attackRoll = Util.rollDice("1d20");
     let modifiedAttackRoll = attackRoll + attacker[ability.toHitStat.toLowerCase()] + ability.mods[ability.toHitStat.toLowerCase()] + attackerBuffs[ability.toHitStat.toLowerCase()];
     let damageRoll = Util.rollDice(ability.dmg, defender[ability.dmgStat.toLowerCase()]);
-    let modifiedDamageRoll = Math.max(1, damageRoll + attacker.str + ability.mods.str + attackerBuffs.str);
+    let modifiedDamageRoll = Math.ceil(Math.max(1, damageRoll + attacker.str + ability.mods.str + attackerBuffs.str) * resistance);
     let hit = true;
     let crit = false;
     let dead = false;
@@ -329,6 +337,35 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
                 encounterTable
             }
         });
+
+        // Display whether the enemy was weak to the element of the ability
+        if (resistance > 1) {
+            await EventQueue.sendEvent({
+                type: "ATTACKED",
+                targets: ["chat", "panel"],
+                eventData: {
+                    results: {
+                        attacker: attacker,
+                        defender: defender,
+                        message: `${defender.name} is weak to ${ability.element.toLowerCase()}`
+                    },
+                    encounterTable
+                }
+            });
+        } else if (resistance < 1) {
+            await EventQueue.sendEvent({
+                type: "ATTACKED",
+                targets: ["chat", "panel"],
+                eventData: {
+                    results: {
+                        attacker: attacker,
+                        defender: defender,
+                        message: `${defender.name} is resistant to ${ability.element.toLowerCase()}`
+                    },
+                    encounterTable
+                }
+            });
+        }
     } else {
         await EventQueue.sendEvent({
             type: "ATTACKED",
@@ -680,6 +717,7 @@ const attack = async (attackerName, defenderName, context) => {
         target: "ANY",
         area: "ONE",
         triggers: weapon.triggers,
+        element: "NONE",
         mods: {
             hit: 0,
             str: 0

@@ -4,6 +4,7 @@
   "description": "",
   "main": "bot.js",
   "dependencies": {
+    "@nastyox/rando.js": "^2.0.5",
     "axios": "^0.20.0",
     "child_process": "^1.0.2",
     "jsonwebtoken": "^8.5.1",
@@ -12,7 +13,6 @@
     "twitch-pubsub-client": "^4.5.5",
     "ws": "^7.3.1"
   },
-  "devDependencies": {},
   "scripts": {
     "start": "node bot.js",
     "test": "echo \"Error: no test specified\" && exit 1"
