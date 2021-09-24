@@ -30,6 +30,7 @@ let playRandomVideo = async (twitchContext) => {
     let url = enabledVideos[n].url;
     let mediaName = enabledVideos[n].name;
     let chromaKey = enabledVideos[n].chromaKey;
+    let volume = enabledVideos[n].volume;
 
     if (requestMatch) {
         let found = enabledVideos.filter((element) => {
@@ -40,11 +41,16 @@ let playRandomVideo = async (twitchContext) => {
             url = found[0].url;
             mediaName = found[0].name;
             chromaKey = found[0].chromaKey;
+            volume = found[0].volume;
         }
     }
 
     await removeGold(twitchContext.username, 500);
     EventQueue.sendInfoToChat(`${twitchContext.username} redeemed a video for 500g.`);
+
+    if (!volume) {
+        volume = 1.0;
+    }
 
     EventQueue.sendEvent({
         type: "RANDOM_CUSTOM_VIDEO",
@@ -54,6 +60,7 @@ let playRandomVideo = async (twitchContext) => {
             mediaName,
             url,
             chromaKey,
+            volume,
             results: {}
         }
     });
@@ -68,6 +75,7 @@ let playRandomSound = async (twitchContext) => {
     let n = Math.floor((Math.random() * enabledAudio.length));
     let url = enabledAudio[n].url;
     let mediaName = enabledAudio[n].name;
+    let volume = enabledAudio[n].volume;
 
     if (requestMatch) {
         let found = enabledAudio.filter((element) => {
@@ -77,11 +85,16 @@ let playRandomSound = async (twitchContext) => {
         if (found && found.length > 0) {
             url = found[0].url;
             mediaName = found[0].name;
+            volume = found[0].volume;
         }
     } 
 
     await removeGold(twitchContext.username, 100);
     EventQueue.sendInfoToChat(`${twitchContext.username} redeemed a sound for 100g`);
+
+    if (!volume) {
+        volume = 1.0;
+    }
 
     EventQueue.sendEvent({
         type: "CUSTOM_RANDOM_SOUND",
@@ -90,6 +103,7 @@ let playRandomSound = async (twitchContext) => {
             requester: twitchContext.username,
             mediaName,
             url,
+            volume,
             results: {}
         }
     });
@@ -244,6 +258,11 @@ exports.redemptionHook = async (rewardName, userName, userId) => {
         let n = Math.floor((Math.random() * enabledAudio.length));
         let url = enabledAudio[n].url;
         let mediaName = enabledAudio[n].name;
+        let volume = enabledAudio[n].volume;
+
+        if (!volume) {
+            volume = 1.0;
+        }
 
         EventQueue.sendEvent({
             type: "CUSTOM_RANDOM_SOUND",
@@ -252,6 +271,7 @@ exports.redemptionHook = async (rewardName, userName, userId) => {
                 requester: userName,
                 mediaName,
                 url,
+                volume,
                 results: {}
             }
         });
@@ -269,6 +289,11 @@ exports.redemptionHook = async (rewardName, userName, userId) => {
         let url = enabledVideos[n].url;
         let mediaName = enabledVideos[n].name;
         let chromaKey = enabledVideos[n].chromaKey;
+        let volume = enabledVideos[n].volume;
+
+        if (!volume) {
+            volume = 1.0;
+        }
 
         EventQueue.sendEvent({
             type: "RANDOM_CUSTOM_VIDEO",
@@ -278,6 +303,7 @@ exports.redemptionHook = async (rewardName, userName, userId) => {
                 mediaName,
                 url,
                 chromaKey,
+                volume,
                 results: {}
             }
         });
