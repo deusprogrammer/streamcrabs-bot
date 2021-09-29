@@ -4,6 +4,8 @@ const WebSocket = require('ws');
 const Xhr = require('./components/base/xhr');
 const EventQueue = require('./components/base/eventQueue');
 
+const readline = require('readline');
+
 const cbdPlugin = require('./botPlugins/cbd');
 const requestPlugin = require('./botPlugins/requests');
 const deathCounterPlugin = require('./botPlugins/deathCounter');
@@ -19,6 +21,7 @@ const versionNumber = "2.0b";
 
 let botConfig = {};
 let client = {};
+let devMode = process.argv.includes("--dev-mode");
 
 // Various config values that can be changed on the fly
 let configTable = {
@@ -46,6 +49,13 @@ const startBot = async () => {
             ]
         };
 
+        if (devMode) {
+            opts["connection"] = {
+                secure: true,
+		        server: 'irc.fdgt.dev'
+            }
+        }
+
         console.log("* Retrieved bot config");
 
         // Create a client with our options
@@ -54,6 +64,8 @@ const startBot = async () => {
         // Register our event handlers (defined below)
         client.on('message', onMessageHandler);
         client.on('connected', onConnectedHandler);
+        client.on("raided", onRaid);
+        client.on("join", onJoin);
 
         // Connect to Twitch:
         client.connect();
@@ -66,6 +78,42 @@ startBot();
 let commands = {...cbdPlugin.commands, ...deathCounterPlugin.commands, ...requestPlugin.commands, ...cameraObscuraPlugin.commands};
 let plugins = [cbdPlugin, deathCounterPlugin, requestPlugin, cameraObscuraPlugin];
 
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    terminal: true
+});
+
+rl.on('line', onConsoleCommand);
+
+async function onConsoleCommand(command) {
+    client.say(botContext.botConfig.twitchChannel, command);
+}
+
+async function onRaid(channel, username, viewers) {
+    console.log("RAID DETECTED: " + channel + ":" + username + ":" + viewers);
+    let raidContext = {channel, username, viewers};
+
+    // Run raid function of each plugin
+    for (let plugin of plugins) {
+        if (plugin.raidHook) {
+            plugin.raidHook(raidContext, botContext);
+        }
+    }
+}
+
+async function onJoin(channel, username, self) {
+    console.log("USER JOINED CHAT: " + channel + ":" + username);
+    let joinedContext = {channel, username};
+
+    // Run joined function of each plugin
+    for (let plugin of plugins) {
+        if (plugin.joinHook) {
+            plugin.joinHook(joinedContext, botContext);
+        }
+    }
+}
+
 // Called every time a message comes in
 async function onMessageHandler(target, context, msg, self) {
     if (self) { return; } // Ignore messages from the bot
@@ -74,6 +122,9 @@ async function onMessageHandler(target, context, msg, self) {
     if (chattersActive[context.username]) {
         chattersActive[context.username] = 10 * 12;
     }
+
+    console.log("CONTEXT: " + JSON.stringify(context, null, 5));
+    console.log("MSG:     " + msg);
 
     const caller = {
         id: context["user-id"],
@@ -131,6 +182,9 @@ async function onMessageHandler(target, context, msg, self) {
 // Called every time the bot connects to Twitch chat
 async function onConnectedHandler(addr, port) {
     console.log(`* Connected to ${addr}:${port}`);
+    if (devMode) {
+        console.log("* RUNNING IN DEV MODE");
+    }
     console.log("COMMANDS: ");
     for (let command in commands) {
         console.log(command);
@@ -140,7 +194,7 @@ async function onConnectedHandler(addr, port) {
 
     // Initialize all plugins
     for (let plugin of plugins) {
-        plugin.init(botContext, EventQueue);
+        plugin.init(botContext);
     }
 
     // Start queue consumer

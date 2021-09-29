@@ -15,6 +15,7 @@
   },
   "scripts": {
     "start": "node bot.js",
+    "dev": "node bot.js --dev-mode",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",

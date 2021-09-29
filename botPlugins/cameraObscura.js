@@ -245,6 +245,12 @@ exports.commands = {
 exports.init = async (botContext) => {}
 exports.bitsHook = async (bits, message, userName, userId) => {}
 exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, monthsSubbed) => {}
+exports.raidHook = async (raidContext, botContext) => {
+    console.log("RAID");
+}
+exports.joinHook = async (joinContext, botContext) => {
+    console.log("JOIN");
+}
 exports.redemptionHook = async (rewardName, userName, userId) => {
     if (rewardName.toUpperCase() === "PLAY RANDOM SOUND") {
         if (!EventQueue.isPanelInitialized("SOUND_PLAYER")) {
