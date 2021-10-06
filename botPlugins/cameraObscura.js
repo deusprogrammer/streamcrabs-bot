@@ -20,6 +20,23 @@ let removeGold = async (username, amount) => {
     await Xhr.updateUser(user);
 }
 
+let speak = async (twitchContext) => {
+    let requestMatch = twitchContext.command.match(/!rewards:redeem:speak (.*)/);
+
+    await removeGold(twitchContext.username, 50);
+    EventQueue.sendInfoToChat(`${twitchContext.username} redeemed speak for 50g.`);
+
+    EventQueue.sendEvent({
+        type: "TTS",
+        targets: ["panel"],
+        eventData: {
+            requester: twitchContext.username,
+            text: requestMatch[1],
+            results: {}
+        }
+    });
+}
+
 let playRandomVideo = async (twitchContext) => {
     let requestMatch = twitchContext.command.match(/!rewards:redeem:video (.*)/);
     let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
@@ -133,6 +150,18 @@ exports.commands = {
         }
 
         await playRandomSound(twitchContext);
+    },
+    "!rewards:redeem:speak": async (twitchContext, botContext) => {
+        if (!botContext.botConfig.config.rewards) {
+            throw "This channel does not have this command enabled";
+        }
+
+        if (!EventQueue.isPanelInitialized("TTS")) {
+            EventQueue.sendInfoToChat("TTS panel is not available for this stream");
+            return;
+        }
+
+        await speak(twitchContext);
     },
     "!rewards:list": async (twitchContext, botContext) => {
         EventQueue.sendInfoToChat("The rewards are sound(100g), video(500g)");
