@@ -246,7 +246,16 @@ exports.init = async (botContext) => {}
 exports.bitsHook = async (bits, message, userName, userId) => {}
 exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, monthsSubbed) => {}
 exports.raidHook = async (raidContext, botContext) => {
-    console.log("RAID");
+    console.log("RAID DETECTED (CO): " + raidContext.channel + ":" + raidContext.username + ":" + raidContext.viewers);
+    EventQueue.sendEvent({
+        type: "RAID",
+        targets: ["panel"],
+        eventData: {
+            results: {},
+            raider: raidContext.username,
+            raidSize: raidContext.viewers
+        }
+    });
 }
 exports.joinHook = async (joinContext, botContext) => {
     console.log("JOIN");
