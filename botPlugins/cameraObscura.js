@@ -275,7 +275,10 @@ exports.init = async (botContext) => {}
 exports.bitsHook = async (bits, message, userName, userId) => {}
 exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, monthsSubbed) => {}
 exports.raidHook = async (raidContext, botContext) => {
-    console.log("RAID DETECTED (CO): " + raidContext.channel + ":" + raidContext.username + ":" + raidContext.viewers);
+    if (!botContext.botConfig.config.raid) {
+        throw "This channel does not have this command enabled";
+    }
+    
     EventQueue.sendEvent({
         type: "RAID",
         targets: ["panel"],
