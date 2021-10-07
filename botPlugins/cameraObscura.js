@@ -276,7 +276,7 @@ exports.bitsHook = async (bits, message, userName, userId) => {}
 exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, monthsSubbed) => {}
 exports.raidHook = async (raidContext, botContext) => {
     if (!botContext.botConfig.config.raid) {
-        throw "This channel does not have this command enabled";
+        return;
     }
     
     EventQueue.sendEvent({
