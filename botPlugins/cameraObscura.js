@@ -284,6 +284,7 @@ exports.raidHook = async (raidContext, botContext) => {
         targets: ["panel"],
         eventData: {
             results: {},
+            raidTheme: botContext.botConfig.raidTheme,
             raider: raidContext.username,
             raidSize: raidContext.viewers
         }
