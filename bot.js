@@ -13,7 +13,7 @@ const cameraObscuraPlugin = require('./botPlugins/cameraObscura');
 
 const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
-const versionNumber = "2.7b";
+const versionNumber = "2.9b";
 
 /*
  * INDEXES
@@ -66,6 +66,10 @@ const startBot = async () => {
         client.on('connected', onConnectedHandler);
         client.on("raided", onRaid);
         client.on("join", onJoin);
+        // client.on("cheer", onCheer);
+        // client.on("subscription", onSub);
+        // client.on("subgift", onSubGift);
+        // client.on("submysterygift", onSubMysteryGift);
 
         // Connect to Twitch:
         client.connect();
@@ -110,6 +114,46 @@ async function onJoin(channel, username, self) {
     for (let plugin of plugins) {
         if (plugin.joinHook) {
             plugin.joinHook(joinedContext, botContext);
+        }
+    }
+}
+
+async function onCheer(channel, userstate, message) {
+    console.log("USER CHEERED: " + JSON.stringify(userstate, null, 5));
+
+    for (let plugin of plugins) {
+        if (plugin.bitsHook) {
+            plugin.bitsHook(userstate.bits, message, userstate["display-name"], userstate["user-id"], null, botContext);
+        }
+    }
+}
+
+async function onSub(channel, username, method, message, userstate) {
+    console.log("USER SUBSCRIBE " + username + ": " + JSON.stringify(userstate, null, 5));
+
+    for (let plugin of plugins) {
+        if (plugin.subscriptionHook) {
+            plugin.subscriptionHook(null, null, userstate["display-name"], userstate["user-id"], userstate["msg-param-sub-plan"], 1, null, botContext);
+        }
+    }
+}
+
+async function onSubGift(channel, username, streakMonths, recipient, methods, userstate) {
+    console.log("USER SUBSCRIBE " + username + ": " + JSON.stringify(userstate, null, 5));
+
+    for (let plugin of plugins) {
+        if (plugin.subscriptionHook) {
+            plugin.subscriptionHook(username, userstate["user-id"], recipient, userstate["msg-param-recipient-id"], userstate["msg-param-sub-plan"], 1, null, botContext);
+        }
+    }
+}
+
+async function onSubMysteryGift(channel, username, numOfSubs, methods, userstate) {
+    console.log("USER SUBSCRIBE " + username + ": " + JSON.stringify(userstate, null, 5));
+
+    for (let plugin of plugins) {
+        if (plugin.subscriptionHook) {
+            plugin.subscriptionHook(username, userstate["user-id"], null, null, userstate["msg-param-sub-plan"] * numOfSubs, 1, null, botContext);
         }
     }
 }

@@ -35,8 +35,7 @@ const giveItem = async (giverName, username, itemId) => {
         throw `No item with item id ${itemId} found`;
     }
 
-    user.inventory.push(itemId);
-    await Xhr.updateUser(user);
+    await Xhr.giveItem(user, item.id);
 
     return {
         item,
@@ -73,14 +72,9 @@ const giveItemFromInventory = async (giverName, username, itemId) => {
         throw `${giverName} has no ${item.name} to give`;
     }
 
-    giver.inventory.splice(index, 1);
+    await Xhr.removeItem(user, item.id);
     if (username !== "miku_the_space_bot") {
-        user.inventory.push(itemId);
-    }
-
-    await Xhr.updateUser(giver);
-    if (username !== "miku_the_space_bot") {
-        await Xhr.updateUser(user);
+        await Xhr.giveItem(user, item.id);
     }
 
     return {
@@ -224,6 +218,9 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
     }
     resistance = (100 - (resistance * 5))/100;
 
+    let defenderAdjustments = {};
+    let attackerAdjustments = {};
+
     let attackRoll = Util.rollDice("1d20");
     let modifiedAttackRoll = attackRoll + attacker[ability.toHitStat.toLowerCase()] + ability.mods[ability.toHitStat.toLowerCase()] + attackerBuffs[ability.toHitStat.toLowerCase()];
     let damageRoll = Util.rollDice(ability.dmg, defender[ability.dmgStat.toLowerCase()]);
@@ -266,13 +263,7 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
         }
     }
 
-    // Get current, unexpanded version
-    if (!attacker.isMonster) {
-        attacker = await Xhr.getUser(attacker.name);
-    }
-    if (!defender.isMonster) {
-        defender = await Xhr.getUser(defender.name);
-    } else {
+    if (defender.isMonster) {
         if (!defender.aggro[attackerName]) {
             defender.aggro[attackerName] = 0;
         }
@@ -281,7 +272,7 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
 
     // Determine if proc damage occurs
     if (hit) {
-        defender[ability.dmgStat.toLowerCase()] -= modifiedDamageRoll;
+        defenderAdjustments[ability.dmgStat.toLowerCase()] = -modifiedDamageRoll;
 
         // If this ability does DOT, then add an entry to the dotTable
         if (ability.procTime > 0 && !dead) {
@@ -305,14 +296,17 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
         }
     }
 
+    // Add ap adjustment
+    attackerAdjustments.ap = -ability.ap;
+
     // Update attacker and target stats
     if (!attacker.isMonster) {
-        await Xhr.updateUser(attacker);
-        attacker = Util.expandUser(attacker, context);
+        console.log("ATTACKER ADJUSTMENTS: " + JSON.stringify(attackerAdjustments, null, 5));
+        await Xhr.adjustStats(attacker, attackerAdjustments);
     }
     if (!defender.isMonster && hit) {
-        await Xhr.updateUser(defender);
-        defender = Util.expandUser(defender, context);
+        console.log("DEFENSE ADJUSTMENTS: " + JSON.stringify(defenderAdjustments, null, 5));
+        await Xhr.adjustStats(defender, defenderAdjustments);
     }
 
     // Send messages for damage dealing
@@ -636,38 +630,21 @@ const heal = async (attackerName, defenderName, ability, context) => {
     //     throw `${ability.name} cannot target monsters`;
     // }
 
-    var healingAmount = Math.max(1, Util.rollDice(ability.dmg));
+    let maxHeal = defender.maxHp - defender.hp;
+    let healingAmount = Math.max(1, Util.rollDice(ability.dmg));
+    healingAmount = Math.min(maxHeal, healingAmount);
 
-    let newValue = 0;
-    
-    if (ability.dmgStat === "AP") {
-        newValue = defender.ap + healingAmount;
-    } else if (ability.dmgStat === "Gold") {
-        newValue = defender.gold + healingAmount;
-    } else {
-        newValue = Math.min(defender.maxHp, defender.hp + healingAmount);
-    }
-
-    // Get current, unexpanded version
-    if (!attacker.isMonster) {
-        attacker = await Xhr.getUser(attacker.name);
-    }
-    if (!defender.isMonster) {
-        defender = await Xhr.getUser(defender.name);
-    } else {
-        defender.aggro[attackerName] += damageRoll;
-    }
-
-    defender[ability.dmgStat.toLowerCase()] = newValue;
+    attackerAdjustments.ap = -ability.ap;
+    defenderAdjustments[ability.dmgStat.toLowerCase()] = healingAmount;
 
     // Update attacker and target stats
     if (!attacker.isMonster) {
-        await Xhr.updateUser(attacker);
-        attacker = Util.expandUser(attacker, context);
+        console.log("ATTACKER ADJUSTMENTS: " + JSON.stringify(attackerAdjustments, null, 5));
+        await Xhr.adjustStats(attacker, attackerAdjustments);
     }
     if (!defender.isMonster) {
-        await Xhr.updateUser(defender);
-        defender = Util.expandUser(defender, context);
+        console.log("DEFENDER ADJUSTMENTS: " + JSON.stringify(defenderAdjustments, null, 5));
+        await Xhr.adjustStats(defender, defenderAdjustments);
     }
 
     await EventQueue.sendEvent({
@@ -724,25 +701,18 @@ const attack = async (attackerName, defenderName, context) => {
         }
     }, context);
 
-    if (!attacker.isMonster) {
-        let basicUser = Xhr.getUser(attackerName);
-        basicUser.ap -= 1;
-        Xhr.updateUser(basicUser);
-    }
-
     return results;
 }
 
-const use = async (attackerName, defenderName, abilityName, pluginContext) => {
+const use = async (attackerName, defenderName, ability, pluginContext) => {
     let encounterTable = pluginContext.encounterTable;
     let targets = await Xhr.getActiveUsers(pluginContext);
     let aliveMonsters = Object.keys(encounterTable).map(monster => "~" + monster);
-    let ability = pluginContext.abilityTable[abilityName];
 
     let attacker = await getTarget(attackerName, pluginContext);
 
     if (!ability) {
-        throw `Ability named ${abilityName} doesn't exist.`;
+        throw `Ability named ${ability.name} doesn't exist.`;
     }
 
     // Temporary patch until values are changed in UI and DB.
@@ -756,7 +726,7 @@ const use = async (attackerName, defenderName, abilityName, pluginContext) => {
     let abilityTargets = [];
     if (!defenderName) {
         if (ability.area === "ONE" && ability.target !== "FRIENDLY") {
-            throw `${abilityName} cannot target all opponents.  You must specify a target.`;
+            throw `${ability.name} cannot target all opponents.  You must specify a target.`;
         } else if (ability.area === "ONE" && ability.target === "FRIENDLY") {
             abilityTargets = [attackerName];
         } else if (ability.area == "ALL" && ability.target === "ENEMY") {
@@ -776,7 +746,7 @@ const use = async (attackerName, defenderName, abilityName, pluginContext) => {
         }
     } else {
         if (ability.area === "ALL") {
-            throw `${abilityName} cannot target just one opponent.`;
+            throw `${ability.name} cannot target just one opponent.`;
         }
 
         abilityTargets = [defenderName];

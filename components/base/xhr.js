@@ -68,42 +68,6 @@ const updateMonster = async (monster) => {
     })
 }
 
-const adjustPlayer = async (username, statUpdates, newInventory, newEquipment, context) => {
-    let user = {};
-
-    if (username.startsWith("~")) {
-        user = context.encounterTable[username];
-    } else {
-        user = await getUser(username);
-    }
-
-    if (statUpdates.hp) {
-        user.hp += statUpdates.hp;
-    }
-
-    if (statUpdates.ap) {
-        user.ap += statUpdates.ap;
-    }
-
-    if (statUpdates.gold) {
-        user.gold += statUpdates.gold;
-    }
-
-    if (newInventory) {
-        user.inventory = [...user.inventory, ...newInventory];
-    }
-
-    if (newEquipment) {
-        for (const slot in Object.keys(newEquipment)) {
-            user.equipment[slot] = newEquipment[slot];
-        }
-    }
-
-    if (!username.startsWith("~")) {
-        await updateUser(user);
-    }
-}
-
 const getAbilityTable = () => {
     return axios.get(`${BATTLE_API_URL}/abilities`, {
         headers
@@ -176,8 +140,46 @@ const updateSealedItem = async (item) => {
     })
 }
 
-const updateUser = async (user) => {
-    await axios.put(`${BATTLE_API_URL}/users/${user.name}`, user, {
+const giveGold = async (user, currency, channel) => {
+    await axios.post(`${BATTLE_API_URL}/users/${user.name}/changes`, 
+        {
+            type: "give",
+            currency,
+            channel
+        }, {
+        headers,
+        maxBodyLength,
+        maxContentLength
+    });
+}
+
+const giveItem = async (user, id) => {
+    await axios.post(`${BATTLE_API_URL}/users/${user.name}/changes`, {
+        type: "give",
+        id
+    }, {
+        headers,
+        maxBodyLength,
+        maxContentLength
+    });
+}
+
+const removeItem = async (user, id) => {
+    await axios.post(`${BATTLE_API_URL}/users/${user.name}/changes`, {
+        type: "remove",
+        id
+    }, {
+        headers,
+        maxBodyLength,
+        maxContentLength
+    });
+}
+
+const adjustStats = async (user, adjustments) => {
+    await axios.post(`${BATTLE_API_URL}/users/${user.name}/changes`, {
+        type: "adjust",
+        adjustments
+    }, {
         headers,
         maxBodyLength,
         maxContentLength
@@ -185,21 +187,7 @@ const updateUser = async (user) => {
 }
 
 const addCurrency = async (user, amount) => {
-    // If currencies isn't defined, define it.
-    if (!user.currencies) {
-        user.currencies = {};
-    }
-
-    // If currency for this channel isn't defined, define it.
-    if (!user.currencies[TWITCH_EXT_CHANNEL_ID]) {
-        user.currencies[TWITCH_EXT_CHANNEL_ID] = 0;
-    }
-
-    // Increase currency
-    user.currencies[TWITCH_EXT_CHANNEL_ID] += amount;
-
-    // Save user
-    await updateUser(user);
+    giveGold(user, amount, TWITCH_EXT_CHANNEL_ID);
 }
 
 const createUser = async (userName, userId) => {
@@ -273,26 +261,21 @@ const createUser = async (userName, userId) => {
 }
 
 const chargeAP = async (userName, amount) => {
-    let user = await getUser(userName, false);
-
-    user.ap += amount;
-
-    await updateUser(user);
+    let adjustments = {ap: amount};
+    await adjustStats({name: userName}, adjustments);
 }
 
 const reviveAvatar = async (userName) => {
-    let user = await getUser(userName, false);
-
-    if (user.hp > 0) {
-        return;
-    }
-
-    user.hp = 100;
-
-    await updateUser(user);
+    let adjustments = {hp: 100};
+    
+    await adjustStats({name: userName}, adjustments);
 }
 
 module.exports = {
+    giveGold,
+    giveItem,
+    removeItem,
+    adjustStats,
     getVideo,
     getUser,
     getItem,
@@ -303,9 +286,7 @@ module.exports = {
     getJobTable,
     getMonsterTable,
     getAbilityTable,
-    adjustPlayer,
     addCurrency,
-    updateUser,
     updateMonster,
     createUser,
     chargeAP,

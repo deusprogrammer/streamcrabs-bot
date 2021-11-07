@@ -147,7 +147,7 @@ exports.commands = {
         }
     
         if (!isItem && !attacker.abilities[abilityName]) {
-            throw `${attackerName} doesn't have ability ${abilityName}.`;
+            throw `${attackerName} doesn't have ability ${ability.name}.`;
         }
     
         if (isItem) {
@@ -165,7 +165,7 @@ exports.commands = {
                 eventData: {
                     results: {
                         attacker: {},
-                        message: `${attackerName} uses ${abilityName}`
+                        message: `${attackerName} uses ${ability.name}`
                     },
                     encounterTable
                 }
@@ -184,28 +184,18 @@ exports.commands = {
             });
         }
 
-        await Commands.use(attackerName, defenderName, abilityName, pluginContext);
-
-        // Get basic user to update ap
-        let updatedAttacker = await Xhr.getUser(attackerName);
-
-        // Update ap
-        updatedAttacker.ap -= ability.ap;
+        await Commands.use(attackerName, defenderName, ability, pluginContext);
 
         // If item, remove from inventory
         if (isItem) {
-            foundIndex = updatedAttacker.inventory.findIndex(name => name === itemName);
-            updatedAttacker.inventory.splice(foundIndex, 1);
+            await Xhr.removeItem(user, itemName);
         }
-
-        // Get basic user to update
-        await Xhr.updateUser(updatedAttacker);
 
         // Set user cool down
         let currBuffs = Commands.createBuffMap(twitchContext.username, pluginContext);
         cooldownTable[twitchContext.username] = Math.min(11, 6 - Math.min(5, attacker.dex + currBuffs.dex));
 
-        sendContextUpdate([updatedAttacker], botContext, true);
+        //sendContextUpdate([updatedAttacker], botContext, true);
     },
     "!attack": async (twitchContext, botContext) => {
         if (!botContext.botConfig.config.cbd) {
@@ -340,8 +330,10 @@ exports.commands = {
             const items = Object.keys(itemTable).filter(name => itemTable[name].rarity < maxRarity);
             const foundItemKey = items[Util.randomNumber(items.length) - 1];
             const foundItem = itemTable[foundItemKey];
-
-            await Xhr.adjustPlayer(twitchContext.username, {ap: -apCost}, [foundItemKey]);
+            
+            let user = {name: twitchContext.username};
+            await Xhr.giveItem(user, foundItemKey);
+            await Xhr.adjustStats(user, {ap: -apCost});
 
             EventQueue.sendEvent({
                 type: "ITEM_GET",
@@ -382,7 +374,7 @@ exports.commands = {
         encounterTable[monster.spawnKey] = monster;
 
         // Expend AP
-        await Xhr.adjustPlayer(twitchContext.username, {ap: -apCost});
+        await Xhr.adjustStats({name: twitchContext.username}, {ap: -apCost});
 
         EventQueue.sendEvent({
             type: "SPAWN",
@@ -643,9 +635,9 @@ exports.init = async (botContext) => {
                         let damageRoll = Util.rollDice(effect.ability.dmg);
                 
                         if (!defender.isMonster) {
-                            let user = await Xhr.getUser(username);
-                            user[effect.ability.damageStat] -= damageRoll;
-                            await Xhr.updateUser(user);
+                            let adjustments = {};
+                            adjustments[effect.ability.damageStat] = - damageRoll;
+                            await Xhr.adjustStats({name: username}, adjustments);
 
                             sendContextUpdate([user], botContext, true);
                         } else {
@@ -768,7 +760,7 @@ exports.init = async (botContext) => {
                         if (triggeredAction !== "ATTACK" && ability.area === "ONE") {
                             EventQueue.sendInfoToChat(`${encounter.name} uses ${ability.name}`);
                             if (ability.target === "ENEMY") {
-                                await Commands.use("~" + encounterName, target, triggeredAction, pluginContext);
+                                await Commands.use("~" + encounterName, target, ability, pluginContext);
                             } else {
                                 if (ability.element === "HEALING") {
                                     let lowestHP = encounter;
@@ -781,14 +773,14 @@ exports.init = async (botContext) => {
                                         }
                                     }
 
-                                    await Commands.use("~" + encounterName, "~" + lowestHPKey, triggeredAction, pluginContext);
+                                    await Commands.use("~" + encounterName, "~" + lowestHPKey, ability, pluginContext);
                                 } else if (ability.element === "CLEANSING") {
                                     // TODO Add cleansing AI
                                 }
                             }
                         } else if (triggeredAction !== "ATTACK" && ability.area === "ALL") {
                             EventQueue.sendInfoToChat(`${encounter.name} uses ${ability.name}`);
-                            await Commands.use("~" + encounterName, null, triggeredAction, pluginContext);
+                            await Commands.use("~" + encounterName, null, ability, pluginContext);
                         } else {
                             await Commands.attack("~" + encounterName, target, pluginContext);
                         }
@@ -858,15 +850,6 @@ exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, mont
 
         if (!gifterUser) {
             gifterUser = await Xhr.createUser(gifter, gifterId);
-            EventQueue.sendEvent({
-                type: "INFO",
-                targets: ["chat"],
-                eventData: {
-                    results: {
-                        message: `@${gifter} created a battler.`
-                    }
-                }
-            });
         }
 
         if (tier !== "prime") {
@@ -878,7 +861,7 @@ exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, mont
             targets: ["chat"],
             eventData: {
                 results: {
-                    message: `@${gifter} got 1000 gold for gifting a sub.`
+                    message: `@${gifter} got got ${tier} gold for gifting a sub.`
                 }
             }
         });
@@ -888,15 +871,6 @@ exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, mont
 
     if (!gifteeUser) {
         gifteeUser = await Xhr.createUser(giftee, gifteeId);
-        EventQueue.sendEvent({
-            type: "INFO",
-            targets: ["chat"],
-            eventData: {
-                results: {
-                    message: `@${giftee} got 1000 gold for subscribing.`
-                }
-            }
-        });
     }
 
     if (tier !== "prime") {
@@ -908,7 +882,7 @@ exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, mont
         targets: ["chat"],
         eventData: {
             results: {
-                message: `@${giftee} got 1000 gold for subscribing.`
+                message: `@${giftee} got ${tier} gold for subscribing.`
             }
         }
     });

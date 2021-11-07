@@ -6,18 +6,7 @@ const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 let currentVideoId = null;
 
 let removeGold = async (username, amount) => {
-    let user = await Xhr.getUser(username);
-
-    if (!user) {
-        throw `${username} doesn't have a battler.  Please donate any number of bits to create one or use the channel point reward "Create Battler" if this channel supports it.`
-    }
-
-    if (!user.currencies || !user.currencies[TWITCH_EXT_CHANNEL_ID] || user.currencies[TWITCH_EXT_CHANNEL_ID] < amount) {
-        throw `You don't have enough gold.  This redemption is worth ${amount}g.  Use !rewards:gold to check your gold.`;
-    }
-    user.currencies[TWITCH_EXT_CHANNEL_ID] -= amount;
-
-    await Xhr.updateUser(user);
+    await Xhr.giveGold({name: username}, -amount, TWITCH_EXT_CHANNEL_ID);
 }
 
 let speak = async (twitchContext) => {
