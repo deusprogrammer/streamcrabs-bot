@@ -267,13 +267,17 @@ exports.raidHook = async (raidContext, botContext) => {
     if (!botContext.botConfig.config.raid) {
         return;
     }
+
+    const raidTheme = botContext.botConfig.raidConfig.theme;
+    const raidCustomTheme = await Xhr.getRaidAlert(botContext.botConfig.raidConfig.customId);
     
     EventQueue.sendEvent({
         type: "RAID",
         targets: ["panel"],
         eventData: {
             results: {},
-            raidTheme: botContext.botConfig.raidTheme,
+            raidTheme: raidTheme,
+            raidCustomTheme: raidCustomTheme,
             raider: raidContext.username,
             raidSize: raidContext.viewers
         }

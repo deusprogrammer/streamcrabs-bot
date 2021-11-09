@@ -271,7 +271,18 @@ const reviveAvatar = async (userName) => {
     await adjustStats({name: userName}, adjustments);
 }
 
+const getRaidAlert = async (id) => {
+    let found = await axios.get(`${BATTLE_API_URL}/raid-configs/${id}`, {
+        headers,
+        maxBodyLength,
+        maxContentLength
+    });
+
+    return found.data;
+}
+
 module.exports = {
+    getRaidAlert,
     giveGold,
     giveItem,
     removeItem,
