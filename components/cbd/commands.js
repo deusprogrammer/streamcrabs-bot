@@ -723,6 +723,17 @@ const attack = async (attackerName, defenderName, context) => {
 
     let weapon = attacker.equipment.hand;
 
+    // If no weapon equipped, fill an empty object
+    if (!weapon) {
+        weapon = {
+            name: "Bare Hands",
+            dmg: "1",
+            dmgStat: "hp",
+            toHitStat: "hit",
+            triggers: []
+        }
+    }
+
     let results = await hurt(attackerName, defenderName, {
         name: "attack",
         dmg: weapon.dmg,
