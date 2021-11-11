@@ -74,6 +74,7 @@ const expandUser = (userData, context) => {
     userData.maxHp = userData.currentJob.hp;
     userData.abilities = {};
     userData.resistances = {};
+    userData.unlocks = [];
     Object.keys(userData.equipment).forEach((slot) => {
         let item = userData.equipment[slot];
         let itemData = context.itemTable[item.id];
@@ -94,6 +95,10 @@ const expandUser = (userData, context) => {
         userData.resistances.earth      += itemData.resistances.earth;
         userData.resistances.light      += itemData.resistances.light;
         userData.resistances.dark       += itemData.resistances.dark;
+
+        itemData.unlocks.forEach((unlock) => {
+            userData.unlocks.push(unlock);
+        });
 
         itemData.abilities.forEach((abilityId) => {
             userData.abilities[abilityId] = context.abilityTable[abilityId];

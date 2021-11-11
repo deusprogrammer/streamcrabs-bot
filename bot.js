@@ -179,7 +179,7 @@ async function onMessageHandler(target, context, msg, self) {
     const command = msg.trim();
 
     // Handle battle commands here
-    if (command.startsWith("!")) {
+    if (command.startsWith("!") || command.startsWith("$")) {
         context.command = command;
         context.tokens = command.split(" ");
         context.caller = caller;

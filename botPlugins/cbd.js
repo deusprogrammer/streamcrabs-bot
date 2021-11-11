@@ -16,6 +16,26 @@ let dotTable = {};
 
 let pluginContext = {};
 
+let speak = async (twitchContext) => {
+    let requestMatch = twitchContext.command.match(/\$speak (.*)/);
+
+    if (!requestMatch) {
+        throw "Speak command must include message";
+    }
+
+    EventQueue.sendInfoToChat(`${twitchContext.username} used $speak.`);
+
+    EventQueue.sendEvent({
+        type: "TTS",
+        targets: ["panel"],
+        eventData: {
+            requester: twitchContext.username,
+            text: requestMatch[1],
+            results: {}
+        }
+    });
+}
+
 let sendContextUpdate = async (targets, botContext, shouldRefresh = false) => {
     let players = await Xhr.getActiveUsers(botContext);
     
@@ -550,6 +570,36 @@ exports.commands = {
                 encounterTable
             }
         });
+    },
+    "$listen": async (twitchContext, botContext) => {
+        let user = await Xhr.getUser(twitchContext.username);
+        user = Util.expandUser(user, pluginContext);
+
+        if (!user.unlocks.includes("$listen")) {
+            throw `${twitchContext.username} doesn't have ability $speak.`
+        }
+
+        let videoList = botContext.botConfig.videoPool.map((video) => {
+            return `"${video.name}""`;
+        }).join(", ");
+
+        let audioList = botContext.botConfig.audioPool.map((audio) => {
+            return `"${audio.name}"`;
+        }).join(", ");
+
+        botContext.client.whisper(twitchContext.username, `You hear a gentle whisper in your ear...`);
+        botContext.client.whisper(twitchContext.username, `The available video names are: ${videoList}.`);
+        botContext.client.whisper(twitchContext.username, `The available audio names are: ${audioList}.`);
+    },
+    "$speak": async (twitchContext, botContext) => {
+        let user = await Xhr.getUser(twitchContext.username);
+        user = Util.expandUser(user, pluginContext);
+
+        if (!user.unlocks.includes("$speak")) {
+            throw `${twitchContext.username} doesn't have ability $speak.`
+        }
+
+        await speak(twitchContext);
     }
 }
 

@@ -6,11 +6,21 @@ const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 let currentVideoId = null;
 
 let removeGold = async (username, amount) => {
+    let user = await Xhr.getUser(username);
+
+    if (!user.currencies[TWITCH_EXT_CHANNEL_ID] || user.currencies[TWITCH_EXT_CHANNEL_ID] < amount) {
+        throw `${username} doesn't have ${amount} gold`;
+    }
+
     await Xhr.giveGold({name: username}, -amount, TWITCH_EXT_CHANNEL_ID);
 }
 
 let speak = async (twitchContext) => {
     let requestMatch = twitchContext.command.match(/!rewards:redeem:speak (.*)/);
+
+    if (!requestMatch) {
+        throw "Speak command must include message";
+    }
 
     await removeGold(twitchContext.username, 50);
     EventQueue.sendInfoToChat(`${twitchContext.username} redeemed speak for 50g.`);
