@@ -191,6 +191,10 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
         throw `@${attackerName} is dead and cannot perform any actions.`;
     }
 
+    if (!attacker.isMonster && attacker.ap < ability.ap) {
+        throw `@${attackerName} needs ${ability.ap} to use ${ability.name}.`;
+    }
+
     let defender = await getTarget(defenderName, context);
 
     if (defender && !targets.includes(defenderName) && !defender.isMonster) {
@@ -299,14 +303,21 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
     // Add ap adjustment
     attackerAdjustments.ap = -ability.ap;
 
-    // Update attacker and target stats
+    // Update attacker stats
     if (!attacker.isMonster) {
         console.log("ATTACKER ADJUSTMENTS: " + JSON.stringify(attackerAdjustments, null, 5));
         await Xhr.adjustStats(attacker, attackerAdjustments);
     }
+
+    // Update defender stats
     if (!defender.isMonster && hit) {
         console.log("DEFENSE ADJUSTMENTS: " + JSON.stringify(defenderAdjustments, null, 5));
         await Xhr.adjustStats(defender, defenderAdjustments);
+    } else if (defender.isMonster && hit) {
+        console.log("DEFENSE ADJUSTMENTS: " + JSON.stringify(defenderAdjustments, null, 5));
+        if (ability.dmgStat.toLowerCase() === "hp") {
+            defender[ability.dmgStat.toLowerCase()] += defenderAdjustments[ability.dmgStat.toLowerCase()];
+        }
     }
 
     // Send messages for damage dealing
@@ -461,6 +472,10 @@ const buff = async (attackerName, defenderName, ability, context) => {
         throw `@${attackerName} is dead and cannot perform any actions.`;
     }
 
+    if (!attacker.isMonster && attacker.ap < ability.ap) {
+        throw `@${attackerName} needs ${ability.ap} to use ${ability.name}.`;
+    }
+
     let defender = await getTarget(defenderName, context);
 
     // if (ability.target === "ENEMY" && !defender.isMonster) {
@@ -506,6 +521,11 @@ const buff = async (attackerName, defenderName, ability, context) => {
     }
     context.buffTable[defenderName] = existingBuffs;
 
+    // Adjust attacker ap if player
+    if (!attacker.isMonster) {
+        await Xhr.adjustStats(attacker, {ap: -ability.ap});
+    }
+
     await EventQueue.sendEvent({
         type: "HEALING",
         targets: ["chat", "panel"],
@@ -545,6 +565,11 @@ const cleanse = async (attackerName, defenderName, ability, context) => {
         throw `@${attackerName} is dead and cannot perform any actions.`;
     }
 
+    // Check is user has enough ap
+    if (!attacker.isMonster && attacker.ap < ability.ap) {
+        throw `@${attackerName} needs ${ability.ap} to use ${ability.name}.`;
+    }
+
     let defender = await getTarget(defenderName, context);
 
     // if (ability.target === "ENEMY" && !defender.isMonster) {
@@ -571,6 +596,11 @@ const cleanse = async (attackerName, defenderName, ability, context) => {
         context.dotTable[defenderName] = dots.filter(dot => dot.ability.id !== effectToRemove);
         context.buffTable[defenderName] = buffs.filter(buff => buff.id === effectToRemove);
     })
+
+    // Adjust attacker ap if player
+    if (!attacker.isMonster) {
+        await Xhr.adjustStats(attacker, {ap: -ability.ap});
+    }
 
     let message = '';
     if (effectsRemoved.length < 1) {
@@ -622,6 +652,10 @@ const heal = async (attackerName, defenderName, ability, context) => {
         throw `@${attackerName} is dead and cannot perform any actions.`;
     }
 
+    if (!attacker.isMonster && attacker.ap < ability.ap) {
+        throw `@${attackerName} needs ${ability.ap} to use ${ability.name}.`;
+    }
+
     let defender = await getTarget(defenderName, context);
 
     // if (ability.target === "ENEMY" && !defender.isMonster) {
@@ -630,9 +664,13 @@ const heal = async (attackerName, defenderName, ability, context) => {
     //     throw `${ability.name} cannot target monsters`;
     // }
 
-    let maxHeal = defender.maxHp - defender.hp;
+    let defenderAdjustments = {};
+    let attackerAdjustments = {};
     let healingAmount = Math.max(1, Util.rollDice(ability.dmg));
-    healingAmount = Math.min(maxHeal, healingAmount);
+    if (ability.dmgStat.toLowerCase === "hp") {
+        let maxHeal = defender.maxHp - defender.hp;
+        healingAmount = Math.min(maxHeal, healingAmount);
+    }
 
     attackerAdjustments.ap = -ability.ap;
     defenderAdjustments[ability.dmgStat.toLowerCase()] = healingAmount;
@@ -645,6 +683,11 @@ const heal = async (attackerName, defenderName, ability, context) => {
     if (!defender.isMonster) {
         console.log("DEFENDER ADJUSTMENTS: " + JSON.stringify(defenderAdjustments, null, 5));
         await Xhr.adjustStats(defender, defenderAdjustments);
+    } else {
+        console.log("DEFENSE ADJUSTMENTS: " + JSON.stringify(defenderAdjustments, null, 5));
+        if (ability.dmgStat.toLowerCase() === "hp") {
+            defender[ability.dmgStat.toLowerCase()] += defenderAdjustments[ability.dmgStat.toLowerCase()];
+        }
     }
 
     await EventQueue.sendEvent({
@@ -677,10 +720,6 @@ const heal = async (attackerName, defenderName, ability, context) => {
 
 const attack = async (attackerName, defenderName, context) => {
     let attacker = await getTarget(attackerName, context);
-
-    if (Math.max(0, attacker.ap) <= 1) {
-        throw `@${attackerName} needs 1 AP to use this ability.`;
-    }
 
     let weapon = attacker.equipment.hand;
 
@@ -768,31 +807,31 @@ const use = async (attackerName, defenderName, ability, pluginContext) => {
             results = await hurt(attackerName, abilityTarget, ability, pluginContext);
         }
 
-        // Announce results of attack
-        if (results.damageType === "HEALING") {
+        // // Announce results of attack
+        // if (results.damageType === "HEALING") {
             
-        } else if (results.damageType === "BUFFING") {
+        // } else if (results.damageType === "BUFFING") {
             
-        } else if (results.damageType === "CLEANSING") {
+        // } else if (results.damageType === "CLEANSING") {
 
-        } else if (
-                results.damageType !== "HEALING" &&
-                results.damageType !== "BUFFING" && 
-                results.damageType !== "CLEANSING" && 
-                results.flags.hit) {
+        // } else if (
+        //         results.damageType !== "HEALING" &&
+        //         results.damageType !== "BUFFING" && 
+        //         results.damageType !== "CLEANSING" && 
+        //         results.flags.hit) {
             
-        } else if (
-            results.damageType !== "HEALING" &&
-            results.damageType !== "BUFFING" &&
-            results.damageType !== "CLEANSING" && 
-            !results.flags.hit
-        ) {
+        // } else if (
+        //     results.damageType !== "HEALING" &&
+        //     results.damageType !== "BUFFING" &&
+        //     results.damageType !== "CLEANSING" && 
+        //     !results.flags.hit
+        // ) {
 
-        }
+        // }
 
-        if (results.flags.dead) {
+        // if (results.flags.dead) {
 
-        }
+        // }
     }
 }
 

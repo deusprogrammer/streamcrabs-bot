@@ -13,7 +13,7 @@ const cameraObscuraPlugin = require('./botPlugins/cameraObscura');
 
 const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
-const versionNumber = "2.9b";
+const versionNumber = "3.0b";
 
 /*
  * INDEXES

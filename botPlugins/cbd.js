@@ -188,7 +188,7 @@ exports.commands = {
 
         // If item, remove from inventory
         if (isItem) {
-            await Xhr.removeItem(user, itemName);
+            await Xhr.removeItem({name: attackerName}, itemName);
         }
 
         // Set user cool down
