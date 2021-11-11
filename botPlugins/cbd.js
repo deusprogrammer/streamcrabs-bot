@@ -572,6 +572,10 @@ exports.commands = {
         });
     },
     "$listen": async (twitchContext, botContext) => {
+        if (!botContext.botConfig.config.cbd) {
+            throw "This channel does not have this command enabled";
+        }
+
         let user = await Xhr.getUser(twitchContext.username);
         user = Util.expandUser(user, pluginContext);
 
@@ -592,6 +596,10 @@ exports.commands = {
         botContext.client.whisper(twitchContext.username, `The available audio names are: ${audioList}.`);
     },
     "$speak": async (twitchContext, botContext) => {
+        if (!botContext.botConfig.config.cbd) {
+            throw "This channel does not have this command enabled";
+        }
+        
         let user = await Xhr.getUser(twitchContext.username);
         user = Util.expandUser(user, pluginContext);
 
