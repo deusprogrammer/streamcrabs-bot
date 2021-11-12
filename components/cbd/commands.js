@@ -192,7 +192,7 @@ const hurt = async (attackerName, defenderName, ability, context, isTrigger = fa
     }
 
     if (!attacker.isMonster && attacker.ap < ability.ap) {
-        throw `@${attackerName} needs ${ability.ap} to use ${ability.name}.`;
+        throw `@${attackerName} needs ${ability.ap} AP to use ${ability.name}.`;
     }
 
     let defender = await getTarget(defenderName, context);
@@ -567,7 +567,7 @@ const cleanse = async (attackerName, defenderName, ability, context) => {
 
     // Check is user has enough ap
     if (!attacker.isMonster && attacker.ap < ability.ap) {
-        throw `@${attackerName} needs ${ability.ap} to use ${ability.name}.`;
+        throw `@${attackerName} needs ${ability.ap} AP to use ${ability.name}.`;
     }
 
     let defender = await getTarget(defenderName, context);
@@ -653,7 +653,7 @@ const heal = async (attackerName, defenderName, ability, context) => {
     }
 
     if (!attacker.isMonster && attacker.ap < ability.ap) {
-        throw `@${attackerName} needs ${ability.ap} to use ${ability.name}.`;
+        throw `@${attackerName} needs ${ability.ap} AP to use ${ability.name}.`;
     }
 
     let defender = await getTarget(defenderName, context);

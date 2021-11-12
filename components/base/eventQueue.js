@@ -279,7 +279,7 @@ let startEventListener = async (botContext) => {
             // Handle different events that pertain to the bot's personality
             // await mikuEventHandler(eventContext.botContext.client, event);
         }
-    }, 500);
+    }, 2500);
 }
 
 const isPanelInitialized = (panelName) => {
