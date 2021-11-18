@@ -279,7 +279,14 @@ exports.raidHook = async (raidContext, botContext) => {
     }
 
     const raidTheme = botContext.botConfig.raidConfig.theme;
-    const raidCustomTheme = await Xhr.getRaidAlert(botContext.botConfig.raidConfig.customId);
+    const customId = botContext.botConfig.raidConfig.customId;
+
+    console.log("ID: " + customId);
+
+    let raidCustomTheme = null;
+    if (customId) {
+        raidCustomTheme = await Xhr.getRaidAlert(customId);
+    }
     
     EventQueue.sendEvent({
         type: "RAID",
