@@ -1,10 +1,9 @@
-const tmi = require('tmi.js');
-const WebSocket = require('ws');
-
 const Xhr = require('./components/base/xhr');
 const EventQueue = require('./components/base/eventQueue');
 
-const readline = require('readline');
+const { StaticAuthProvider } = require('@twurple/auth');
+const { ChatClient } = require('@twurple/chat');
+const { PubSubClient } = require('@twurple/pubsub');
 
 const cbdPlugin = require('./botPlugins/cbd');
 const requestPlugin = require('./botPlugins/requests');
@@ -13,7 +12,7 @@ const cameraObscuraPlugin = require('./botPlugins/cameraObscura');
 
 const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
-const versionNumber = "3.0b";
+const versionNumber = "4.0b";
 
 /*
  * INDEXES
@@ -29,47 +28,217 @@ let configTable = {
     maxEncounters: 4
 };
 
-// Chatters that are available for battle
-let chattersActive = {};
+let cooldowns = {};
+let units = {
+    ms: 1,
+    s: 1000,
+    m: 60 * 1000,
+    h: 60 * 60 * 1000
+}
 
-let botContext = {};
+const performCustomCommand = (command, {type, coolDown, target}, botContext) => {
+    console.log("COOLDOWN LEFT: " + cooldowns[command] - Date.now());
+    if (cooldowns[command] && cooldowns[command] - Date.now() <= 0) {
+        console.log("COOLDOWN OVER");
+        delete cooldowns[command];
+    } else if (cooldowns[command] && cooldowns[command] - Date.now() > 0) {
+        throw "Custom command '" + command + "' is on cooldown until " + new Date(cooldowns[command]);
+    }
+
+    let match = coolDown.match(/(\d+)(ms|s|m|h)/);
+    if (!match) {
+        throw "Custom command has invalid cooldown string";
+    }
+
+    console.log("COOLDOWN PARSED: " + match[1] + " " + match[2]);
+
+    cooldowns[command] = Date.now() + parseInt(match[1]) * units[match[2]];
+
+    console.log("COOLDOWN ENDS AT: " + cooldowns[command]);
+
+    if (type === "VIDEO") {
+        let {url, volume, name, chromaKey} = botContext.botConfig.videoPool.find(video => video._id === target);
+
+        EventQueue.sendEvent({
+            type,
+            targets: ["panel"],
+            eventData: {
+                message: [''],
+                mediaName: name,
+                url,
+                chromaKey,
+                volume,
+                results: {}
+            }
+        });
+    } else if (type === "AUDIO") {
+        let {url, volume, name} = botContext.botConfig.audioPool.find(audio => audio._id === target);
+
+        EventQueue.sendEvent({
+            type,
+            targets: ["panel"],
+            eventData: {
+                message: [''],
+                mediaName: name,
+                url,
+                volume,
+                results: {}
+            }
+        });
+    }
+}
 
 // Define configuration options for chat bot
 const startBot = async () => {
     try {
         console.log("* Retrieving bot config");
         botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
-        const opts = {
-            identity: {
-                username: process.env.TWITCH_BOT_USER,
-                password: process.env.TWITCH_BOT_PASS
-            },
-            channels: [
-                botConfig.twitchChannel
-            ]
-        };
 
-        if (devMode) {
-            opts["connection"] = {
-                secure: true,
-		        server: 'irc.fdgt.dev'
-            }
-        }
+        let {accessToken, twitchChannel} = botConfig;
+        let botContext = {};
+        let chattersActive = {};
+
+        let plugins = [deathCounterPlugin, requestPlugin, cameraObscuraPlugin, cbdPlugin];
 
         console.log("* Retrieved bot config");
 
+        // Called every time a message comes in
+        const onMessageHandler = async (target, context, msg) => {
+            let commands = {};
+            plugins.forEach((plugin) => {
+                commands = {...commands, ...plugin.commands};
+            });
+
+            const caller = {
+                id: context["user-id"],
+                name: context.username
+            }
+
+            // Reset a players activity tick to a full 10 minutes before we check again
+            if (chattersActive[context.username]) {
+                chattersActive[context.username] = 10 * 12;
+            }
+
+            // Remove whitespace from chat message
+            const command = msg.trim();
+
+            // Handle battle commands here
+            if (command.startsWith("!")) {
+                context.command = command;
+                context.tokens = command.split(" ");
+                context.caller = caller;
+                context.target = target;
+
+                console.log("Received command!")
+                console.log("Tokens: " + context.tokens);
+
+                try {
+                    switch (context.tokens[0]) {
+                        case "!about":
+                            EventQueue.sendInfoToChat(`Chat battler dungeon version ${versionNumber} written by thetruekingofspace`);
+                            break;
+                        default:
+                            if (commands[context.tokens[0]]) {
+                                await commands[context.tokens[0]](context, botContext);
+                            } else if (botContext.botConfig.commands[context.tokens[0]]) {
+                                await performCustomCommand(context.tokens[0], botContext.botConfig.commands[context.tokens[0]], botContext);
+                            }
+                    }
+                } catch (e) {
+                    console.error(e.message + ": " + e.stack);
+                    EventQueue.sendErrorToChat(new Error(e));
+                }
+            }
+        }
+
+        // Called every time the bot connects to Twitch chat
+        const onConnectedHandler = async () => {
+            if (devMode) {
+                console.log("* RUNNING IN DEV MODE");
+            }
+            console.log("* Connected to Twitch chat");
+
+            botContext = {configTable, chattersActive, botConfig, plugins, client};
+
+            // Initialize all plugins
+            for (let plugin of plugins) {
+                plugin.init(botContext);
+            }
+
+            // Start queue consumer
+            await EventQueue.startEventListener(botContext);
+
+            // Announce restart
+            EventQueue.sendInfoToChat(`Twitch Dungeon version ${versionNumber} is online.  All systems nominal.`);
+        }
+        
+        const onRaid = async (channel, username, viewers) => {
+            let raidContext = {channel, username, viewers};
+        
+            // Run raid function of each plugin
+            for (let plugin of plugins) {
+                if (plugin.raidHook) {
+                    plugin.raidHook(raidContext, botContext);
+                }
+            }
+        }
+
+        const onSubscription = async (subMessage) => {
+            try {
+                // Run through subscription plugin hooks
+                for (let plugin of plugins) {
+                    if (plugin.subscriptionHook) {
+                        plugin.subscriptionHook(subMessage, botContext);
+                    }
+                }
+            } catch (error) {
+                console.error("SUB FAILURE: " + error);
+            }
+        } 
+
+        const onBits = async (bitsMessage) => {
+            try {
+                // Run through bit plugin hooks
+                for (let plugin of plugins) {
+                    if (plugin.bitsHook) {
+                        plugin.bitsHook(bitsMessage, botContext);
+                    }
+                }
+            } catch (error) {
+                console.error("BIT FAILURE: " + error);
+            }
+        }
+
+        const onRedemption = async (redemptionMessage) => {
+            try {
+                // Run through redemption plugin hooks
+                for (let plugin of plugins) {
+                    if (plugin.redemptionHook) {
+                        plugin.redemptionHook(redemptionMessage, botContext);
+                    }
+                }
+            } catch (error) {
+                console.error("REDEMPTION FAILURE: " + error);
+            }
+        }
+
         // Create a client with our options
-        client = new tmi.client(opts);
+        const authProvider = new StaticAuthProvider(process.env.TWITCH_CLIENT_ID, accessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"], "user");
+        client = new ChatClient({authProvider, channels: [twitchChannel]});
+        pubSubClient = new PubSubClient();
+        const userId = await pubSubClient.registerUserListener(authProvider);
 
         // Register our event handlers (defined below)
-        client.on('message', onMessageHandler);
-        client.on('connected', onConnectedHandler);
-        client.on("raided", onRaid);
-        client.on("join", onJoin);
-        // client.on("cheer", onCheer);
-        // client.on("subscription", onSub);
-        // client.on("subgift", onSubGift);
-        // client.on("submysterygift", onSubMysteryGift);
+        client.onMessage((channel, username, message) => {
+            onMessageHandler(channel, {username, id: ""}, message);
+        });
+        client.onConnect(onConnectedHandler);
+        client.onRaid((channel, username, {viewerCount}) => {onRaid(channel, username, viewerCount)});
+        await pubSubClient.onSubscription(userId, onSubscription);
+        await pubSubClient.onBits(userId, onBits);
+        await pubSubClient.onRedemption(userId, onRedemption);
+
+        console.log("* Connecting to Twitch chat")
 
         // Connect to Twitch:
         client.connect();
@@ -77,176 +246,10 @@ const startBot = async () => {
         console.error(`* Failed to start bot: ${error}`);
     }
 };
+
 startBot();
 
-let commands = {...cbdPlugin.commands, ...deathCounterPlugin.commands, ...requestPlugin.commands, ...cameraObscuraPlugin.commands};
-let plugins = [cbdPlugin, deathCounterPlugin, requestPlugin, cameraObscuraPlugin];
 
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    terminal: true
-});
-
-rl.on('line', onConsoleCommand);
-
-async function onConsoleCommand(command) {
-    client.say(botContext.botConfig.twitchChannel, command);
-}
-
-async function onRaid(channel, username, viewers) {
-    console.log("RAID DETECTED: " + channel + ":" + username + ":" + viewers);
-    let raidContext = {channel, username, viewers};
-
-    // Run raid function of each plugin
-    for (let plugin of plugins) {
-        if (plugin.raidHook) {
-            plugin.raidHook(raidContext, botContext);
-        }
-    }
-}
-
-async function onJoin(channel, username, self) {
-    console.log("USER JOINED CHAT: " + channel + ":" + username);
-    let joinedContext = {channel, username};
-
-    // Run joined function of each plugin
-    for (let plugin of plugins) {
-        if (plugin.joinHook) {
-            plugin.joinHook(joinedContext, botContext);
-        }
-    }
-}
-
-async function onCheer(channel, userstate, message) {
-    console.log("USER CHEERED: " + JSON.stringify(userstate, null, 5));
-
-    for (let plugin of plugins) {
-        if (plugin.bitsHook) {
-            plugin.bitsHook(userstate.bits, message, userstate["display-name"], userstate["user-id"], null, botContext);
-        }
-    }
-}
-
-async function onSub(channel, username, method, message, userstate) {
-    console.log("USER SUBSCRIBE " + username + ": " + JSON.stringify(userstate, null, 5));
-
-    for (let plugin of plugins) {
-        if (plugin.subscriptionHook) {
-            plugin.subscriptionHook(null, null, userstate["display-name"], userstate["user-id"], userstate["msg-param-sub-plan"], 1, null, botContext);
-        }
-    }
-}
-
-async function onSubGift(channel, username, streakMonths, recipient, methods, userstate) {
-    console.log("USER SUBSCRIBE " + username + ": " + JSON.stringify(userstate, null, 5));
-
-    for (let plugin of plugins) {
-        if (plugin.subscriptionHook) {
-            plugin.subscriptionHook(username, userstate["user-id"], recipient, userstate["msg-param-recipient-id"], userstate["msg-param-sub-plan"], 1, null, botContext);
-        }
-    }
-}
-
-async function onSubMysteryGift(channel, username, numOfSubs, methods, userstate) {
-    console.log("USER SUBSCRIBE " + username + ": " + JSON.stringify(userstate, null, 5));
-
-    for (let plugin of plugins) {
-        if (plugin.subscriptionHook) {
-            plugin.subscriptionHook(username, userstate["user-id"], null, null, userstate["msg-param-sub-plan"] * numOfSubs, 1, null, botContext);
-        }
-    }
-}
-
-// Called every time a message comes in
-async function onMessageHandler(target, context, msg, self) {
-    if (self) { return; } // Ignore messages from the bot
-
-    // Reset a players activity tick to a full 10 minutes before we check again
-    if (chattersActive[context.username]) {
-        chattersActive[context.username] = 10 * 12;
-    }
-
-    console.log("CONTEXT: " + JSON.stringify(context, null, 5));
-    console.log("MSG:     " + msg);
-
-    const caller = {
-        id: context["user-id"],
-        name: context.username
-    }
-
-    // Remove whitespace from chat message
-    const command = msg.trim();
-
-    // Handle battle commands here
-    if (command.startsWith("!") || command.startsWith("$")) {
-        context.command = command;
-        context.tokens = command.split(" ");
-        context.caller = caller;
-        context.target = target;
-
-        console.log("Received command!")
-        console.log("Tokens: " + context.tokens);
-
-        try {
-            switch (context.tokens[0]) {
-                case "!help":
-                    EventQueue.sendInfoToChat(`Visit https://deusprogrammer.com/util/twitch to see how to use our in chat battle system.`);
-                    break;
-                case "!config":
-                    if (context.username !== botConfig.twitchChannel && !context.mod) {
-                        throw "Only a mod or broadcaster can change config values";
-                    }
-
-                    if (context.tokens.length < 3) {
-                        throw "Must provide a config value and a value";
-                    }
-
-                    var configElement = context.tokens[1];
-                    var configValue = context.tokens[2];
-
-                    configTable[configElement] = configValue;
-
-                    break;
-                case "!about":
-                    EventQueue.sendInfoToChat(`Chat battler dungeon version ${versionNumber} written by thetruekingofspace`);
-                    break;
-                default:
-                    if (commands[context.tokens[0]]) {
-                        await commands[context.tokens[0]](context, botContext);
-                    }
-            }
-        } catch (e) {
-            console.error(e.message + ": " + e.stack);
-            EventQueue.sendErrorToChat(new Error(e));
-        }
-    }
-}
-
-// Called every time the bot connects to Twitch chat
-async function onConnectedHandler(addr, port) {
-    console.log(`* Connected to ${addr}:${port}`);
-    if (devMode) {
-        console.log("* RUNNING IN DEV MODE");
-    }
-    console.log("COMMANDS: ");
-    for (let command in commands) {
-        console.log(command);
-    }
-
-    botContext = {configTable, chattersActive, botConfig, plugins, client};
-
-    // Initialize all plugins
-    for (let plugin of plugins) {
-        plugin.init(botContext);
-    }
-
-    // Start queue consumer
-    await EventQueue.startEventListener(botContext);
-
-    // Announce restart
-    EventQueue.sendInfoToChat(`Twitch Dungeon version ${versionNumber} is online.  All systems nominal.`);
-}
 
 // MIKU'S HEART
 

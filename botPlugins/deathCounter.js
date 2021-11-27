@@ -23,8 +23,8 @@ exports.commands = {
     }
 }
 
-exports.init = async (botContext) => {}
-exports.redemptionHook = async (rewardName, userName, userId) => {}
-exports.bitsHook = async (bits, message, userName, userId) => {}
-exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, monthsSubbed) => {}
+exports.init = async () => {}
+exports.redemptionHook = async () => {}
+exports.bitsHook = async () => {}
+exports.subscriptionHook = async () => {}
 exports.wsInitHook = () => {}

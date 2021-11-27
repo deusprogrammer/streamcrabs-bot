@@ -1,7 +1,6 @@
 const WebSocket = require('ws');
 const jsonwebtoken = require('jsonwebtoken');
 
-const Redemption = require('./redemption');
 const Xhr = require('./xhr');
 const Util = require('./util');
 
@@ -240,7 +239,6 @@ let eventContext = {
 let startEventListener = async (botContext) => {
     eventContext.botContext = botContext;
     connectWs();
-    await Redemption.startListener(queue, eventContext.botContext, botContext.plugins);
     setInterval(async () => {
         let message = queue.pop();
 

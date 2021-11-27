@@ -864,7 +864,7 @@ exports.init = async (botContext) => {
     };
 }
 
-exports.bitsHook = async (bits, message, userName, userId, messageQueue, botContext) => {
+exports.bitsHook = async ({bits, userName, userId}, botContext) => {
     if (!botContext.botConfig.config.rewards) {
         return;
     }
@@ -897,7 +897,7 @@ exports.bitsHook = async (bits, message, userName, userId, messageQueue, botCont
         }
     });
 }
-exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, monthsSubbed, messageQueue, botContext) => {
+exports.subscriptionHook = async ({gifter, gifterId, giftee, gifteeId, tier}, botContext) => {
     if (!botContext.botConfig.config.rewards) {
         return;
     }
@@ -945,9 +945,9 @@ exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, mont
         }
     });
 }
-exports.redemptionHook = async (rewardName, userName, userId, messageQueue, botContext) => {
-    if (rewardName.toUpperCase().startsWith("AP")) {
-        let groups = rewardName.match(/AP\s*\+\s*([0-9]+)/);
+exports.redemptionHook = async ({rewardTitle, userName, userId}) => {
+    if (rewardTitle.toUpperCase().startsWith("AP")) {
+        let groups = rewardTitle.match(/AP\s*\+\s*([0-9]+)/);
         
         if (!groups && groups.length < 2) {
             EventQueue.sendEvent({
@@ -955,7 +955,7 @@ exports.redemptionHook = async (rewardName, userName, userId, messageQueue, botC
                 targets: ["chat"],
                 eventData: {
                     results: {
-                        message: `Invalid reward name ${rewardName}`
+                        message: `Invalid reward name ${rewardTitle}`
                     }
                 }
             });
@@ -973,7 +973,7 @@ exports.redemptionHook = async (rewardName, userName, userId, messageQueue, botC
                 }
             }
         });
-    } else if (rewardName.toUpperCase().startsWith("REVIVE")) {
+    } else if (rewardTitle.toUpperCase().startsWith("REVIVE")) {
         await Xhr.reviveAvatar(userName);
 
         EventQueue.sendEvent({
@@ -985,7 +985,7 @@ exports.redemptionHook = async (rewardName, userName, userId, messageQueue, botC
                 }
             }
         });
-    }  else if (rewardName.toUpperCase().startsWith("CREATE BATTLER")) {
+    }  else if (rewardTitle.toUpperCase().startsWith("CREATE BATTLER")) {
         await Xhr.createUser(userName, userId);
         EventQueue.sendEvent({
             type: "INFO",

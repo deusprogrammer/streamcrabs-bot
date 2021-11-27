@@ -40,7 +40,7 @@ let playRandomVideo = async (twitchContext) => {
     let requestMatch = twitchContext.command.match(/!rewards:redeem:video (.*)/);
     let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
     let enabledVideos = botConfig.videoPool.filter((element) => {
-        return !element.url.startsWith("*");
+        return element.enabled;
     })
     let n = Math.floor((Math.random() * enabledVideos.length));
     let url = enabledVideos[n].url;
@@ -123,6 +123,66 @@ let playRandomSound = async (twitchContext) => {
             results: {}
         }
     });
+}
+
+const alert = async (message, alertType, {variable}, botContext) => {
+    const {enabled, type, name, id} = botContext.botConfig.alertConfigs[alertType];
+
+    if (!enabled) {
+        return;
+    }
+
+    if (type === "DYNAMIC") {
+        let raidCustomTheme;
+        let raidTheme;
+        if (id) {
+            raidTheme = "STORED";
+            raidCustomTheme = await Xhr.getRaidAlert(id);
+        } else {
+            raidTheme = name;
+        }
+        
+        EventQueue.sendEvent({
+            type,
+            targets: ["panel"],
+            eventData: {
+                results: {},
+                message,
+                variable,
+                raidCustomTheme,
+                raidTheme
+            }
+        });
+    } else if (type === "VIDEO") {
+        let {url, volume, name, chromaKey} = botContext.botConfig.videoPool.find(video => video._id === id);
+
+        EventQueue.sendEvent({
+            type,
+            targets: ["panel"],
+            eventData: {
+                message,
+                mediaName: name,
+                url,
+                chromaKey,
+                volume,
+                results: {}
+            }
+        });
+    } else if (type === "AUDIO") {
+        let {url, volume, name} = botContext.botConfig.audioPool.find(audio => audio._id === id);
+
+        EventQueue.sendEvent({
+            type,
+            targets: ["panel"],
+            eventData: {
+                message,
+                mediaName: name,
+                url,
+                volume,
+                results: {}
+            }
+        });
+    }
 }
 
 exports.commands = {
@@ -268,50 +328,83 @@ exports.commands = {
                 substitution
             }
         });
+    },
+    "!test:raid": (twitchContext, botContext) => {
+        if (twitchContext.username !== botContext.botConfig.twitchChannel && !twitchContext.mod) {
+            throw "Only a mod can test raid";
+        }
+
+        this.raidHook({username: "test_user", viewers: 100}, botContext);
+    },
+    "!test:sub": (twitchContext, botContext) => {
+        if (twitchContext.username !== botContext.botConfig.twitchChannel && !twitchContext.mod) {
+            throw "Only a mod can test subs";
+        }
+
+        this.subscriptionHook({userName: "test_user", subPlan: "tier 3"}, botContext);
+    },
+    "!test:follow": (twitchContext, botContext) => {
+        if (twitchContext.username !== botContext.botConfig.twitchChannel && !twitchContext.mod) {
+            throw "Only a mod can test follow";
+        }
+
+        throw "This functionality isn't implemented yet";
+    },
+    "!test:cheer": (twitchContext, botContext) => {
+        if (twitchContext.username !== botContext.botConfig.twitchChannel && !twitchContext.mod) {
+            throw "Only a mod can test cheer";
+        }
+
+        this.bitsHook({bits: 1000, userName: "test_user"}, botContext);
     }
 }
 exports.init = async (botContext) => {}
-exports.bitsHook = async (bits, message, userName, userId) => {}
-exports.subscriptionHook = async (gifter, gifterId, giftee, gifteeId, tier, monthsSubbed) => {}
-exports.raidHook = async (raidContext, botContext) => {
-    if (!botContext.botConfig.config.raid) {
+
+exports.bitsHook = async ({bits, userName}, botContext) => {
+    const {enabled, messageTemplate} = botContext.botConfig.alertConfigs.cheerAlert;
+    const alertMessage = messageTemplate.replace("${bits}", bits).replace("${username}", userName);
+
+    if (!enabled) {
         return;
     }
 
-    const raidTheme = botContext.botConfig.raidConfig.theme;
-    const customId = botContext.botConfig.raidConfig.customId;
+    await alert(alertMessage, "cheerAlert", {variable: bits}, botContext);
+}
 
-    console.log("ID: " + customId);
+exports.subscriptionHook = async ({userName, gifterName, gifteeName, subPlan, isGift}, botContext) => {
+    const {enabled, messageTemplate} = botContext.botConfig.alertConfigs.subAlert;
+    const alertMessage = messageTemplate.replace("${username}", userName).replace("${subTier}", subPlan);
 
-    let raidCustomTheme = null;
-    if (customId) {
-        raidCustomTheme = await Xhr.getRaidAlert(customId);
+    if (!enabled) {
+        return;
     }
-    
-    EventQueue.sendEvent({
-        type: "RAID",
-        targets: ["panel"],
-        eventData: {
-            results: {},
-            raidTheme: raidTheme,
-            raidCustomTheme: raidCustomTheme,
-            raider: raidContext.username,
-            raidSize: raidContext.viewers
-        }
-    });
+
+    await alert(alertMessage, "subAlert", {variable: 100}, botContext);
 }
+
+exports.raidHook = async ({username, viewers}, botContext) => {
+    const {enabled, messageTemplate} = botContext.botConfig.alertConfigs.raidAlert;
+    const alertMessage = messageTemplate.replace("${raider}", username).replace("${viewers}", viewers);
+
+    if (!enabled) {
+        return;
+    }
+
+    await alert(alertMessage, "raidAlert", {variable: viewers}, botContext);
+}
+
 exports.joinHook = async (joinContext, botContext) => {
-    console.log("JOIN");
 }
-exports.redemptionHook = async (rewardName, userName, userId) => {
-    if (rewardName.toUpperCase() === "PLAY RANDOM SOUND") {
+
+exports.redemptionHook = async ({rewardTitle, userName}) => {
+    if (rewardTitle.toUpperCase() === "RANDOM SOUND") {
         if (!EventQueue.isPanelInitialized("SOUND_PLAYER")) {
             EventQueue.sendInfoToChat("Sound panel is not available for this stream");
             return;
         }
         let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
         let enabledAudio = botConfig.audioPool.filter((element) => {
-            return !element.url.startsWith("*");
+            return element.enabled;
         })
         let n = Math.floor((Math.random() * enabledAudio.length));
         let url = enabledAudio[n].url;
@@ -323,7 +416,7 @@ exports.redemptionHook = async (rewardName, userName, userId) => {
         }
 
         EventQueue.sendEvent({
-            type: "CUSTOM_RANDOM_SOUND",
+            type: "AUDIO",
             targets: ["panel"],
             eventData: {
                 requester: userName,
@@ -333,7 +426,7 @@ exports.redemptionHook = async (rewardName, userName, userId) => {
                 results: {}
             }
         });
-    }  else if (rewardName.toUpperCase() === "RANDOM VIDEO") {
+    }  else if (rewardTitle.toUpperCase() === "RANDOM VIDEO") {
         if (!EventQueue.isPanelInitialized("MULTI")) {
             EventQueue.sendInfoToChat("Video panel is not available for this stream");
             return;
@@ -341,7 +434,7 @@ exports.redemptionHook = async (rewardName, userName, userId) => {
 
         let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
         let enabledVideos = botConfig.videoPool.filter((element) => {
-            return !element.url.startsWith("*");
+            return element.enabled;
         })
         let n = Math.floor((Math.random() * enabledVideos.length));
         let url = enabledVideos[n].url;
@@ -354,7 +447,7 @@ exports.redemptionHook = async (rewardName, userName, userId) => {
         }
 
         EventQueue.sendEvent({
-            type: "RANDOM_CUSTOM_VIDEO",
+            type: "VIDEO",
             targets: ["panel"],
             eventData: {
                 requester: userName,
@@ -365,7 +458,7 @@ exports.redemptionHook = async (rewardName, userName, userId) => {
                 results: {}
             }
         });
-    } else if (rewardName.toUpperCase() === "BIRD UP") {
+    } else if (rewardTitle.toUpperCase() === "BIRD UP") {
         if (!EventQueue.isPanelInitialized("MULTI")) {
             EventQueue.sendInfoToChat("Video panel is not available for this stream");
             return;
@@ -379,7 +472,7 @@ exports.redemptionHook = async (rewardName, userName, userId) => {
                 results: {}
             }
         });
-    } else if (rewardName.toUpperCase() === "BAD APPLE") {
+    } else if (rewardTitle.toUpperCase() === "BAD APPLE") {
         if (!EventQueue.isPanelInitialized("MULTI")) {
             EventQueue.sendInfoToChat("Video panel is not available for this stream");
             return;
