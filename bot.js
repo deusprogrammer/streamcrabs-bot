@@ -236,9 +236,14 @@ const startBot = async () => {
 
         // Create a client with our options
         const authProvider = new StaticAuthProvider(process.env.TWITCH_CLIENT_ID, accessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"], "user");
-        client = new ChatClient({authProvider, channels: [twitchChannel], logger: {
-            minLevel: 'debug'
-        }});
+        client = new ChatClient({
+            authProvider, 
+            channels: [twitchChannel], 
+            webSocket: false,
+            logger: {
+                minLevel: 'debug'
+            }
+        });
 
         const pubSubAuthProvider = new StaticAuthProvider(process.env.TWITCH_CLIENT_ID, channelAccessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"], "user");
         pubSubClient = new PubSubClient();
