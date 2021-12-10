@@ -13,9 +13,6 @@
     "axios": "^0.20.0",
     "child_process": "^1.0.2",
     "jsonwebtoken": "^8.5.1",
-    "tmi.js": "^1.5.0",
-    "twitch": "^4.2.5",
-    "twitch-pubsub-client": "^4.5.5",
     "ws": "^7.3.1"
   },
   "scripts": {

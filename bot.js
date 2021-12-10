@@ -1,7 +1,7 @@
 const Xhr = require('./components/base/xhr');
 const EventQueue = require('./components/base/eventQueue');
 
-const { StaticAuthProvider, RefreshingAuthProvider } = require('@twurple/auth');
+const { StaticAuthProvider } = require('@twurple/auth');
 const { ChatClient } = require('@twurple/chat');
 const { PubSubClient } = require('@twurple/pubsub');
 
@@ -234,7 +234,7 @@ const startBot = async () => {
         const authProvider = new StaticAuthProvider(process.env.TWITCH_CLIENT_ID, accessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"], "user");
         client = new ChatClient({authProvider, channels: [twitchChannel]});
         pubSubClient = new PubSubClient();
-        // const userId = await pubSubClient.registerUserListener(pubSubAuthClient);
+        const userId = await pubSubClient.registerUserListener(pubSubAuthClient);
 
         // Register our event handlers (defined below)
         client.onMessage((channel, username, message) => {
@@ -242,9 +242,9 @@ const startBot = async () => {
         });
         client.onConnect(onConnectedHandler);
         client.onRaid((channel, username, {viewerCount}) => {onRaid(channel, username, viewerCount)});
-        // await pubSubClient.onSubscription(userId, onSubscription);
-        // await pubSubClient.onBits(userId, onBits);
-        // await pubSubClient.onRedemption(userId, onRedemption);
+        await pubSubClient.onSubscription(userId, onSubscription);
+        await pubSubClient.onBits(userId, onBits);
+        await pubSubClient.onRedemption(userId, onRedemption);
 
         console.log("* Connecting to Twitch chat")
 
