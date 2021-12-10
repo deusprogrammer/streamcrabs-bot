@@ -95,6 +95,7 @@ const startBot = async () => {
         botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
 
         let {twitchChannel, botUser} = botConfig;
+        let channelAccessToken = botConfig.accessToken;
         let {accessToken, refreshToken} = botUser;
         let botContext = {};
         let chattersActive = {};
@@ -224,11 +225,16 @@ const startBot = async () => {
             }
         }
 
+        console.log("TWITCH CHANNEL: " + twitchChannel);
+        console.log("ACCESS TOKEN:   " + accessToken);
+        console.log("CHANNEL TOKEN:  " + channelAccessToken);
+
         // Create a client with our options
+        const pubSubAuthClient = new StaticAuthProvider(process.env.TWITCH_CLIENT_ID, channelAccessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"], "user");
         const authProvider = new StaticAuthProvider(process.env.TWITCH_CLIENT_ID, accessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"], "user");
         client = new ChatClient({authProvider, channels: [twitchChannel]});
         pubSubClient = new PubSubClient();
-        const userId = await pubSubClient.registerUserListener(authProvider);
+        const userId = await pubSubClient.registerUserListener(pubSubAuthClient);
 
         // Register our event handlers (defined below)
         client.onMessage((channel, username, message) => {
