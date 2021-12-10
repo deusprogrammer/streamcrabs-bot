@@ -102,6 +102,7 @@ const startBot = async () => {
         let plugins = [deathCounterPlugin, requestPlugin, cameraObscuraPlugin, cbdPlugin];
 
         console.log("* Retrieved bot config");
+        console.log("CONFIG: " + JSON.stringify(botConfig, null, 5));
 
         // Called every time a message comes in
         const onMessageHandler = async (target, context, msg) => {
