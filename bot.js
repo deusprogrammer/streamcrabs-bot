@@ -5,6 +5,8 @@ const { StaticAuthProvider } = require('@twurple/auth');
 const { ChatClient } = require('@twurple/chat');
 const { PubSubClient } = require('@twurple/pubsub');
 
+const dns = require('dns');
+
 const cbdPlugin = require('./botPlugins/cbd');
 const requestPlugin = require('./botPlugins/requests');
 const deathCounterPlugin = require('./botPlugins/deathCounter');
@@ -13,6 +15,15 @@ const cameraObscuraPlugin = require('./botPlugins/cameraObscura');
 const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
 const versionNumber = "4.0b";
+
+dns.lookup("irc.twitch.tv", (err, result) => {
+    if (err) {
+        console.error("FAILED: " + err);
+        return;
+    }
+
+    console.log("RESULT: " + result);
+});
 
 /*
  * INDEXES
