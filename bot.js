@@ -16,15 +16,6 @@ const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
 const versionNumber = "4.0b";
 
-dns.lookup("irc.twitch.tv", (err, result) => {
-    if (err) {
-        console.error("FAILED: " + err);
-        return;
-    }
-
-    console.log("RESULT: " + result);
-});
-
 /*
  * INDEXES
  */
@@ -243,9 +234,10 @@ const startBot = async () => {
         console.log("CHANNEL TOKEN:  " + channelAccessToken);
 
         // Create a client with our options
-        const pubSubAuthProvider = new StaticAuthProvider(process.env.TWITCH_CLIENT_ID, channelAccessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"], "user");
         const authProvider = new StaticAuthProvider(process.env.TWITCH_CLIENT_ID, accessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"], "user");
         client = new ChatClient({authProvider, channels: [twitchChannel]});
+
+        const pubSubAuthProvider = new StaticAuthProvider(process.env.TWITCH_CLIENT_ID, channelAccessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"], "user");
         pubSubClient = new PubSubClient();
         const userId = await pubSubClient.registerUserListener(pubSubAuthProvider);
 
@@ -259,10 +251,8 @@ const startBot = async () => {
         await pubSubClient.onBits(userId, onBits);
         await pubSubClient.onRedemption(userId, onRedemption);
 
-        console.log("* Connecting to Twitch chat")
-
-        // Connect to Twitch:
-        client.connect();
+        console.log("* Connecting to Twitch chat");
+        await client.connect();
     } catch (error) {
         console.error(`* Failed to start bot: ${error}`);
     }
