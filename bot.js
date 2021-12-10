@@ -255,12 +255,13 @@ const startBot = async () => {
         });
         client.onConnect(onConnectedHandler);
         client.onRaid((channel, username, {viewerCount}) => {onRaid(channel, username, viewerCount)});
-        await pubSubClient.onSubscription(userId, onSubscription);
-        await pubSubClient.onBits(userId, onBits);
-        await pubSubClient.onRedemption(userId, onRedemption);
 
         console.log("* Connecting to Twitch chat");
         await client.connect();
+
+        await pubSubClient.onSubscription(userId, onSubscription);
+        await pubSubClient.onBits(userId, onBits);
+        await pubSubClient.onRedemption(userId, onRedemption);
     } catch (error) {
         console.error(`* Failed to start bot: ${error}`);
     }
