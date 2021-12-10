@@ -232,17 +232,13 @@ const startBot = async () => {
         console.log("TWITCH CHANNEL: " + twitchChannel);
         console.log("ACCESS TOKEN:   " + accessToken);
         console.log("CHANNEL TOKEN:  " + channelAccessToken);
-        console.log("Fiddle farts");
 
         // Create a client with our options
-        const authProvider = new StaticAuthProvider(process.env.TWITCH_CLIENT_ID, accessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"], "user");
+        const authProvider = new StaticAuthProvider(process.env.TWITCH_CLIENT_ID, accessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"]);
         client = new ChatClient({
             authProvider, 
             channels: [twitchChannel], 
-            webSocket: false,
-            // logger: {
-            //     minLevel: 'debug'
-            // }
+            webSocket: false
         });
 
         // Register our event handlers (defined below)
@@ -258,7 +254,7 @@ const startBot = async () => {
         console.log("* Attempting to connect to pubsub");
 
         // Attempt to connect to pubsub
-        const pubSubAuthProvider = new StaticAuthProvider(process.env.TWITCH_CLIENT_ID, channelAccessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"], "user");
+        const pubSubAuthProvider = new StaticAuthProvider(process.env.TWITCH_CLIENT_ID, channelAccessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"]);
         const basicClient = new BasicPubSubClient({logger: {minLevel: 'debug'}});
         pubSubClient = new PubSubClient(basicClient);
         
