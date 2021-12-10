@@ -255,7 +255,14 @@ const startBot = async () => {
 
         // Attempt to connect to pubsub
         const pubSubAuthProvider = new StaticAuthProvider(process.env.TWITCH_CLIENT_ID, channelAccessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"]);
-        const basicClient = new BasicPubSubClient({logger: {minLevel: 'debug'}});
+        const basicClient = new BasicPubSubClient({
+            wsOptions: {
+                webSocket: false
+            },
+            logger: {
+                minLevel: 'debug'
+            }
+        });
         pubSubClient = new PubSubClient(basicClient);
         
         const userId = await pubSubClient.registerUserListener(pubSubAuthProvider, twitchChannel);
