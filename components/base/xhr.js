@@ -4,6 +4,7 @@ const Util = require('./util');
 const BATTLE_BOT_ACCESS_TOKEN = process.env.TWITCH_BOT_ACCESS_TOKEN;
 const BATTLE_BOT_JWT = process.env.TWITCH_BOT_JWT;
 const BATTLE_API_URL = process.env.BATTLE_API_URL;
+const BOT_CONFIG_API_URL = process.env.BOT_CONFIG_API_URL;
 const PROFILE_API_URL = process.env.PROFILE_API_URL;
 const WTD_API_URL = "https://deusprogrammer.com/api/dubs";
 const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
@@ -17,7 +18,7 @@ const maxContentLength = Infinity;
 const maxBodyLength = Infinity;
 
 const getBotConfig = async (channel) => {
-    let res = await axios.get(`${BATTLE_API_URL}/bots/${channel}`, {
+    let res = await axios.get(`${BOT_CONFIG_API_URL}/bots/${channel}`, {
         headers
     });
 
@@ -272,7 +273,7 @@ const reviveAvatar = async (userName) => {
 }
 
 const getRaidAlert = async (id) => {
-    let found = await axios.get(`${BATTLE_API_URL}/raid-configs/${id}`, {
+    let found = await axios.get(`${BOT_CONFIG_API_URL}/raid-configs/${id}`, {
         headers,
         maxBodyLength,
         maxContentLength

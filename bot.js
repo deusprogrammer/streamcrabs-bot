@@ -1,7 +1,7 @@
 const Xhr = require('./components/base/xhr');
 const EventQueue = require('./components/base/eventQueue');
 
-const { StaticAuthProvider } = require('@twurple/auth');
+const { StaticAuthProvider, RefreshingAuthProvider } = require('@twurple/auth');
 const { ChatClient } = require('@twurple/chat');
 const { PubSubClient } = require('@twurple/pubsub');
 
@@ -94,7 +94,8 @@ const startBot = async () => {
         console.log("* Retrieving bot config");
         botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
 
-        let {accessToken, twitchChannel} = botConfig;
+        let {twitchChannel, botUser} = botConfig;
+        let {accessToken, refreshToken} = botUser;
         let botContext = {};
         let chattersActive = {};
 
