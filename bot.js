@@ -3,7 +3,7 @@ const EventQueue = require('./components/base/eventQueue');
 
 const { StaticAuthProvider } = require('@twurple/auth');
 const { ChatClient } = require('@twurple/chat');
-const { PubSubClient } = require('@twurple/pubsub');
+const { PubSubClient, BasicPubSubClient } = require('@twurple/pubsub');
 
 const dns = require('dns');
 
@@ -240,14 +240,10 @@ const startBot = async () => {
             authProvider, 
             channels: [twitchChannel], 
             webSocket: false,
-            logger: {
-                minLevel: 'debug'
-            }
+            // logger: {
+            //     minLevel: 'debug'
+            // }
         });
-
-        const pubSubAuthProvider = new StaticAuthProvider(process.env.TWITCH_CLIENT_ID, channelAccessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"], "user");
-        pubSubClient = new PubSubClient();
-        const userId = await pubSubClient.registerUserListener(pubSubAuthProvider);
 
         // Register our event handlers (defined below)
         client.onMessage((channel, username, message) => {
@@ -259,6 +255,14 @@ const startBot = async () => {
         console.log("* Connecting to Twitch chat");
         await client.connect();
 
+        console.log("* Attempting to connect to pubsub");
+
+        // Attempt to connect to pubsub
+        const pubSubAuthProvider = new StaticAuthProvider(process.env.TWITCH_CLIENT_ID, channelAccessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"], "user");
+        const basicClient = new BasicPubSubClient({logger: {minLevel: 'debug'}});
+        pubSubClient = new PubSubClient(basicClient);
+        
+        const userId = await pubSubClient.registerUserListener(pubSubAuthProvider, twitchChannel);
         await pubSubClient.onSubscription(userId, onSubscription);
         await pubSubClient.onBits(userId, onBits);
         await pubSubClient.onRedemption(userId, onRedemption);
