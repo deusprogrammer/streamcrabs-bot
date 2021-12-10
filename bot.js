@@ -232,6 +232,7 @@ const startBot = async () => {
         console.log("TWITCH CHANNEL: " + twitchChannel);
         console.log("ACCESS TOKEN:   " + accessToken);
         console.log("CHANNEL TOKEN:  " + channelAccessToken);
+        console.log("Fiddle farts");
 
         // Create a client with our options
         const authProvider = new StaticAuthProvider(process.env.TWITCH_CLIENT_ID, accessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"], "user");
