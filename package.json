@@ -7,13 +7,13 @@
     "@nastyox/rando.js": "^2.0.5",
     "@twurple/api": "^5.0.9",
     "@twurple/auth": "^5.0.9",
-    "@twurple/chat": "^5.0.9",
     "@twurple/eventsub": "^5.0.9",
     "@twurple/pubsub": "^5.0.9",
     "axios": "^0.20.0",
     "child_process": "^1.0.2",
     "isomorphic-ws": "^4.0.1",
-    "jsonwebtoken": "^8.5.1"
+    "jsonwebtoken": "^8.5.1",
+    "tmi.js": "^1.8.5"
   },
   "scripts": {
     "start": "node bot.js",

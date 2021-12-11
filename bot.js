@@ -1,11 +1,9 @@
 const Xhr = require('./components/base/xhr');
 const EventQueue = require('./components/base/eventQueue');
 
+const tmi = require('tmi.js');
 const { StaticAuthProvider } = require('@twurple/auth');
-const { ChatClient } = require('@twurple/chat');
 const { PubSubClient, BasicPubSubClient } = require('@twurple/pubsub');
-
-const dns = require('dns');
 
 const cbdPlugin = require('./botPlugins/cbd');
 const requestPlugin = require('./botPlugins/requests');
@@ -234,26 +232,28 @@ const startBot = async () => {
         console.log("CHANNEL TOKEN:  " + channelAccessToken);
 
         // Create a client with our options
-        const authProvider = new StaticAuthProvider(process.env.TWITCH_CLIENT_ID, accessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"]);
-        client = new ChatClient({
-            authProvider, 
-            channels: [twitchChannel], 
-            webSocket: false
-        });
+        const opts = {
+            identity: {
+                username: process.env.TWITCH_BOT_USER,
+                password: process.env.TWITCH_BOT_PASS
+            },
+            channels: [
+                twitchChannel
+            ]
+        };
 
-        // Register our event handlers (defined below)
-        client.onMessage((channel, username, message) => {
-            onMessageHandler(channel, {username, id: ""}, message);
-        });
-        client.onConnect(onConnectedHandler);
-        client.onRaid((channel, username, {viewerCount}) => {onRaid(channel, username, viewerCount)});
+        console.log("* Retrieved bot config");
 
+        // Create a client with our options
         console.log("* Connecting to Twitch chat");
+        client = new tmi.client(opts);
+        client.on('message', onMessageHandler);
+        client.on('connected', onConnectedHandler);
+        client.on('raid', onRaid);
         await client.connect();
 
-        console.log("* Attempting to connect to pubsub");
-
         // Attempt to connect to pubsub
+        console.log("* Attempting to connect to pubsub");
         const pubSubAuthProvider = new StaticAuthProvider(process.env.TWITCH_CLIENT_ID, channelAccessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"]);
         const basicClient = new BasicPubSubClient({
             wsOptions: {
@@ -264,11 +264,11 @@ const startBot = async () => {
             }
         });
         pubSubClient = new PubSubClient(basicClient);
-        
         const userId = await pubSubClient.registerUserListener(pubSubAuthProvider, twitchChannel);
         await pubSubClient.onSubscription(userId, onSubscription);
         await pubSubClient.onBits(userId, onBits);
         await pubSubClient.onRedemption(userId, onRedemption);
+        console.log("* Connected to pubsub");
     } catch (error) {
         console.error(`* Failed to start bot: ${error}`);
     }
