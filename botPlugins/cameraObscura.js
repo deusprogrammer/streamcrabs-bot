@@ -137,7 +137,7 @@ const alert = async (message, alertType, {variable}, botContext) => {
         let raidTheme;
         if (id) {
             raidTheme = "STORED";
-            raidCustomTheme = await Xhr.getRaidAlert(id);
+            raidCustomTheme = await Xhr.getDynamicAlert(id);
         } else {
             raidTheme = name;
         }

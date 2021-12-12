@@ -272,8 +272,8 @@ const reviveAvatar = async (userName) => {
     await adjustStats({name: userName}, adjustments);
 }
 
-const getRaidAlert = async (id) => {
-    let found = await axios.get(`${BOT_CONFIG_API_URL}/raid-configs/${id}`, {
+const getDynamicAlert = async (id) => {
+    let found = await axios.get(`${BOT_CONFIG_API_URL}/dynamic-alerts/${id}`, {
         headers,
         maxBodyLength,
         maxContentLength
@@ -283,7 +283,7 @@ const getRaidAlert = async (id) => {
 }
 
 module.exports = {
-    getRaidAlert,
+    getDynamicAlert,
     giveGold,
     giveItem,
     removeItem,
