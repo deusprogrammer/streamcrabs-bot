@@ -408,7 +408,7 @@ exports.redemptionHook = async ({rewardTitle, userName}) => {
         })
         let n = Math.floor((Math.random() * enabledAudio.length));
         let url = enabledAudio[n].url;
-        let mediaName = enabledAudio[n].name;
+        let message = enabledAudio[n].name;
         let volume = enabledAudio[n].volume;
 
         if (!volume) {
@@ -420,7 +420,7 @@ exports.redemptionHook = async ({rewardTitle, userName}) => {
             targets: ["panel"],
             eventData: {
                 requester: userName,
-                mediaName,
+                message,
                 url,
                 volume,
                 results: {}
@@ -433,12 +433,13 @@ exports.redemptionHook = async ({rewardTitle, userName}) => {
         }
 
         let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
+
         let enabledVideos = botConfig.videoPool.filter((element) => {
             return element.enabled;
         })
         let n = Math.floor((Math.random() * enabledVideos.length));
         let url = enabledVideos[n].url;
-        let mediaName = enabledVideos[n].name;
+        let message = enabledVideos[n].name;
         let chromaKey = enabledVideos[n].chromaKey;
         let volume = enabledVideos[n].volume;
 
@@ -451,7 +452,7 @@ exports.redemptionHook = async ({rewardTitle, userName}) => {
             targets: ["panel"],
             eventData: {
                 requester: userName,
-                mediaName,
+                message,
                 url,
                 chromaKey,
                 volume,
