@@ -94,9 +94,8 @@ const startBot = async () => {
         console.log("* Retrieving bot config");
         botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
 
-        let {twitchChannel, botUser} = botConfig;
+        let {twitchChannel} = botConfig;
         let channelAccessToken = botConfig.accessToken;
-        let {twitchUser, accessToken, refreshToken} = botUser;
         let botContext = {};
         let chattersActive = {};
 
@@ -224,12 +223,6 @@ const startBot = async () => {
                 console.error("REDEMPTION FAILURE: " + error);
             }
         }
-
-        console.log("CLIENT ID:      " + process.env.TWITCH_CLIENT_ID);
-        console.log("BOT USER:       " + twitchUser);
-        console.log("TWITCH CHANNEL: " + twitchChannel);
-        console.log("ACCESS TOKEN:   " + accessToken);
-        console.log("CHANNEL TOKEN:  " + channelAccessToken);
 
         // Create a client with our options
         const opts = {
