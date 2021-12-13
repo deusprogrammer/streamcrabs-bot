@@ -71,6 +71,9 @@ exports.commands = {
         await Xhr.createUser(twitchContext.username, twitchContext.caller.id);
         EventQueue.sendInfoToChat(`${twitchContext.username} just created a battler!`);
     },
+    "!me": (twitchContext, botContext) => {
+        EventQueue.sendInfoToChat(`To checkout your character go to https://deusprogrammer.com/cbd/battlers/${twitchContext.username}.`);
+    },
     "!ready": async (twitchContext, botContext) => {
         if (!botContext.botConfig.config.cbd) {
             throw "This channel does not have this command enabled";

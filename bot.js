@@ -136,6 +136,9 @@ const startBot = async () => {
 
                 try {
                     switch (context.tokens[0]) {
+                        case "!help":
+                            EventQueue.sendInfoToChat(`To checkout your character and see how to play Chat Battler Dungeon go to https://deusprogrammer.com/cbd.`);
+                            break;
                         case "!about":
                             EventQueue.sendInfoToChat(`Chat battler dungeon version ${versionNumber} written by thetruekingofspace`);
                             break;
