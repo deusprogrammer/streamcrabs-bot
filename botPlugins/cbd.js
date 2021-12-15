@@ -3,8 +3,6 @@ const Xhr = require('../components/base/xhr');
 const Commands = require('../components/cbd/commands');
 const EventQueue = require('../components/base/eventQueue');
 
-const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
-
 let itemTable = {}
 let jobTable = {};
 let monsterTable = {};
@@ -15,6 +13,8 @@ let buffTable = {};
 let dotTable = {};
 
 let pluginContext = {};
+
+const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
 let speak = async (twitchContext) => {
     let requestMatch = twitchContext.command.match(/\$speak (.*)/);
@@ -1004,6 +1004,31 @@ exports.redemptionHook = async ({rewardTitle, userName, userId}) => {
     }
 
     //sendContextUpdate(null, botContext);
+}
+
+exports.onWsMessage = async (event, ws, botContext) => {
+    if (event.type === "COMMAND") {
+        // onMessageHandler(eventContext.botContext.botConfig.twitchChannel, {username: event.fromUser, "user-id": event.from, mod: false}, event.message, false);
+        // const caller = {
+        //     id: event.from,
+        //     name: event.fromUser
+        // }
+        // sendContextUpdate([caller]);
+    } else if (event.type === "CONTEXT" && event.to !== "ALL") {
+        let players = await Xhr.getActiveUsers(botContext);
+        ws.send(JSON.stringify({
+            type: "CONTEXT",
+            channelId: TWITCH_EXT_CHANNEL_ID,
+            jwt: EventQueue.createJwt(botContext.botConfig.sharedSecretKey),
+            to: event.from,
+            data: {
+                players,
+                monsters: encounterTable,
+                cooldown: cooldownTable[event.fromUser],
+                buffs: buffTable[event.fromUser]
+            }
+        }));
+    }
 }
 
 exports.wsInitHook = (from) => {

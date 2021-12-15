@@ -41,7 +41,7 @@ const createJwt = (secret) => {
 
 // Setup websocket to communicate with extension
 let extWs = null;
-const connectWs = () => {
+const connectWs = (botContext) => {
     extWs = new WebSocket('wss://deusprogrammer.com/api/ws/twitch');
  
     extWs.on('open', () => {
@@ -104,35 +104,19 @@ const connectWs = () => {
         }
 
         // Handle message
-        if (event.type === "COMMAND") {
-            onMessageHandler(eventContext.botContext.botConfig.twitchChannel, {username: event.fromUser, "user-id": event.from, mod: false}, event.message, false);
-            const caller = {
-                id: event.from,
-                name: event.fromUser
-            }
-            sendContextUpdate([caller]);
-        } else if (event.type === "CONTEXT" && event.to !== "ALL") {
-            console.log("CONTEXT REQUEST FROM " + event.from);
-            let players = await Xhr.getActiveUsers(eventContext.botContext);
-            extWs.send(JSON.stringify({
-                type: "CONTEXT",
-                channelId: TWITCH_EXT_CHANNEL_ID,
-                jwt: createJwt(eventContext.botContext.botConfig.sharedSecretKey),
-                to: event.from,
-                data: {
-                    players,
-                    monsters: Object.keys(encounterTable).map(key => `~${key}`),
-                    cooldown: cooldownTable[event.fromUser],
-                    buffs: buffTable[event.fromUser]
-                }
-            }));
-        } else if (event.type === "PING") {
+        if (event.type === "PING") {
             extWs.send(JSON.stringify({
                 type: "PONG",
                 channelId: TWITCH_EXT_CHANNEL_ID,
                 jwt: createJwt(eventContext.botContext.botConfig.sharedSecretKey),
                 to: event.from,
             }));
+        }
+
+        for (plugin of botContext.plugins) {
+            if (plugin.onWsMessage) {
+                plugin.onWsMessage(event, extWs, botContext);
+            }
         }
     });
 
@@ -238,7 +222,7 @@ let eventContext = {
 // QUEUE CONSUMER
 let startEventListener = async (botContext) => {
     eventContext.botContext = botContext;
-    connectWs();
+    connectWs(botContext);
     setInterval(async () => {
         let message = queue.pop();
 
@@ -293,3 +277,4 @@ exports.sendInfoToChat = sendInfoToChat;
 exports.sendErrorToChat = sendErrorToChat;
 exports.startEventListener = startEventListener;
 exports.isPanelInitialized = isPanelInitialized;
+exports.createJwt = createJwt;
