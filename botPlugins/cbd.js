@@ -46,7 +46,7 @@ let sendContextUpdate = async (targets, botContext, shouldRefresh = false) => {
                 type: "CONTEXT",
                 data: {
                     players,
-                    monsters: Object.keys(encounterTable).map(key => `~${key}`),
+                    monsters: encounterTable,
                     buffs: buffTable[target.name],
                     cooldown: cooldownTable[target.name],
                     shouldRefresh
@@ -59,7 +59,7 @@ let sendContextUpdate = async (targets, botContext, shouldRefresh = false) => {
             type: "CONTEXT",
             data: {
                 players,
-                monsters: Object.keys(encounterTable).map(key => `~${key}`),
+                monsters: encounterTable,
                 shouldRefresh
             }
         }, shouldRefresh);
@@ -882,7 +882,7 @@ exports.bitsHook = async ({bits, userName, userId}, botContext) => {
             targets: ["chat"],
             eventData: {
                 results: {
-                    message: `@${userName} got 1000 gold for subscribing.`
+                    message: `@${userName} got ${bits} gold for cheering.`
                 }
             }
         });
@@ -922,7 +922,7 @@ exports.subscriptionHook = async ({gifter, gifterId, giftee, gifteeId, tier}, bo
             targets: ["chat"],
             eventData: {
                 results: {
-                    message: `@${gifter} got got ${tier} gold for gifting a sub.`
+                    message: `@${gifter} got ${tier} gold for gifting a sub.`
                 }
             }
         });
