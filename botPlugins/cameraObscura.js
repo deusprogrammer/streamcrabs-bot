@@ -69,11 +69,9 @@ let playRandomVideo = async (twitchContext) => {
     }
 
     EventQueue.sendEvent({
-        type: "RANDOM_CUSTOM_VIDEO",
+        type: "VIDEO",
         targets: ["panel"],
         eventData: {
-            requester: twitchContext.username,
-            mediaName,
             url,
             chromaKey,
             volume,
@@ -113,11 +111,9 @@ let playRandomSound = async (twitchContext) => {
     }
 
     EventQueue.sendEvent({
-        type: "CUSTOM_RANDOM_SOUND",
+        type: "AUDIO",
         targets: ["panel"],
         eventData: {
-            requester: twitchContext.username,
-            mediaName,
             url,
             volume,
             results: {}
@@ -397,7 +393,7 @@ exports.joinHook = async (joinContext, botContext) => {
 }
 
 exports.redemptionHook = async ({rewardTitle, userName}) => {
-    if (rewardTitle.toUpperCase() === "RANDOM SOUND") {
+    if (rewardTitle.toUpperCase() === "RANDOM SOUND" || rewardTitle.toUpperCase() === "PLAY RANDOM SOUND") {
         if (!EventQueue.isPanelInitialized("SOUND_PLAYER")) {
             EventQueue.sendInfoToChat("Sound panel is not available for this stream");
             return;
@@ -420,13 +416,12 @@ exports.redemptionHook = async ({rewardTitle, userName}) => {
             targets: ["panel"],
             eventData: {
                 requester: userName,
-                message,
                 url,
                 volume,
                 results: {}
             }
         });
-    }  else if (rewardTitle.toUpperCase() === "RANDOM VIDEO") {
+    }  else if (rewardTitle.toUpperCase() === "RANDOM VIDEO" || rewardTitle.toUpperCase() === "PLAY RANDOM VIDEO") {
         if (!EventQueue.isPanelInitialized("MULTI")) {
             EventQueue.sendInfoToChat("Video panel is not available for this stream");
             return;
@@ -452,7 +447,6 @@ exports.redemptionHook = async ({rewardTitle, userName}) => {
             targets: ["panel"],
             eventData: {
                 requester: userName,
-                message,
                 url,
                 chromaKey,
                 volume,
