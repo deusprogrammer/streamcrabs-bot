@@ -2,6 +2,7 @@ const Util = require('../components/base/util');
 const Xhr = require('../components/base/xhr');
 const Commands = require('../components/cbd/commands');
 const EventQueue = require('../components/base/eventQueue');
+const {processMessage} = require('../bot');
 
 let itemTable = {}
 let jobTable = {};
@@ -900,6 +901,7 @@ exports.bitsHook = async ({bits, userName, userId}, botContext) => {
         }
     });
 }
+
 exports.subscriptionHook = async ({gifter, gifterId, giftee, gifteeId, tier}, botContext) => {
     if (!botContext.botConfig.config.rewards) {
         return;
@@ -948,7 +950,8 @@ exports.subscriptionHook = async ({gifter, gifterId, giftee, gifteeId, tier}, bo
         }
     });
 }
-exports.redemptionHook = async ({rewardTitle, userName, userId}) => {
+
+exports.redemptionHook = async ({rewardTitle, userName, userId}, botContext) => {
     if (rewardTitle.toUpperCase().startsWith("AP")) {
         let groups = rewardTitle.match(/AP\s*\+\s*([0-9]+)/);
         
@@ -1003,17 +1006,17 @@ exports.redemptionHook = async ({rewardTitle, userName, userId}) => {
         return;
     }
 
-    //sendContextUpdate(null, botContext);
+    sendContextUpdate(null, botContext);
 }
 
 exports.onWsMessage = async (event, ws, botContext) => {
     if (event.type === "COMMAND") {
-        // onMessageHandler(eventContext.botContext.botConfig.twitchChannel, {username: event.fromUser, "user-id": event.from, mod: false}, event.message, false);
-        // const caller = {
-        //     id: event.from,
-        //     name: event.fromUser
-        // }
-        // sendContextUpdate([caller]);
+        processMessage(botContext.botConfig.twitchChannel, {username: event.fromUser, "user-id": event.from, mod: false}, event.message, false);
+        const caller = {
+            id: event.from,
+            name: event.fromUser
+        }
+        sendContextUpdate([caller]);
     } else if (event.type === "CONTEXT" && event.to !== "ALL") {
         let players = await Xhr.getActiveUsers(botContext);
         ws.send(JSON.stringify({

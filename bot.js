@@ -36,6 +36,8 @@ let units = {
     h: 60 * 60 * 1000
 }
 
+let processMessage = () => {};
+
 const performCustomCommand = (command, {type, coolDown, target}, botContext) => {
     console.log("COOLDOWN LEFT: " + cooldowns[command] - Date.now());
     if (cooldowns[command] && cooldowns[command] - Date.now() <= 0) {
@@ -157,7 +159,7 @@ const startBot = async () => {
         }
 
         // Called every time the bot connects to Twitch chat
-        const onConnectedHandler = async () => {
+        const onConnectedHandler = processMessage = async () => {
             if (devMode) {
                 console.log("* RUNNING IN DEV MODE");
             }
@@ -271,3 +273,5 @@ const startBot = async () => {
 };
 
 startBot();
+
+exports.processMessage = processMessage;
