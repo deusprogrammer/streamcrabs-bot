@@ -928,6 +928,31 @@ exports.subscriptionHook = async ({userName, userId, subPlan}, botContext) => {
     });
 }
 
+// TODO Need to mark user to show they followed already so they can't spam follow and unfollow for gold
+// exports.followHook = async ({userId, userName}, botContext) => {
+//     if (!botContext.botConfig.config.rewards) {
+//         return;
+//     }
+
+//     let user = await Xhr.getUser(userName);
+
+//     if (!user) {
+//         user = await Xhr.createUser(userName, userId);
+//     }
+
+//     await Xhr.addCurrency(user, 1000);
+
+//     EventQueue.sendEvent({
+//         type: "INFO",
+//         targets: ["chat"],
+//         eventData: {
+//             results: {
+//                 message: `@${userName} got 1000 gold for following.`
+//             }
+//         }
+//     });
+// }
+
 exports.redemptionHook = async ({rewardTitle, userName, userId}, botContext) => {
     if (rewardTitle.toUpperCase().startsWith("AP")) {
         let groups = rewardTitle.match(/AP\s*\+\s*([0-9]+)/);
