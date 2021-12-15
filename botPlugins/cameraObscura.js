@@ -344,7 +344,7 @@ exports.commands = {
             throw "Only a mod can test follow";
         }
 
-        throw "This functionality isn't implemented yet";
+        this.followHook({userName: "test_user"}, botContext);
     },
     "!test:cheer": (twitchContext, botContext) => {
         if (twitchContext.username !== botContext.botConfig.twitchChannel && !twitchContext.mod) {
@@ -355,6 +355,17 @@ exports.commands = {
     }
 }
 exports.init = async (botContext) => {}
+
+exports.followHook = async ({userName}, botContext) => {
+    const {enabled, messageTemplate} = botContext.botConfig.alertConfigs.followAlert;
+    const alertMessage = messageTemplate.replace("${username}", userName);
+
+    if (!enabled) {
+        return;
+    }
+
+    await alert(alertMessage, "followAlert", {variable: 1}, botContext);
+}
 
 exports.bitsHook = async ({bits, userName}, botContext) => {
     const {enabled, messageTemplate} = botContext.botConfig.alertConfigs.cheerAlert;

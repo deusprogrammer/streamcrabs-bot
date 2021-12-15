@@ -55,7 +55,12 @@ const connectHookWs = (botContext) => {
             const {type, ...event} = JSON.parse(message);
             switch(type) {
                 case "FOLLOW":
-                    console.log("FOLLOW: " + event.userName);
+                    for (plugin of botContext.plugins) {
+                        if (plugin.followHook) {
+                            plugin.followHook(event, botContext);
+                        }
+                    }
+
                     break;
                 case "PING":
                     hookWs.send(JSON.stringify({
