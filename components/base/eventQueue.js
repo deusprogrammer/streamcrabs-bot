@@ -5,6 +5,8 @@ const Xhr = require('./xhr');
 const Util = require('./util');
 
 const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
+const HOOK_WS_URL = process.env.HOOK_WS_URL;
+const BOT_WS_URL = process.env.BOT_WS_URL;
 
 // Queue for messages to avoid flooding
 let queue = [];
@@ -39,13 +41,39 @@ const createJwt = (secret) => {
     }, secret);
 }
 
+const connectHookWs = (botContext) => {
+    let hookWs = new WebSocket(HOOK_WS_URL);
+    hookWs.on('open', () => {
+        console.log("* Opened Hook ws");
+        hookWs.send(JSON.stringify({
+            type: "CONNECT",
+            channelId: TWITCH_EXT_CHANNEL_ID,
+            listenTo: ["FOLLOW"]
+        }));
+
+        hookWs.on('message', (message) => {
+            const {type, ...event} = JSON.parse(message);
+            switch(type) {
+                case "FOLLOW":
+                    console.log("FOLLOW: " + event.userName);
+                    break;
+                case "PING":
+                    hookWs.send(JSON.stringify({
+                        type: "PONG",
+                        channelId: TWITCH_EXT_CHANNEL_ID
+                    }));
+            }
+        });
+    })
+}
+
 // Setup websocket to communicate with extension
 let extWs = null;
 const connectWs = (botContext) => {
-    extWs = new WebSocket('wss://deusprogrammer.com/api/ws/twitch');
+    extWs = new WebSocket(BOT_WS_URL);
  
     extWs.on('open', () => {
-        console.log("OPENED WS");
+        console.log("* Opened Bot ws");
         extWs.send(JSON.stringify({
             type: "REGISTER",
             channelId: TWITCH_EXT_CHANNEL_ID,
@@ -136,28 +164,6 @@ const connectWs = (botContext) => {
     });
 }
 
-// const sendContextUpdate = async (data) => {
-//     if (targets) {
-//         targets.forEach((target) => {
-//             extWs.send(JSON.stringify({
-//                 type: "CONTEXT",
-//                 channelId: TWITCH_EXT_CHANNEL_ID,
-//                 jwt: createJwt(eventContext.botContext.botConfig.sharedSecretKey),
-//                 to: target.id,
-//                 data
-//             }));
-//         });
-//     } else {
-//         extWs.send(JSON.stringify({
-//             type: "CONTEXT",
-//             channelId: TWITCH_EXT_CHANNEL_ID,
-//             jwt: createJwt(eventContext.botContext.botConfig.sharedSecretKey),
-//             to: "ALL",
-//             data
-//         }));
-//     }
-// }
-
 const sendEventToPanels = async (event) => {
     event.channelId = TWITCH_EXT_CHANNEL_ID;
     event.to = "PANELS";
@@ -223,6 +229,7 @@ let eventContext = {
 let startEventListener = async (botContext) => {
     eventContext.botContext = botContext;
     connectWs(botContext);
+    connectHookWs(botContext);
     setInterval(async () => {
         let message = queue.pop();
 
@@ -272,7 +279,6 @@ exports.sendEvent = sendEvent;
 exports.sendEventToPanels = sendEventToPanels;
 exports.sendEventToUser = sendEventToUser;
 exports.sendEventTo = sendEventTo;
-// exports.sendContextUpdate = sendContextUpdate;
 exports.sendInfoToChat = sendInfoToChat;
 exports.sendErrorToChat = sendErrorToChat;
 exports.startEventListener = startEventListener;

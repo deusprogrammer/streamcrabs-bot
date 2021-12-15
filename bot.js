@@ -256,9 +256,6 @@ const startBot = async () => {
         const basicClient = new BasicPubSubClient({
             wsOptions: {
                 webSocket: false
-            },
-            logger: {
-                minLevel: 'debug'
             }
         });
         pubSubClient = new PubSubClient(basicClient);
