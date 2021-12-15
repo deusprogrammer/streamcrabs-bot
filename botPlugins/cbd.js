@@ -907,14 +907,14 @@ exports.subscriptionHook = async ({userName, userId, subPlan}, botContext) => {
         return;
     }
 
-    let gifteeUser = await Xhr.getUser(userName);
+    let user = await Xhr.getUser(userName);
 
-    if (!gifteeUser) {
-        gifteeUser = await Xhr.createUser(userName, userId);
+    if (!user) {
+        user = await Xhr.createUser(userName, userId);
     }
 
     if (subPlan !== "prime") {
-        await Xhr.addCurrency(userName, parseInt(subPlan));
+        await Xhr.addCurrency(user, parseInt(subPlan));
     }
 
     EventQueue.sendEvent({
