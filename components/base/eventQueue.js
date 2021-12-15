@@ -48,16 +48,43 @@ const connectHookWs = (botContext) => {
         hookWs.send(JSON.stringify({
             type: "CONNECT",
             channelId: TWITCH_EXT_CHANNEL_ID,
-            listenTo: ["FOLLOW"]
+            listenTo: ["FOLLOW", "CHEER", "SUB", "REDEMPTION"]
         }));
 
         hookWs.on('message', (message) => {
-            const {type, ...event} = JSON.parse(message);
-            switch(type) {
+            const event = JSON.parse(message);
+
+            console.log("HOOK EVENT: " + JSON.stringify(event, null, 5));
+
+            switch(event.type) {
                 case "FOLLOW":
                     for (plugin of botContext.plugins) {
                         if (plugin.followHook) {
                             plugin.followHook(event, botContext);
+                        }
+                    }
+
+                    break;
+                case "CHEER":
+                    for (plugin of botContext.plugins) {
+                        if (plugin.bitsHook) {
+                            plugin.bitsHook(event, botContext);
+                        }
+                    }
+
+                    break;
+                case "SUB":
+                    for (plugin of botContext.plugins) {
+                        if (plugin.subscriptionHook) {
+                            plugin.subscriptionHook(event, botContext);
+                        }
+                    }
+
+                    break;
+                case "REDEMPTION":
+                    for (plugin of botContext.plugins) {
+                        if (plugin.redemptionHook) {
+                            plugin.redemptionHook(event, botContext);
                         }
                     }
 
@@ -110,7 +137,7 @@ const connectWs = (botContext) => {
             return;
         }
 
-        console.log("EVENT: " + JSON.stringify(event, null, 5));
+        console.log("BOT EVENT: " + JSON.stringify(event, null, 5));
 
         // If it's just a panel listener requesting initialization, just do it marrrrrrk.
         if (event.type === "PANEL_INIT") {

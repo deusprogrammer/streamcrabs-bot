@@ -902,42 +902,19 @@ exports.bitsHook = async ({bits, userName, userId}, botContext) => {
     });
 }
 
-exports.subscriptionHook = async ({gifter, gifterId, giftee, gifteeId, tier}, botContext) => {
+exports.subscriptionHook = async ({userName, userId, subPlan}, botContext) => {
     if (!botContext.botConfig.config.rewards) {
         return;
     }
 
-    console.log("SUBSCRIPTION: " + giftee);
-    if (gifter && gifter !== giftee) {
-        let gifterUser = await Xhr.getUser(gifter);
-
-        if (!gifterUser) {
-            gifterUser = await Xhr.createUser(gifter, gifterId);
-        }
-
-        if (tier !== "prime") {
-            await Xhr.addCurrency(gifterUser, parseInt(tier));
-        }
-
-        EventQueue.sendEvent({
-            type: "INFO",
-            targets: ["chat"],
-            eventData: {
-                results: {
-                    message: `@${gifter} got ${tier} gold for gifting a sub.`
-                }
-            }
-        });
-    }
-
-    let gifteeUser = await Xhr.getUser(giftee);
+    let gifteeUser = await Xhr.getUser(userName);
 
     if (!gifteeUser) {
-        gifteeUser = await Xhr.createUser(giftee, gifteeId);
+        gifteeUser = await Xhr.createUser(userName, userId);
     }
 
-    if (tier !== "prime") {
-        await Xhr.addCurrency(gifteeUser, parseInt(tier));
+    if (subPlan !== "prime") {
+        await Xhr.addCurrency(userName, parseInt(subPlan));
     }
 
     EventQueue.sendEvent({
@@ -945,7 +922,7 @@ exports.subscriptionHook = async ({gifter, gifterId, giftee, gifteeId, tier}, bo
         targets: ["chat"],
         eventData: {
             results: {
-                message: `@${giftee} got ${tier} gold for subscribing.`
+                message: `@${userName} got ${subPlan} gold for subscribing.`
             }
         }
     });

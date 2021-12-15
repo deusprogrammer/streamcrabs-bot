@@ -378,7 +378,7 @@ exports.bitsHook = async ({bits, userName}, botContext) => {
     await alert(alertMessage, "cheerAlert", {variable: bits}, botContext);
 }
 
-exports.subscriptionHook = async ({userName, gifterName, gifteeName, subPlan, isGift}, botContext) => {
+exports.subscriptionHook = async ({userName, subPlan}, botContext) => {
     const {enabled, messageTemplate} = botContext.botConfig.alertConfigs.subAlert;
     const alertMessage = messageTemplate.replace("${username}", userName).replace("${subTier}", subPlan);
 
