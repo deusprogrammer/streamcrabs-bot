@@ -181,6 +181,8 @@ const startBot = async () => {
         
         const onRaid = async (channel, username, viewers) => {
             let raidContext = {channel, username, viewers};
+
+            console.log("RAID DETECTED " + username + ":" + viewers);
         
             // Run raid function of each plugin
             for (let plugin of plugins) {
@@ -251,19 +253,19 @@ const startBot = async () => {
         await client.connect();
 
         // Attempt to connect to pubsub
-        // console.log("* Attempting to connect to pubsub");
-        // const pubSubAuthProvider = new StaticAuthProvider(process.env.TWITCH_CLIENT_ID, channelAccessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"]);
-        // const basicClient = new BasicPubSubClient({
-        //     wsOptions: {
-        //         webSocket: false
-        //     }
-        // });
-        // pubSubClient = new PubSubClient(basicClient);
-        // const userId = await pubSubClient.registerUserListener(pubSubAuthProvider, twitchChannel);
-        // await pubSubClient.onSubscription(userId, onSubscription);
-        // await pubSubClient.onBits(userId, onBits);
-        // await pubSubClient.onRedemption(userId, onRedemption);
-        // console.log("* Connected to pubsub");
+        console.log("* Attempting to connect to pubsub");
+        const pubSubAuthProvider = new StaticAuthProvider(process.env.TWITCH_CLIENT_ID, channelAccessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"]);
+        const basicClient = new BasicPubSubClient({
+            wsOptions: {
+                webSocket: false
+            }
+        });
+        pubSubClient = new PubSubClient(basicClient);
+        const userId = await pubSubClient.registerUserListener(pubSubAuthProvider, twitchChannel);
+        await pubSubClient.onSubscription(userId, onSubscription);
+        await pubSubClient.onBits(userId, onBits);
+        await pubSubClient.onRedemption(userId, onRedemption);
+        console.log("* Connected to pubsub");
     } catch (error) {
         console.error(`* Failed to start bot: ${error}`);
     }

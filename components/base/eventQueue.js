@@ -48,13 +48,16 @@ const connectHookWs = (botContext) => {
         hookWs.send(JSON.stringify({
             type: "CONNECT",
             channelId: TWITCH_EXT_CHANNEL_ID,
-            listenTo: ["FOLLOW", "CHEER", "SUB", "REDEMPTION"]
+            // listenTo: ["FOLLOW", "CHEER", "SUB", "REDEMPTION"]
+            listenTo: ["FOLLOW"]
         }));
 
         hookWs.on('message', (message) => {
             const event = JSON.parse(message);
 
-            console.log("HOOK EVENT: " + JSON.stringify(event, null, 5));
+            if (event.type !== "PING") {
+                console.log("HOOK EVENT: " + JSON.stringify(event, null, 5));
+            }
 
             switch(event.type) {
                 case "FOLLOW":
@@ -65,30 +68,30 @@ const connectHookWs = (botContext) => {
                     }
 
                     break;
-                case "CHEER":
-                    for (plugin of botContext.plugins) {
-                        if (plugin.bitsHook) {
-                            plugin.bitsHook(event, botContext);
-                        }
-                    }
+                // case "CHEER":
+                //     for (plugin of botContext.plugins) {
+                //         if (plugin.bitsHook) {
+                //             plugin.bitsHook(event, botContext);
+                //         }
+                //     }
 
-                    break;
-                case "SUB":
-                    for (plugin of botContext.plugins) {
-                        if (plugin.subscriptionHook) {
-                            plugin.subscriptionHook(event, botContext);
-                        }
-                    }
+                //     break;
+                // case "SUB":
+                //     for (plugin of botContext.plugins) {
+                //         if (plugin.subscriptionHook) {
+                //             plugin.subscriptionHook(event, botContext);
+                //         }
+                //     }
 
-                    break;
-                case "REDEMPTION":
-                    for (plugin of botContext.plugins) {
-                        if (plugin.redemptionHook) {
-                            plugin.redemptionHook(event, botContext);
-                        }
-                    }
+                //     break;
+                // case "REDEMPTION":
+                //     for (plugin of botContext.plugins) {
+                //         if (plugin.redemptionHook) {
+                //             plugin.redemptionHook(event, botContext);
+                //         }
+                //     }
 
-                    break;
+                //     break;
                 case "PING":
                     hookWs.send(JSON.stringify({
                         type: "PONG",
@@ -137,13 +140,13 @@ const connectWs = (botContext) => {
             return;
         }
 
-        console.log("BOT EVENT: " + JSON.stringify(event, null, 5));
-
         // If it's just a panel listener requesting initialization, just do it marrrrrrk.
         if (event.type === "PANEL_INIT") {
             for (let plugin of eventContext.botContext.plugins) {
                 plugin.wsInitHook(event);
             }
+
+            console.log("BOT EVENT: " + JSON.stringify(event, null, 5));
 
             // Add panel to list for enabling and disabling functionality
             panels[event.name] = Date.now();
