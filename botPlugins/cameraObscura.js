@@ -15,42 +15,33 @@ let removeGold = async (username, amount) => {
     await Xhr.giveGold({name: username}, -amount, TWITCH_EXT_CHANNEL_ID);
 }
 
-let speak = async (twitchContext) => {
-    let requestMatch = twitchContext.command.match(/!rewards:redeem:speak (.*)/);
-
-    if (!requestMatch) {
+let speak = async ({text, username}) => {
+    if (!text) {
         throw "Speak command must include message";
     }
 
-    await removeGold(twitchContext.username, 50);
-    EventQueue.sendInfoToChat(`${twitchContext.username} redeemed speak for 50g.`);
+    await removeGold(username, 50);
+    EventQueue.sendInfoToChat(`${username} redeemed speak for 50g.`);
 
-    EventQueue.sendEvent({
-        type: "TTS",
-        targets: ["panel"],
-        eventData: {
-            requester: twitchContext.username,
-            text: requestMatch[1],
-            results: {}
-        }
+    EventQueue.sendEventToOverlays("TTS", {
+        requester: username,
+        text
     });
 }
 
-let playRandomVideo = async (twitchContext) => {
-    let requestMatch = twitchContext.command.match(/!rewards:redeem:video (.*)/);
+let playRandomVideo = async ({text, username}) => {
     let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
     let enabledVideos = botConfig.videoPool.filter((element) => {
         return element.enabled;
     })
     let n = Math.floor((Math.random() * enabledVideos.length));
     let url = enabledVideos[n].url;
-    let mediaName = enabledVideos[n].name;
     let chromaKey = enabledVideos[n].chromaKey;
     let volume = enabledVideos[n].volume;
 
-    if (requestMatch) {
+    if (text) {
         let found = enabledVideos.filter((element) => {
-            return element.name.toLowerCase() === requestMatch[1].toLowerCase();
+            return element.name.toLowerCase() === text.toLowerCase();
         });
 
         if (found && found.length > 0) {
@@ -61,27 +52,21 @@ let playRandomVideo = async (twitchContext) => {
         }
     }
 
-    await removeGold(twitchContext.username, 500);
-    EventQueue.sendInfoToChat(`${twitchContext.username} redeemed a video for 500g.`);
+    await removeGold(username, 500);
+    EventQueue.sendInfoToChat(`${username} redeemed a video for 500g.`);
 
     if (!volume) {
         volume = 1.0;
     }
 
-    EventQueue.sendEvent({
-        type: "VIDEO",
-        targets: ["panel"],
-        eventData: {
-            url,
-            chromaKey,
-            volume,
-            results: {}
-        }
+    EventQueue.sendEventToOverlays("VIDEO", {
+        url,
+        chromaKey,
+        volume
     });
 }
 
-let playRandomSound = async (twitchContext) => {
-    let requestMatch = twitchContext.command.match(/!rewards:redeem:audio (.*)/);
+let playRandomSound = async ({text, username}) => {
     let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
     let enabledAudio = botConfig.audioPool.filter((element) => {
         return !element.url.startsWith("*");
@@ -91,7 +76,7 @@ let playRandomSound = async (twitchContext) => {
     let mediaName = enabledAudio[n].name;
     let volume = enabledAudio[n].volume;
 
-    if (requestMatch) {
+    if (text) {
         let found = enabledAudio.filter((element) => {
             return element.name.toLowerCase() === requestMatch[1].toLowerCase();
         });
@@ -103,21 +88,16 @@ let playRandomSound = async (twitchContext) => {
         }
     } 
 
-    await removeGold(twitchContext.username, 100);
-    EventQueue.sendInfoToChat(`${twitchContext.username} redeemed a sound for 100g`);
+    await removeGold(username, 100);
+    EventQueue.sendInfoToChat(`${username} redeemed a sound for 100g`);
 
     if (!volume) {
         volume = 1.0;
     }
 
-    EventQueue.sendEvent({
-        type: "AUDIO",
-        targets: ["panel"],
-        eventData: {
-            url,
-            volume,
-            results: {}
-        }
+    EventQueue.sendEventToOverlays("AUDIO", {
+        url,
+        volume
     });
 }
 
@@ -138,45 +118,30 @@ const alert = async (message, alertType, {variable}, botContext) => {
             raidTheme = name;
         }
         
-        EventQueue.sendEvent({
-            type,
-            targets: ["panel"],
-            eventData: {
-                results: {},
-                message,
-                variable,
-                raidCustomTheme,
-                raidTheme
-            }
+        EventQueue.sendEventToOverlays(type, {
+            message,
+            variable,
+            raidTheme,
+            raidCustomTheme
         });
     } else if (type === "VIDEO") {
         let {url, volume, name, chromaKey} = botContext.botConfig.videoPool.find(video => video._id === id);
 
-        EventQueue.sendEvent({
-            type,
-            targets: ["panel"],
-            eventData: {
-                message,
-                mediaName: name,
-                url,
-                chromaKey,
-                volume,
-                results: {}
-            }
+        EventQueue.sendEventToOverlays(type, {
+            message,
+            mediaName: name,
+            url,
+            chromaKey,
+            volume
         });
     } else if (type === "AUDIO") {
         let {url, volume, name} = botContext.botConfig.audioPool.find(audio => audio._id === id);
 
-        EventQueue.sendEvent({
-            type,
-            targets: ["panel"],
-            eventData: {
-                message,
-                mediaName: name,
-                url,
-                volume,
-                results: {}
-            }
+        EventQueue.sendEventToOverlays(type, {
+            message,
+            mediaName: name,
+            url,
+            volume
         });
     }
 }
@@ -218,8 +183,8 @@ exports.commands = {
 
         await speak(twitchContext);
     },
-    "!rewards:list": async (twitchContext, botContext) => {
-        EventQueue.sendInfoToChat("The rewards are sound(100g), video(500g)");
+    "!rewards:list": async () => {
+        EventQueue.sendInfoToChat("The rewards are sound(100g), video(500g), speak(50g)");
     },
     "!rewards:give:gold": async (twitchContext, botContext) => {
         if (!botContext.botConfig.config.rewards) {
@@ -280,14 +245,10 @@ exports.commands = {
 
         currentVideoId = videoId;
 
-        EventQueue.sendEvent({
-            type: "DUB",
-            targets: ["panel"],
-            eventData: {
-                results: {},
-                videoData,
-                substitution: null
-            }
+        EventQueue.sendEventToOverlays("DUB", {
+            results: {},
+            videoData,
+            substitution: null
         });
     }, 
     "!games:wtd:stop": async (twitchContext, botContext) => {
@@ -298,31 +259,24 @@ exports.commands = {
 
         currentVideoId = null;
     }, 
-    "!games:wtd:answer": async (twitchContext, botContext) => {
+    "!games:wtd:answer": async ({text, username}, botContext) => {
         if (!currentVideoId) {
             throw "There must be a current game running";
         }
         
-        let requestMatch = twitchContext.command.match(/!games:wtd:answer (.*)/);
-
-        if (!requestMatch) {
+        if (!text) {
             throw "Invalid syntax.";
         }
 
-        let substitution = requestMatch[1];
+        let substitution = text;
 
         let videoData = await Xhr.getVideo(currentVideoId);
-        let requester = twitchContext.username;
+        let requester = username;
 
-        EventQueue.sendEvent({
-            type: "DUB",
-            targets: ["panel"],
-            eventData: {
-                results: {},
-                requester,
-                videoData,
-                substitution
-            }
+        EventQueue.sendEventToOverlays("DUB", {
+            requester,
+            videoData,
+            substitution
         });
     },
     "!test:raid": (twitchContext, botContext) => {
@@ -415,22 +369,16 @@ exports.redemptionHook = async ({rewardTitle, userName}) => {
         })
         let n = Math.floor((Math.random() * enabledAudio.length));
         let url = enabledAudio[n].url;
-        let message = enabledAudio[n].name;
         let volume = enabledAudio[n].volume;
 
         if (!volume) {
             volume = 1.0;
         }
 
-        EventQueue.sendEvent({
-            type: "AUDIO",
-            targets: ["panel"],
-            eventData: {
-                requester: userName,
-                url,
-                volume,
-                results: {}
-            }
+        EventQueue.sendEventToOverlays("AUDIO", {
+            requester: userName,
+            url,
+            volume
         });
     }  else if (rewardTitle.toUpperCase() === "RANDOM VIDEO" || rewardTitle.toUpperCase() === "PLAY RANDOM VIDEO") {
         if (!EventQueue.isPanelInitialized("MULTI")) {
@@ -445,7 +393,6 @@ exports.redemptionHook = async ({rewardTitle, userName}) => {
         })
         let n = Math.floor((Math.random() * enabledVideos.length));
         let url = enabledVideos[n].url;
-        let message = enabledVideos[n].name;
         let chromaKey = enabledVideos[n].chromaKey;
         let volume = enabledVideos[n].volume;
 
@@ -453,16 +400,11 @@ exports.redemptionHook = async ({rewardTitle, userName}) => {
             volume = 1.0;
         }
 
-        EventQueue.sendEvent({
-            type: "VIDEO",
-            targets: ["panel"],
-            eventData: {
-                requester: userName,
-                url,
-                chromaKey,
-                volume,
-                results: {}
-            }
+        EventQueue.sendEventToOverlays("VIDEO", {
+            requester: userName,
+            url,
+            chromaKey,
+            volume
         });
     } else if (rewardTitle.toUpperCase() === "BIRD UP") {
         if (!EventQueue.isPanelInitialized("MULTI")) {
@@ -470,13 +412,9 @@ exports.redemptionHook = async ({rewardTitle, userName}) => {
             return;
         }
 
-        EventQueue.sendEvent({
-            type: "BIRDUP",
-            targets: ["panel"],
-            eventData: {
-                requester: userName,
-                results: {}
-            }
+        EventQueue.sendEventToOverlays("BIRDUP", {
+            requester: userName,
+            results: {}
         });
     } else if (rewardTitle.toUpperCase() === "BAD APPLE") {
         if (!EventQueue.isPanelInitialized("MULTI")) {
@@ -484,13 +422,8 @@ exports.redemptionHook = async ({rewardTitle, userName}) => {
             return;
         }
 
-        EventQueue.sendEvent({
-            type: "BADAPPLE",
-            targets: ["panel"],
-            eventData: {
-                requester: userName,
-                results: {}
-            }
+        EventQueue.sendEventToOverlays("BADAPPLE", {
+            requester: userName
         });
     }
 }

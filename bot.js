@@ -9,10 +9,12 @@ const cbdPlugin = require('./botPlugins/cbd');
 const requestPlugin = require('./botPlugins/requests');
 const deathCounterPlugin = require('./botPlugins/deathCounter');
 const cameraObscuraPlugin = require('./botPlugins/cameraObscura');
+const fileWriterPlugin = require('./botPlugins/fileWriter');
 
 const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
-const versionNumber = "4.0b";
+const versionNumber = "4.5b";
+const plugins = [deathCounterPlugin, requestPlugin, cameraObscuraPlugin, cbdPlugin, fileWriterPlugin];
 
 /*
  * INDEXES
@@ -61,31 +63,21 @@ const performCustomCommand = (command, {type, coolDown, target}, botContext) => 
     if (type === "VIDEO") {
         let {url, volume, name, chromaKey} = botContext.botConfig.videoPool.find(video => video._id === target);
 
-        EventQueue.sendEvent({
-            type,
-            targets: ["panel"],
-            eventData: {
-                message: [''],
-                mediaName: name,
-                url,
-                chromaKey,
-                volume,
-                results: {}
-            }
+        EventQueue.sendEventToOverlays(type, {
+            message: null,
+            mediaName: name,
+            url,
+            chromaKey,
+            volume
         });
     } else if (type === "AUDIO") {
         let {url, volume, name} = botContext.botConfig.audioPool.find(audio => audio._id === target);
 
-        EventQueue.sendEvent({
-            type,
-            targets: ["panel"],
-            eventData: {
-                message: [''],
-                mediaName: name,
-                url,
-                volume,
-                results: {}
-            }
+        EventQueue.sendEventToOverlays(type, {
+            message: null,
+            mediaName: name,
+            url,
+            volume
         });
     }
 }
@@ -100,8 +92,6 @@ const startBot = async () => {
         let channelAccessToken = botConfig.accessToken;
         let botContext = {};
         let chattersActive = {};
-
-        let plugins = [deathCounterPlugin, requestPlugin, cameraObscuraPlugin, cbdPlugin];
 
         console.log("* Retrieved bot config");
         console.log("CONFIG: " + JSON.stringify(botConfig, null, 5));
@@ -125,19 +115,26 @@ const startBot = async () => {
 
             // Remove whitespace from chat message
             const command = msg.trim();
+            const [commandName, ...text] = command.split(" ");
+            const tokens = command.split(" ");
+
+            const commandText = text.join(" ");
 
             // Handle battle commands here
             if (command.startsWith("!") || command.startsWith("$")) {
                 context.command = command;
-                context.tokens = command.split(" ");
+                context.commandName = commandName;
+                context.text = commandText;
+                context.tokens = tokens;
                 context.caller = caller;
                 context.target = target;
 
                 console.log("Received command!")
-                console.log("Tokens: " + context.tokens);
+                console.log("Tokens: " + tokens);
+                console.log("Text:   " + text);
 
                 try {
-                    switch (context.tokens[0]) {
+                    switch (commandName) {
                         case "!help":
                             EventQueue.sendInfoToChat(`To checkout your character and see how to play Chat Battler Dungeon go to https://deusprogrammer.com/cbd.`);
                             break;
@@ -145,10 +142,10 @@ const startBot = async () => {
                             EventQueue.sendInfoToChat(`Chat battler dungeon version ${versionNumber} written by thetruekingofspace`);
                             break;
                         default:
-                            if (commands[context.tokens[0]]) {
-                                await commands[context.tokens[0]](context, botContext);
-                            } else if (botContext.botConfig.commands[context.tokens[0]]) {
-                                await performCustomCommand(context.tokens[0], botContext.botConfig.commands[context.tokens[0]], botContext);
+                            if (commands[commandName]) {
+                                await commands[commandName](context, botContext);
+                            } else if (botContext.botConfig.commands[commandName]) {
+                                await performCustomCommand(commandName, botContext.botConfig.commands[commandName], botContext);
                             }
                     }
                 } catch (e) {
@@ -169,7 +166,7 @@ const startBot = async () => {
 
             // Initialize all plugins
             for (let plugin of plugins) {
-                plugin.init(botContext);
+                await plugin.init(botContext);
             }
 
             // Start queue consumer
@@ -187,7 +184,7 @@ const startBot = async () => {
             // Run raid function of each plugin
             for (let plugin of plugins) {
                 if (plugin.raidHook) {
-                    plugin.raidHook(raidContext, botContext);
+                    await plugin.raidHook(raidContext, botContext);
                 }
             }
         }
@@ -197,7 +194,7 @@ const startBot = async () => {
                 // Run through subscription plugin hooks
                 for (let plugin of plugins) {
                     if (plugin.subscriptionHook) {
-                        plugin.subscriptionHook(subMessage, botContext);
+                        await plugin.subscriptionHook(subMessage, botContext);
                     }
                 }
             } catch (error) {
@@ -210,7 +207,7 @@ const startBot = async () => {
                 // Run through bit plugin hooks
                 for (let plugin of plugins) {
                     if (plugin.bitsHook) {
-                        plugin.bitsHook(bitsMessage, botContext);
+                        await plugin.bitsHook(bitsMessage, botContext);
                     }
                 }
             } catch (error) {
@@ -223,7 +220,7 @@ const startBot = async () => {
                 // Run through redemption plugin hooks
                 for (let plugin of plugins) {
                     if (plugin.redemptionHook) {
-                        plugin.redemptionHook(redemptionMessage, botContext);
+                        await plugin.redemptionHook(redemptionMessage, botContext);
                     }
                 }
             } catch (error) {

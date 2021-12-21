@@ -132,7 +132,7 @@ const connectWs = (botContext) => {
         }, 20 * 1000);
     });
 
-    extWs.on('message', async (message) => {
+    extWs.on('message', (message) => {
         let event = JSON.parse(message);
 
         // Ignore messages originating from bot
@@ -199,32 +199,32 @@ const connectWs = (botContext) => {
     });
 }
 
-const sendEventToPanels = async (event) => {
+const sendEventToPanels = (event) => {
     event.channelId = TWITCH_EXT_CHANNEL_ID;
     event.to = "PANELS";
     event.jwt = createJwt(eventContext.botContext.botConfig.sharedSecretKey);
     extWs.send(JSON.stringify(event));
 }
 
-const sendEventToUser = async (user, event) => {
+const sendEventToUser = (user, event) => {
     event.channelId = TWITCH_EXT_CHANNEL_ID;
     event.to = user.id;
     event.jwt = createJwt(eventContext.botContext.botConfig.sharedSecretKey);
     extWs.send(JSON.stringify(event));
 }
 
-const sendEventTo = async (to, event) => {
+const sendEventTo = (to, event) => {
     event.channelId = TWITCH_EXT_CHANNEL_ID;
     event.to = to;
     event.jwt = createJwt(eventContext.botContext.botConfig.sharedSecretKey);
     extWs.send(JSON.stringify(event));
 }
 
-const sendEvent = async (event, verbosity = "simple") => {
+const sendEvent = (event, verbosity = "simple") => {
     queue.unshift({event, level: verbosity});
 }
 
-const sendInfoToChat = async (message, includePanel = false) => {
+const sendInfoToChat = (message, includePanel = false) => {
     let targets = ["chat"]
 
     if (includePanel) {
@@ -242,7 +242,21 @@ const sendInfoToChat = async (message, includePanel = false) => {
     })
 }
 
-const sendErrorToChat = async(message) => {
+const sendEventToOverlays = (type, eventData) => {
+    const targets = ["panel"]
+
+    if (!eventData.results) {
+        eventData.results = {};
+    }
+
+    sendEvent({
+        type,
+        targets,
+        eventData
+    })
+}
+
+const sendErrorToChat = (message) => {
     let targets = ["chat"]
 
     sendEvent({
@@ -261,11 +275,11 @@ let eventContext = {
 }
 
 // QUEUE CONSUMER
-let startEventListener = async (botContext) => {
+let startEventListener = (botContext) => {
     eventContext.botContext = botContext;
     connectWs(botContext);
     connectHookWs(botContext);
-    setInterval(async () => {
+    setInterval(() => {
         let message = queue.pop();
 
         if (message) {
@@ -299,9 +313,6 @@ let startEventListener = async (botContext) => {
             if (event.targets.includes("panel")) {
                 sendEventToPanels(event);
             }
-
-            // Handle different events that pertain to the bot's personality
-            // await mikuEventHandler(eventContext.botContext.client, event);
         }
     }, 2500);
 }
@@ -319,3 +330,4 @@ exports.sendErrorToChat = sendErrorToChat;
 exports.startEventListener = startEventListener;
 exports.isPanelInitialized = isPanelInitialized;
 exports.createJwt = createJwt;
+exports.sendEventToOverlays = sendEventToOverlays;

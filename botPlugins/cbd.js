@@ -17,23 +17,16 @@ let pluginContext = {};
 
 const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
-let speak = async (twitchContext) => {
-    let requestMatch = twitchContext.command.match(/\$speak (.*)/);
-
-    if (!requestMatch) {
+let speak = ({text, username}) => {
+    if (!text) {
         throw "Speak command must include message";
     }
 
-    EventQueue.sendInfoToChat(`${twitchContext.username} used $speak.`);
+    EventQueue.sendInfoToChat(`${username} used $speak.`);
 
-    EventQueue.sendEvent({
-        type: "TTS",
-        targets: ["panel"],
-        eventData: {
-            requester: twitchContext.username,
-            text: requestMatch[1],
-            results: {}
-        }
+    EventQueue.sendEventToOverlays("TTS", {
+        requester: username,
+        text: requestMatch[1]
     });
 }
 
@@ -72,7 +65,7 @@ exports.commands = {
         await Xhr.createUser(twitchContext.username, twitchContext.caller.id);
         EventQueue.sendInfoToChat(`${twitchContext.username} just created a battler!`);
     },
-    "!me": (twitchContext, botContext) => {
+    "!me": async (twitchContext, botContext) => {
         EventQueue.sendInfoToChat(`To checkout your character go to https://deusprogrammer.com/cbd/battlers/${twitchContext.username}.`);
     },
     "!ready": async (twitchContext, botContext) => {

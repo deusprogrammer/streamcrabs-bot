@@ -3,17 +3,17 @@ const EventQueue = require('../components/base/eventQueue');
 let requestList = [];
 
 exports.commands = {
-    "!tools:request:queue": async (twitchContext, botContext) => {
+    "!tools:request:queue": async ({username, mod, text}, botContext) => {
         if (!botContext.botConfig.config.requests) {
             throw "This channel does not have this command enabled";
         }
 
         // Check if mod
-        if (twitchContext.username !== botContext.botConfig.twitchChannel && !twitchContext.mod) {
+        if (username !== botContext.botConfig.twitchChannel && !mod) {
             throw "Only a mod can queue requests";
         }
 
-        let requestMatch = twitchContext.command.match(/!tools:request:queue ["|'|`](.*)["|'|`]\s*@(.*)/);
+        let requestMatch = text.match(/["|'|`](.*)["|'|`]\s*@(.*)/);
 
         if (!requestMatch) {
             throw "Invalid syntax.  Correct syntax is '!tools:request:queue \"GAME/SONG\" @username";
@@ -24,15 +24,11 @@ exports.commands = {
             requester: requestMatch[2]
         });
 
-        EventQueue.sendEvent({
-            type: "REQUEST",
-            targets: ["chat", "panel"],
-            eventData: {
-                results: {
-                    message: `${requestMatch[2]} has requested ${requestMatch[1]}`
-                },
-                requestList
-            }
+        EventQueue.sendEventToOverlays("REQUEST", {
+            results: {
+                message: `${requestMatch[2]} has requested ${requestMatch[1]}`
+            },
+            requestList
         });
     },
     "!tools:request:next": async (twitchContext, botContext) => {
@@ -47,15 +43,11 @@ exports.commands = {
 
         let entry = requestList.pop();
 
-        EventQueue.sendEvent({
-            type: "REQUEST",
-            targets: ["chat", "panel"],
-            eventData: {
-                results: {
-                    message: `Now playing ${entry.request} requested by @${entry.requester}`
-                },
-                requestList
-            }
+        EventQueue.sendEventToOverlays("REQUEST", {
+            results: {
+                message: `Now playing ${entry.request} requested by @${entry.requester}`
+            },
+            requestList
         });
     },
     "!tools:request:depth": async (twitchContext, botContext) => {
