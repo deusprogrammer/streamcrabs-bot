@@ -425,6 +425,8 @@ exports.redemptionHook = async ({rewardTitle, userName}) => {
         EventQueue.sendEventToOverlays("BADAPPLE", {
             requester: userName
         });
+    } else if (rewardTitle.toUpperCase() === "BE A BIG SHOT") {
+        // TODO Play some Spamton shit here
     }
 }
 

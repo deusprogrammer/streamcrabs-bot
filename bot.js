@@ -131,7 +131,7 @@ const startBot = async () => {
 
                 console.log("Received command!")
                 console.log("Tokens: " + tokens);
-                console.log("Text:   " + text);
+                console.log("Text:   " + commandText);
 
                 try {
                     switch (commandName) {
