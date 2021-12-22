@@ -419,7 +419,7 @@ exports.redemptionHook = async ({rewardTitle, userName}) => {
         }
 
         EventQueue.sendEventToOverlays("VIDEO", {
-            url: "https://deusprogrammer.com/util/twitch-tools/videos/badapple.mp4",
+            url: "/util/twitch-tools/videos/badapple.mp4",
             chromaKey: "black",
             volume: "0.8"
         });
@@ -431,8 +431,8 @@ exports.redemptionHook = async ({rewardTitle, userName}) => {
 
         EventQueue.sendEventToOverlays("VIDEO", {
             message: `${userName} is a big shot for the week!`,
-            url: "https://deusprogrammer.com/util/twitch-tools/videos/bigshot.mp4",
-            chromaKey: "black",
+            url: "/util/twitch-tools/videos/bigshot.mp4",
+            chromaKey: null,
             volume: "0.8"
         });
     }
