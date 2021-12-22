@@ -401,7 +401,6 @@ exports.redemptionHook = async ({rewardTitle, userName}) => {
         }
 
         EventQueue.sendEventToOverlays("VIDEO", {
-            requester: userName,
             url,
             chromaKey,
             volume
@@ -412,21 +411,30 @@ exports.redemptionHook = async ({rewardTitle, userName}) => {
             return;
         }
 
-        EventQueue.sendEventToOverlays("BIRDUP", {
-            requester: userName,
-            results: {}
-        });
+        EventQueue.sendEventToOverlays("BIRDUP", {});
     } else if (rewardTitle.toUpperCase() === "BAD APPLE") {
         if (!EventQueue.isPanelInitialized("MULTI")) {
             EventQueue.sendInfoToChat("Video panel is not available for this stream");
             return;
         }
 
-        EventQueue.sendEventToOverlays("BADAPPLE", {
-            requester: userName
+        EventQueue.sendEventToOverlays("VIDEO", {
+            url: "https://deusprogrammer.com/util/twitch-tools/videos/badapple.mp4",
+            chromaKey: "black",
+            volume: "0.8"
         });
     } else if (rewardTitle.toUpperCase() === "BE A BIG SHOT") {
-        // TODO Play some Spamton shit here
+        if (!EventQueue.isPanelInitialized("MULTI")) {
+            EventQueue.sendInfoToChat("Video panel is not available for this stream");
+            return;
+        }
+
+        EventQueue.sendEventToOverlays("VIDEO", {
+            message: `${userName} is a big shot for the week!`,
+            url: "https://deusprogrammer.com/util/twitch-tools/videos/bigshot.mp4",
+            chromaKey: "black",
+            volume: "0.8"
+        });
     }
 }
 
