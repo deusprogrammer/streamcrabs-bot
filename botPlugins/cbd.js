@@ -26,7 +26,7 @@ let speak = ({text, username}) => {
 
     EventQueue.sendEventToOverlays("TTS", {
         requester: username,
-        text: requestMatch[1]
+        text
     });
 }
 

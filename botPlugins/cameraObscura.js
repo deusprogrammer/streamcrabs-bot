@@ -78,7 +78,7 @@ let playRandomSound = async ({text, username}) => {
 
     if (text) {
         let found = enabledAudio.filter((element) => {
-            return element.name.toLowerCase() === requestMatch[1].toLowerCase();
+            return element.name.toLowerCase() === text.toLowerCase();
         });
 
         if (found && found.length > 0) {

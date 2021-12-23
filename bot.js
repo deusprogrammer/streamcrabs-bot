@@ -246,7 +246,7 @@ const startBot = async () => {
         client = new tmi.client(opts);
         client.on('message', onMessageHandler);
         client.on('connected', onConnectedHandler);
-        client.on('raid', onRaid);
+        client.on('raided', onRaid);
         await client.connect();
 
         // Attempt to connect to pubsub
