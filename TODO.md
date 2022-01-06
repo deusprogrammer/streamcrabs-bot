@@ -1,15 +1,17 @@
 # TODO
 
-## CBD
+## Gauges
 
-* Enemies buffing and cleansing each other
-* Elemental weaknesses
+* Add gauges for events that animate and make sound.
+* Build a UI that allows customization of the gauge.
+    * Gauge triggers
+        * Command
+        * Channel Point Reward Redemption
+        * Follow
+        * Subscribe
+        * Cheer
+        * Raid
 
-## Camera Obscura
+## Deployment
 
-* Slime Drop Mini Game
-
-## Stream Stuff
-
-* Closing scene/credits crawl
-* Shmuptember Promo
+* Create a deployment script and modify UI elements to build using environment variables for public url and api url destinations.
