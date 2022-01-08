@@ -362,8 +362,7 @@ exports.redemptionHook = async ({rewardId, id, rewardTitle, userName}) => {
     if (rewardTitle.toUpperCase() === "RANDOM SOUND" || rewardTitle.toUpperCase() === "PLAY RANDOM SOUND") {
         if (!EventQueue.isPanelInitialized("SOUND_PLAYER")) {
             EventQueue.sendInfoToChat("Sound panel is not available for this stream");
-            let res = await Xhr.refundRedemption(rewardId, id, botConfig);
-            console.log("REFUND: " + JSON.stringify(res, null, 5));
+            await Xhr.refundRedemption(rewardId, id, botConfig);
             return;
         }
         let enabledAudio = botConfig.audioPool.filter((element) => {
@@ -383,12 +382,11 @@ exports.redemptionHook = async ({rewardId, id, rewardTitle, userName}) => {
             volume
         });
 
-        Xhr.clearRedemption(rewardId, id, botConfig);
+        await Xhr.clearRedemption(rewardId, id, botConfig);
     }  else if (rewardTitle.toUpperCase() === "RANDOM VIDEO" || rewardTitle.toUpperCase() === "PLAY RANDOM VIDEO") {
         if (!EventQueue.isPanelInitialized("MULTI")) {
             EventQueue.sendInfoToChat("Video panel is not available for this stream");
-            let res = await Xhr.refundRedemption(rewardId, id, botConfig);
-            console.log("REFUND: " + JSON.stringify(res, null, 5));
+            await Xhr.refundRedemption(rewardId, id, botConfig);
             return;
         }
 
@@ -410,23 +408,21 @@ exports.redemptionHook = async ({rewardId, id, rewardTitle, userName}) => {
             volume
         });
 
-        Xhr.clearRedemption(rewardId, id, botConfig);
+        await Xhr.clearRedemption(rewardId, id, botConfig);
     } else if (rewardTitle.toUpperCase() === "BIRD UP") {
         if (!EventQueue.isPanelInitialized("MULTI")) {
             EventQueue.sendInfoToChat("Video panel is not available for this stream");
-            let res = await Xhr.refundRedemption(rewardId, id, botConfig);
-            console.log("REFUND: " + JSON.stringify(res, null, 5));
+            await Xhr.refundRedemption(rewardId, id, botConfig);
             return;
         }
 
         EventQueue.sendEventToOverlays("BIRDUP", {});
 
-        Xhr.clearRedemption(rewardId, id, botConfig);
+        await Xhr.clearRedemption(rewardId, id, botConfig);
     } else if (rewardTitle.toUpperCase() === "BAD APPLE") {
         if (!EventQueue.isPanelInitialized("MULTI")) {
             EventQueue.sendInfoToChat("Video panel is not available for this stream");
-            let res = await Xhr.refundRedemption(rewardId, id, botConfig);
-            console.log("REFUND: " + JSON.stringify(res, null, 5));
+            await Xhr.refundRedemption(rewardId, id, botConfig);
             return;
         }
 
@@ -436,12 +432,11 @@ exports.redemptionHook = async ({rewardId, id, rewardTitle, userName}) => {
             volume: "0.8"
         });
 
-        Xhr.clearRedemption(rewardId, id, botConfig);
+        await Xhr.clearRedemption(rewardId, id, botConfig);
     } else if (rewardTitle.toUpperCase() === "BE A BIG SHOT") {
-        if (!EventQueue.isPanelInitialized("MULTI")) {
-            EventQueue.sendInfoToChat("Video panel is not available for this stream");
-            let res = await Xhr.refundRedemption(rewardId, id, botConfig);
-            console.log("REFUND: " + JSON.stringify(res, null, 5));
+        if (!EventQueue.isPanelInitialized("MULTI") || !EventQueue.isPanelInitialized("FILE_WRITER")) {
+            EventQueue.sendInfoToChat("Video panel or filewriter proxy is not available for this stream");
+            await Xhr.refundRedemption(rewardId, id, botConfig);
             return;
         }
 
@@ -452,7 +447,14 @@ exports.redemptionHook = async ({rewardId, id, rewardTitle, userName}) => {
             volume: "0.8"
         });
 
-        Xhr.clearRedemption(rewardId, id, botConfig);
+        EventQueue.sendEventToOverlays("FILE_WRITER", {
+            textToWrite: userName,
+            fileToWriteTo: "BIG_SHOT"
+        });
+
+        EventQueue.sendInfoToChat(`${userName} is now a BIG SHOT!`);
+
+        await Xhr.clearRedemption(rewardId, id, botConfig);
     }
 }
 

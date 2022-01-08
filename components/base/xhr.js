@@ -283,11 +283,6 @@ const getDynamicAlert = async (id) => {
 }
 
 const refundRedemption = async (rewardId, id, botConfig) => {
-    console.log("Broadcaster Id: " + botConfig.twitchChannelId);
-    console.log("Reward Id:      " + rewardId);
-    console.log("Id:             " + id);
-    console.log("Access Token:   " + botConfig.accessToken);
-    console.log("Client Id:      " + process.env.TWITCH_CLIENT_ID);
     let {data: {data: redemption}} = await axios.patch(`https://api.twitch.tv/helix/channel_points/custom_rewards/redemptions?broadcaster_id=${botConfig.twitchChannelId}&reward_id=${rewardId}&id=${id}`,
     {
         status: 'CANCELED'

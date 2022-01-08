@@ -38,13 +38,6 @@ exports.followHook = async ({userName}) => {
     });
 }
 exports.redemptionHook = async ({rewardTitle, userName, userId}, botContext) => {
-    if (rewardTitle.toUpperCase() === "BE A BIG SHOT") {
-        EventQueue.sendEventToOverlays("FILE_WRITER", {
-            textToWrite: userName,
-            fileToWriteTo: "BIG_SHOT"
-        });
-        EventQueue.sendInfoToChat(`${userName} is now a BIG SHOT!`);
-    }
 }
 exports.onWsMessage = async (event, ws, botContext) => {}
 exports.wsInitHook = (from) => {}
