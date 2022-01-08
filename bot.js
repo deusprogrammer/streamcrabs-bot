@@ -139,7 +139,7 @@ const startBot = async () => {
                             EventQueue.sendInfoToChat(`To checkout your character and see how to play Chat Battler Dungeon go to https://deusprogrammer.com/cbd.`);
                             break;
                         case "!about":
-                            EventQueue.sendInfoToChat(`Chat battler dungeon version ${versionNumber} written by thetruekingofspace`);
+                            EventQueue.sendInfoToChat(`Streamcrabs Bot version ${versionNumber} written by @thetruekingofspace`);
                             break;
                         default:
                             if (commands[commandName]) {
@@ -173,7 +173,7 @@ const startBot = async () => {
             await EventQueue.startEventListener(botContext);
 
             // Announce restart
-            EventQueue.sendInfoToChat(`Twitch Dungeon version ${versionNumber} is online.  All systems nominal.`);
+            EventQueue.sendInfoToChat(`Streamcrabs Bot version ${versionNumber} is online.  All systems nominal.`);
         }
         
         const onRaid = async (channel, username, viewers) => {

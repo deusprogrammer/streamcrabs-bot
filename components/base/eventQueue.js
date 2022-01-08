@@ -48,8 +48,8 @@ const connectHookWs = (botContext) => {
         hookWs.send(JSON.stringify({
             type: "CONNECT",
             channelId: TWITCH_EXT_CHANNEL_ID,
-            // listenTo: ["FOLLOW", "CHEER", "SUB", "REDEMPTION"]
-            listenTo: ["FOLLOW"]
+            listenTo: ["FOLLOW", "CHEER", "SUB", "REDEMPTION"]
+            //listenTo: ["FOLLOW"]
         }));
 
         hookWs.on('message', (message) => {
@@ -67,31 +67,40 @@ const connectHookWs = (botContext) => {
                         }
                     }
 
+                    console.log("FOLLOW EVENT: " + JSON.stringify(event, null, 5));
+
                     break;
-                // case "CHEER":
-                //     for (plugin of botContext.plugins) {
-                //         if (plugin.bitsHook) {
-                //             plugin.bitsHook(event, botContext);
-                //         }
-                //     }
+                case "CHEER":
+                    // for (plugin of botContext.plugins) {
+                    //     if (plugin.bitsHook) {
+                    //         plugin.bitsHook(event, botContext);
+                    //     }
+                    // }
 
-                //     break;
-                // case "SUB":
-                //     for (plugin of botContext.plugins) {
-                //         if (plugin.subscriptionHook) {
-                //             plugin.subscriptionHook(event, botContext);
-                //         }
-                //     }
+                    console.log("CHEER EVENT: " + JSON.stringify(event, null, 5));
 
-                //     break;
-                // case "REDEMPTION":
-                //     for (plugin of botContext.plugins) {
-                //         if (plugin.redemptionHook) {
-                //             plugin.redemptionHook(event, botContext);
-                //         }
-                //     }
+                    break;
+                case "SUB":
+                case "SUB_ANNOUNCE":
+                    // for (plugin of botContext.plugins) {
+                    //     if (plugin.subscriptionHook) {
+                    //         plugin.subscriptionHook(event, botContext);
+                    //     }
+                    // }
 
-                //     break;
+                    console.log("SUB EVENT: " + JSON.stringify(event, null, 5));
+
+                    break;
+                case "REDEMPTION":
+                    // for (plugin of botContext.plugins) {
+                    //     if (plugin.redemptionHook) {
+                    //         plugin.redemptionHook(event, botContext);
+                    //     }
+                    // }
+
+                    console.log("REDEMPTION EVENT: " + JSON.stringify(event, null, 5));
+
+                    break;
                 case "PING":
                     hookWs.send(JSON.stringify({
                         type: "PONG",

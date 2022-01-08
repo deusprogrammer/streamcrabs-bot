@@ -357,13 +357,15 @@ exports.raidHook = async ({username, viewers}, botContext) => {
 exports.joinHook = async (joinContext, botContext) => {
 }
 
-exports.redemptionHook = async ({rewardTitle, userName}) => {
+exports.redemptionHook = async ({rewardId, id, rewardTitle, userName}) => {
+    let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
     if (rewardTitle.toUpperCase() === "RANDOM SOUND" || rewardTitle.toUpperCase() === "PLAY RANDOM SOUND") {
         if (!EventQueue.isPanelInitialized("SOUND_PLAYER")) {
             EventQueue.sendInfoToChat("Sound panel is not available for this stream");
+            let res = await Xhr.refundRedemption(rewardId, id, botConfig);
+            console.log("REFUND: " + JSON.stringify(res, null, 5));
             return;
         }
-        let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
         let enabledAudio = botConfig.audioPool.filter((element) => {
             return element.enabled;
         })
@@ -380,13 +382,15 @@ exports.redemptionHook = async ({rewardTitle, userName}) => {
             url,
             volume
         });
+
+        Xhr.clearRedemption(rewardId, id, botConfig);
     }  else if (rewardTitle.toUpperCase() === "RANDOM VIDEO" || rewardTitle.toUpperCase() === "PLAY RANDOM VIDEO") {
         if (!EventQueue.isPanelInitialized("MULTI")) {
             EventQueue.sendInfoToChat("Video panel is not available for this stream");
+            let res = await Xhr.refundRedemption(rewardId, id, botConfig);
+            console.log("REFUND: " + JSON.stringify(res, null, 5));
             return;
         }
-
-        let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
 
         let enabledVideos = botConfig.videoPool.filter((element) => {
             return element.enabled;
@@ -405,16 +409,24 @@ exports.redemptionHook = async ({rewardTitle, userName}) => {
             chromaKey,
             volume
         });
+
+        Xhr.clearRedemption(rewardId, id, botConfig);
     } else if (rewardTitle.toUpperCase() === "BIRD UP") {
         if (!EventQueue.isPanelInitialized("MULTI")) {
             EventQueue.sendInfoToChat("Video panel is not available for this stream");
+            let res = await Xhr.refundRedemption(rewardId, id, botConfig);
+            console.log("REFUND: " + JSON.stringify(res, null, 5));
             return;
         }
 
         EventQueue.sendEventToOverlays("BIRDUP", {});
+
+        Xhr.clearRedemption(rewardId, id, botConfig);
     } else if (rewardTitle.toUpperCase() === "BAD APPLE") {
         if (!EventQueue.isPanelInitialized("MULTI")) {
             EventQueue.sendInfoToChat("Video panel is not available for this stream");
+            let res = await Xhr.refundRedemption(rewardId, id, botConfig);
+            console.log("REFUND: " + JSON.stringify(res, null, 5));
             return;
         }
 
@@ -423,9 +435,13 @@ exports.redemptionHook = async ({rewardTitle, userName}) => {
             chromaKey: "black",
             volume: "0.8"
         });
+
+        Xhr.clearRedemption(rewardId, id, botConfig);
     } else if (rewardTitle.toUpperCase() === "BE A BIG SHOT") {
         if (!EventQueue.isPanelInitialized("MULTI")) {
             EventQueue.sendInfoToChat("Video panel is not available for this stream");
+            let res = await Xhr.refundRedemption(rewardId, id, botConfig);
+            console.log("REFUND: " + JSON.stringify(res, null, 5));
             return;
         }
 
@@ -435,6 +451,8 @@ exports.redemptionHook = async ({rewardTitle, userName}) => {
             chromaKey: null,
             volume: "0.8"
         });
+
+        Xhr.clearRedemption(rewardId, id, botConfig);
     }
 }
 
