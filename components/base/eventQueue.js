@@ -158,10 +158,10 @@ const connectWs = (botContext) => {
             console.log("BOT EVENT: " + JSON.stringify(event, null, 5));
 
             // Add panel to list for enabling and disabling functionality
-            panels[event.name] = Date.now();
+            panels[`${event.name}:${event.subPanel}`] = Date.now();
             return;
         } else if (event.type === "PANEL_PING") {
-            panels[event.name] = Date.now();
+            panels[`${event.name}:${event.subPanel}`] = Date.now();
             return;
         }
 
@@ -326,8 +326,8 @@ let startEventListener = (botContext) => {
     }, 2500);
 }
 
-const isPanelInitialized = (panelName) => {
-    return Date.now() - panels[panelName] <= 30000;
+const isPanelInitialized = (panelName, subPanel='default') => {
+    return Date.now() - panels[`${panelName}:${subPanel}`] <= 30000;
 }
 
 exports.sendEvent = sendEvent;

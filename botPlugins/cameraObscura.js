@@ -5,6 +5,13 @@ const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
 let currentVideoId = null;
 
+let redemptionTypeMap = {
+    VIDEO: "MULTI",
+    IMAGE: "MULTI",
+    DYNAMIC: "MULTI",
+    AUDIO: "SOUND_PLAYER"
+};
+
 let removeGold = async (username, amount) => {
     let user = await Xhr.getUser(username);
 
@@ -425,8 +432,15 @@ exports.redemptionHook = async ({rewardId, id, rewardTitle, userName}, botContex
     // If there is a custom reward with this id, perform the associated action.
     let customReward = botConfig.redemptions[rewardId];
     if (customReward) {
-        let {id, soundId, type, subPanel} = customReward;
-        performAction(type, id, soundId, subPanel, botContext);
+        
+        let {id: mediaId, soundId, type, subPanel} = customReward;
+        if (!EventQueue.isPanelInitialized(redemptionTypeMap[type], subPanel)) {
+            EventQueue.sendInfoToChat("Required panel is not available for this stream");
+            await Xhr.refundRedemption(rewardId, id, botConfig);
+            return;
+        }
+        performAction(type, mediaId, soundId, subPanel, botContext);
+        await Xhr.clearRedemption(rewardId, id, botConfig);
         return;
     }
 
