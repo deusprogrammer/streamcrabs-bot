@@ -62,7 +62,8 @@ let playRandomVideo = async ({text, username}) => {
     EventQueue.sendEventToOverlays("VIDEO", {
         url,
         chromaKey,
-        volume
+        volume,
+        panel: "default"
     });
 }
 
@@ -102,7 +103,7 @@ let playRandomSound = async ({text, username}) => {
 }
 
 const alert = async (message, alertType, {variable}, botContext) => {
-    const {enabled, type, name, id} = botContext.botConfig.alertConfigs[alertType];
+    const {enabled, type, name, id, soundId, panel} = botContext.botConfig.alertConfigs[alertType];
 
     if (!enabled) {
         return;
@@ -122,17 +123,36 @@ const alert = async (message, alertType, {variable}, botContext) => {
             message,
             variable,
             raidTheme,
-            raidCustomTheme
+            raidCustomTheme,
+            subPanel: panel
         });
     } else if (type === "VIDEO") {
         let {url, volume, name, chromaKey} = botContext.botConfig.videoPool.find(video => video._id === id);
+
+        if (soundId) {
+            let {url: soundUrl, volume: soundVolume} = botContext.botConfig.audioPool.find(audio => audio._id === soundId);
+
+            EventQueue.sendEventToOverlays(type, {
+                message,
+                mediaName: name,
+                url,
+                chromaKey,
+                volume: 0,
+                soundUrl,
+                soundVolume,
+                subPanel: panel
+            });
+
+            return;
+        }
 
         EventQueue.sendEventToOverlays(type, {
             message,
             mediaName: name,
             url,
             chromaKey,
-            volume
+            volume,
+            subPanel: panel
         });
     } else if (type === "AUDIO") {
         let {url, volume, name} = botContext.botConfig.audioPool.find(audio => audio._id === id);
@@ -142,6 +162,30 @@ const alert = async (message, alertType, {variable}, botContext) => {
             mediaName: name,
             url,
             volume
+        });
+    } else if (type === "IMAGE") {
+        let {url, name} = botContext.botConfig.imagePool.find(image => image._id === id);
+
+        if (soundId) {
+            let {url: soundUrl, volume: soundVolume} = botContext.botConfig.audioPool.find(audio => audio._id === soundId);
+
+            EventQueue.sendEventToOverlays(type, {
+                message,
+                mediaName: name,
+                url,
+                soundUrl,
+                soundVolume,
+                subPanel: panel
+            });
+
+            return;
+        }
+        
+        EventQueue.sendEventToOverlays(type, {
+            message,
+            mediaName: name,
+            url,
+            subPanel: panel
         });
     }
 }
@@ -405,7 +449,8 @@ exports.redemptionHook = async ({rewardId, id, rewardTitle, userName}) => {
         EventQueue.sendEventToOverlays("VIDEO", {
             url,
             chromaKey,
-            volume
+            volume,
+            subPanel: "default"
         });
 
         await Xhr.clearRedemption(rewardId, id, botConfig);
@@ -416,7 +461,7 @@ exports.redemptionHook = async ({rewardId, id, rewardTitle, userName}) => {
             return;
         }
 
-        EventQueue.sendEventToOverlays("BIRDUP", {});
+        EventQueue.sendEventToOverlays("BIRDUP", {subPanel: "default"});
 
         await Xhr.clearRedemption(rewardId, id, botConfig);
     } else if (rewardTitle.toUpperCase() === "BAD APPLE") {
@@ -429,7 +474,8 @@ exports.redemptionHook = async ({rewardId, id, rewardTitle, userName}) => {
         EventQueue.sendEventToOverlays("VIDEO", {
             url: "/util/twitch-tools/videos/badapple.mp4",
             chromaKey: "black",
-            volume: "0.8"
+            volume: "0.8",
+            subPanel: "default"
         });
 
         await Xhr.clearRedemption(rewardId, id, botConfig);
@@ -444,7 +490,8 @@ exports.redemptionHook = async ({rewardId, id, rewardTitle, userName}) => {
             message: `${userName} is a big shot for the week!`,
             url: "/util/twitch-tools/videos/bigshot.mp4",
             chromaKey: null,
-            volume: "0.8"
+            volume: "0.8",
+            subPanel: "default"
         });
 
         EventQueue.sendEventToOverlays("FILE_WRITER", {
