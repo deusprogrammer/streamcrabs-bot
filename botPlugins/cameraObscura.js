@@ -102,6 +102,41 @@ let playRandomSound = async ({text, username}) => {
     });
 }
 
+const performAction = async (type, id, soundId, subPanel, botContext) => {
+    if (type === "VIDEO") {
+        let {url, volume, name, chromaKey} = botContext.botConfig.videoPool.find(video => video._id === id);
+
+        EventQueue.sendEventToOverlays(type, {
+            mediaName: name,
+            url,
+            chromaKey,
+            volume,
+            subPanel
+        });
+    } else if (type === "AUDIO") {
+        let {url, volume, name} = botContext.botConfig.audioPool.find(audio => audio._id === id);
+
+        EventQueue.sendEventToOverlays(type, {
+            mediaName: name,
+            url,
+            volume
+        });
+    } else if (type === "IMAGE") {
+        let {url, name} = botContext.botConfig.imagePool.find(image => image._id === id);
+        let {url: soundUrl, volume: soundVolume} = botContext.botConfig.audioPool.find(audio => audio._id === soundId);
+
+        EventQueue.sendEventToOverlays(type, {
+            mediaName: name,
+            url,
+            soundUrl,
+            soundVolume,
+            subPanel
+        });
+
+        return;
+    }
+}
+
 const alert = async (message, alertType, {variable}, botContext) => {
     const {enabled, type, name, id, soundId, panel} = botContext.botConfig.alertConfigs[alertType];
 
@@ -384,8 +419,17 @@ exports.raidHook = async ({username, viewers}, botContext) => {
 exports.joinHook = async (joinContext, botContext) => {
 }
 
-exports.redemptionHook = async ({rewardId, id, rewardTitle, userName}) => {
+exports.redemptionHook = async ({rewardId, id, rewardTitle, userName}, botContext) => {
     let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
+
+    // If there is a custom reward with this id, perform the associated action.
+    let customReward = botConfig.redemptions[rewardId];
+    if (customReward) {
+        let {id, soundId, type, subPanel} = customReward;
+        performAction(type, id, soundId, subPanel, botContext);
+        return;
+    }
+
     if (rewardTitle.toUpperCase() === "RANDOM SOUND" || rewardTitle.toUpperCase() === "PLAY RANDOM SOUND") {
         if (!EventQueue.isPanelInitialized("SOUND_PLAYER")) {
             EventQueue.sendInfoToChat("Sound panel is not available for this stream");
