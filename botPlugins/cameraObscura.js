@@ -129,23 +129,6 @@ const alert = async (message, alertType, {variable}, botContext) => {
     } else if (type === "VIDEO") {
         let {url, volume, name, chromaKey} = botContext.botConfig.videoPool.find(video => video._id === id);
 
-        if (soundId) {
-            let {url: soundUrl, volume: soundVolume} = botContext.botConfig.audioPool.find(audio => audio._id === soundId);
-
-            EventQueue.sendEventToOverlays(type, {
-                message,
-                mediaName: name,
-                url,
-                chromaKey,
-                volume: 0,
-                soundUrl,
-                soundVolume,
-                subPanel: panel
-            });
-
-            return;
-        }
-
         EventQueue.sendEventToOverlays(type, {
             message,
             mediaName: name,
