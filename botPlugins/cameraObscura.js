@@ -12,6 +12,95 @@ let redemptionTypeMap = {
     AUDIO: "SOUND_PLAYER"
 };
 
+const performAction = async (type, id, soundId, subPanel, message, botContext) => {
+    if (type === "VIDEO") {
+        let video;
+        if (id === null) {
+            let enabledVideo = botContext.botConfig.videoPool.filter((element) => {
+                return element.enabled;
+            });
+            let n = Math.floor((Math.random() * enabledVideo.length));
+            video = enabledVideo[n];
+        } else {
+            video = botContext.botConfig.videoPool.find(video => video._id === id);
+        }
+
+        let {url, volume, name, chromaKey} = video;
+
+        if (!volume) {
+            volume = 1.0;
+        }
+
+        EventQueue.sendEventToOverlays(type, {
+            url,
+            message,
+            chromaKey,
+            volume,
+            subPanel
+        });
+    } else if (type === "AUDIO") {
+        let audio;
+        if (id === null) {
+            let enabledAudio = botContext.botConfig.audioPool.filter((element) => {
+                return element.enabled;
+            });
+            let n = Math.floor((Math.random() * enabledAudio.length));
+            audio = enabledAudio[n];
+        } else {
+            audio = botContext.botConfig.audioPool.find(audio => audio._id === id);
+        }
+
+        let {url, volume, name} = audio;
+
+        if (!volume) {
+            volume = 1.0;
+        }
+
+        EventQueue.sendEventToOverlays(type, {
+            url,
+            message,
+            volume
+        });
+    } else if (type === "IMAGE") {
+        let image;
+        if (id === null) {
+            let enabledImage = botContext.botConfig.imagePool;
+            let n = Math.floor((Math.random() * enabledImage.length));
+            image = enabledImage[n];
+        } else {
+            image = botContext.botConfig.videoPool.find(video => video._id === id);
+        }
+
+        let audio;
+        if (soundId === null) {
+            let enabledAudio = botContext.botConfig.audioPool.filter((element) => {
+                return element.enabled;
+            });
+            let n = Math.floor((Math.random() * enabledAudio.length));
+            audio = enabledAudio[n];
+        } else {
+            audio = botContext.botConfig.audioPool.find(audio => audio._id === id);
+        }
+
+        let {url, name} = image;
+        let {url: soundUrl, volume: soundVolume} = audio;
+
+        if (!soundVolume) {
+            soundVolume = 1.0;
+        }
+
+        EventQueue.sendEventToOverlays(type, {
+            url,
+            message,
+            soundUrl,
+            soundVolume,
+            subPanel
+        });
+
+        return;
+    }
+}
+
 let removeGold = async (username, amount) => {
     let user = await Xhr.getUser(username);
 
@@ -36,112 +125,40 @@ let speak = async ({text, username}) => {
     });
 }
 
-let playRandomVideo = async ({text, username}) => {
-    let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
-    let enabledVideos = botConfig.videoPool.filter((element) => {
-        return element.enabled;
-    })
-    let n = Math.floor((Math.random() * enabledVideos.length));
-    let url = enabledVideos[n].url;
-    let chromaKey = enabledVideos[n].chromaKey;
-    let volume = enabledVideos[n].volume;
-
-    if (text) {
-        let found = enabledVideos.filter((element) => {
-            return element.name.toLowerCase() === text.toLowerCase();
-        });
-
-        if (found && found.length > 0) {
-            url = found[0].url;
-            mediaName = found[0].name;
-            chromaKey = found[0].chromaKey;
-            volume = found[0].volume;
-        }
-    }
-
+let playRandomVideo = async ({text, username}, botContext) => {
     await removeGold(username, 500);
     EventQueue.sendInfoToChat(`${username} redeemed a video for 500g.`);
 
-    if (!volume) {
-        volume = 1.0;
-    }
-
-    EventQueue.sendEventToOverlays("VIDEO", {
-        url,
-        chromaKey,
-        volume,
-        panel: "default"
-    });
-}
-
-let playRandomSound = async ({text, username}) => {
-    let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
-    let enabledAudio = botConfig.audioPool.filter((element) => {
-        return !element.url.startsWith("*");
-    })
-    let n = Math.floor((Math.random() * enabledAudio.length));
-    let url = enabledAudio[n].url;
-    let mediaName = enabledAudio[n].name;
-    let volume = enabledAudio[n].volume;
-
+    let id = null;
     if (text) {
-        let found = enabledAudio.filter((element) => {
+        let found = botContext.botConfig.videoPool.filter((element) => {
             return element.name.toLowerCase() === text.toLowerCase();
         });
 
         if (found && found.length > 0) {
-            url = found[0].url;
-            mediaName = found[0].name;
-            volume = found[0].volume;
+            id = found[0]._id;
         }
-    } 
+    }
 
+    performAction("VIDEO", id, null, "default", null, botContext);
+}
+
+let playRandomSound = async ({text, username}, botContext) => {
     await removeGold(username, 100);
     EventQueue.sendInfoToChat(`${username} redeemed a sound for 100g`);
 
-    if (!volume) {
-        volume = 1.0;
+    let id = null;
+    if (text) {
+        let found = botContext.botConfig.audioPool.filter((element) => {
+            return element.name.toLowerCase() === text.toLowerCase();
+        });
+
+        if (found && found.length > 0) {
+            id = found[0]._id;
+        }
     }
 
-    EventQueue.sendEventToOverlays("AUDIO", {
-        url,
-        volume
-    });
-}
-
-const performAction = async (type, id, soundId, subPanel, botContext) => {
-    if (type === "VIDEO") {
-        let {url, volume, name, chromaKey} = botContext.botConfig.videoPool.find(video => video._id === id);
-
-        EventQueue.sendEventToOverlays(type, {
-            mediaName: name,
-            url,
-            chromaKey,
-            volume,
-            subPanel
-        });
-    } else if (type === "AUDIO") {
-        let {url, volume, name} = botContext.botConfig.audioPool.find(audio => audio._id === id);
-
-        EventQueue.sendEventToOverlays(type, {
-            mediaName: name,
-            url,
-            volume
-        });
-    } else if (type === "IMAGE") {
-        let {url, name} = botContext.botConfig.imagePool.find(image => image._id === id);
-        let {url: soundUrl, volume: soundVolume} = botContext.botConfig.audioPool.find(audio => audio._id === soundId);
-
-        EventQueue.sendEventToOverlays(type, {
-            mediaName: name,
-            url,
-            soundUrl,
-            soundVolume,
-            subPanel
-        });
-
-        return;
-    }
+    performAction("AUDIO", id, null, "default", null, botContext);
 }
 
 const alert = async (message, alertType, {variable}, botContext) => {
@@ -168,50 +185,8 @@ const alert = async (message, alertType, {variable}, botContext) => {
             customTheme,
             subPanel: panel
         });
-    } else if (type === "VIDEO") {
-        let {url, volume, name, chromaKey} = botContext.botConfig.videoPool.find(video => video._id === id);
-
-        EventQueue.sendEventToOverlays(type, {
-            message,
-            mediaName: name,
-            url,
-            chromaKey,
-            volume,
-            subPanel: panel
-        });
-    } else if (type === "AUDIO") {
-        let {url, volume, name} = botContext.botConfig.audioPool.find(audio => audio._id === id);
-
-        EventQueue.sendEventToOverlays(type, {
-            message,
-            mediaName: name,
-            url,
-            volume
-        });
-    } else if (type === "IMAGE") {
-        let {url, name} = botContext.botConfig.imagePool.find(image => image._id === id);
-
-        if (soundId) {
-            let {url: soundUrl, volume: soundVolume} = botContext.botConfig.audioPool.find(audio => audio._id === soundId);
-
-            EventQueue.sendEventToOverlays(type, {
-                message,
-                mediaName: name,
-                url,
-                soundUrl,
-                soundVolume,
-                subPanel: panel
-            });
-
-            return;
-        }
-        
-        EventQueue.sendEventToOverlays(type, {
-            message,
-            mediaName: name,
-            url,
-            subPanel: panel
-        });
+    } else {
+        performAction(type, id, soundId, panel, message, botContext);
     }
 }
 
@@ -226,7 +201,7 @@ exports.commands = {
             return;
         }
 
-        await playRandomVideo(twitchContext);
+        await playRandomVideo(twitchContext, botContext);
     },
     "!rewards:redeem:audio": async (twitchContext, botContext) => {
         if (!botContext.botConfig.config.rewards) {
@@ -238,7 +213,7 @@ exports.commands = {
             return;
         }
 
-        await playRandomSound(twitchContext);
+        await playRandomSound(twitchContext, botContext);
     },
     "!rewards:redeem:speak": async (twitchContext, botContext) => {
         if (!botContext.botConfig.config.rewards) {
@@ -439,7 +414,7 @@ exports.redemptionHook = async ({rewardId, id, rewardTitle, userName}, botContex
             await Xhr.refundRedemption(rewardId, id, botConfig);
             return;
         }
-        performAction(type, mediaId, soundId, subPanel, botContext);
+        performAction(type, mediaId, soundId, subPanel, null, botContext);
         await Xhr.clearRedemption(rewardId, id, botConfig);
         return;
     }
@@ -450,22 +425,8 @@ exports.redemptionHook = async ({rewardId, id, rewardTitle, userName}, botContex
             await Xhr.refundRedemption(rewardId, id, botConfig);
             return;
         }
-        let enabledAudio = botConfig.audioPool.filter((element) => {
-            return element.enabled;
-        })
-        let n = Math.floor((Math.random() * enabledAudio.length));
-        let url = enabledAudio[n].url;
-        let volume = enabledAudio[n].volume;
-
-        if (!volume) {
-            volume = 1.0;
-        }
-
-        EventQueue.sendEventToOverlays("AUDIO", {
-            requester: userName,
-            url,
-            volume
-        });
+        
+        performAction("AUDIO", null, null, "default", null, botContext);
 
         await Xhr.clearRedemption(rewardId, id, botConfig);
     }  else if (rewardTitle.toUpperCase() === "RANDOM VIDEO" || rewardTitle.toUpperCase() === "PLAY RANDOM VIDEO") {
@@ -475,26 +436,9 @@ exports.redemptionHook = async ({rewardId, id, rewardTitle, userName}, botContex
             return;
         }
 
-        let enabledVideos = botConfig.videoPool.filter((element) => {
-            return element.enabled;
-        })
-        let n = Math.floor((Math.random() * enabledVideos.length));
-        let url = enabledVideos[n].url;
-        let chromaKey = enabledVideos[n].chromaKey;
-        let volume = enabledVideos[n].volume;
+        performAction("VIDEO", null, null, "default", null, botContext);
 
-        if (!volume) {
-            volume = 1.0;
-        }
-
-        EventQueue.sendEventToOverlays("VIDEO", {
-            url,
-            chromaKey,
-            volume,
-            subPanel: "default"
-        });
-
-        await Xhr.clearRedemption(rewardId, id, botConfig);
+        await Xhr.clearRedemption(rewardId, id, botConfig, botContext);
     } else if (rewardTitle.toUpperCase() === "BIRD UP") {
         if (!EventQueue.isPanelInitialized("MULTI")) {
             EventQueue.sendInfoToChat("Video panel is not available for this stream");
