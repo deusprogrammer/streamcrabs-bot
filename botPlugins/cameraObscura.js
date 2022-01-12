@@ -152,20 +152,20 @@ const alert = async (message, alertType, {variable}, botContext) => {
     }
 
     if (type === "DYNAMIC") {
-        let raidCustomTheme;
-        let raidTheme;
+        let customTheme;
+        let theme;
         if (id) {
-            raidTheme = "STORED";
-            raidCustomTheme = await Xhr.getDynamicAlert(id);
+            theme = "STORED";
+            customTheme = await Xhr.getDynamicAlert(id);
         } else {
-            raidTheme = name;
+            theme = name;
         }
         
         EventQueue.sendEventToOverlays(type, {
             message,
             variable,
-            raidTheme,
-            raidCustomTheme,
+            theme,
+            customTheme,
             subPanel: panel
         });
     } else if (type === "VIDEO") {
@@ -432,7 +432,7 @@ exports.redemptionHook = async ({rewardId, id, rewardTitle, userName}, botContex
     // If there is a custom reward with this id, perform the associated action.
     let customReward = botConfig.redemptions[rewardId];
     if (customReward) {
-        
+
         let {id: mediaId, soundId, type, subPanel} = customReward;
         if (!EventQueue.isPanelInitialized(redemptionTypeMap[type], subPanel)) {
             EventQueue.sendInfoToChat("Required panel is not available for this stream");
