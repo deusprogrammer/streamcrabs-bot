@@ -401,8 +401,53 @@ exports.raidHook = async ({username, viewers}, botContext) => {
 exports.joinHook = async (joinContext, botContext) => {
 }
 
-exports.redemptionHook = async ({rewardId, id, rewardTitle, userName}, botContext) => {
+exports.redemptionHook = async ({rewardId, rewardPrompt, id, rewardTitle, userName}, botContext) => {
     let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
+
+    // Perform commands found in prompt.
+    let commandMatch = rewardPrompt.match(/\[(.*):(.*):(.*):(.*)\]/);
+    if (commandMatch) {
+        let [,type, subPanel, action, parameter] = commandMatch;
+
+        switch (type) {
+            case "GAUGE": {
+                if (!botConfig.gauges[subPanel]) {
+                    break;
+                }
+
+                let {label, currentValue, maxValue, increaseSound, decreaseSound, completeSound} = botConfig.gauges[subPanel];
+
+                if (action === "ADD") {
+                    currentValue += parseInt(parameter);
+                } else if (action === "SUB") {
+                    currentValue -= parseInt(parameter);
+                } else if (action === "SET") {
+                    currentValue = parseInt(parameter);
+                }
+
+                let {url: increaseSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === increaseSound);
+                let {url: decreaseSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === decreaseSound);
+                let {url: completeSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === completeSound);
+
+                EventQueue.sendEventToOverlays("GAUGE", {
+                    label,
+                    currentValue,
+                    maxValue,
+                    subPanel,
+                    increaseSoundUrl,
+                    decreaseSoundUrl,
+                    completeSoundUrl,
+                    init: false
+                });
+                botConfig.gauges[subPanel].currentValue = currentValue;
+
+                Xhr.updateGauge(TWITCH_EXT_CHANNEL_ID, botConfig.gauges);
+                break; 
+            }
+        default:
+            break;
+        }
+    }
 
     // If there is a custom reward with this id, perform the associated action.
     let customReward = botConfig.redemptions[rewardId];
@@ -490,4 +535,28 @@ exports.redemptionHook = async ({rewardId, id, rewardTitle, userName}, botContex
     }
 }
 
-exports.wsInitHook = () => {}
+exports.wsInitHook = async ({subPanel}, botContext) => {
+    let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
+    let gauge = botConfig.gauges[subPanel];
+
+    if (!gauge) {
+        return;
+    }
+
+    let {label, currentValue, maxValue, increaseSound, decreaseSound, completeSound} = gauge;
+
+    let {url: increaseSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === increaseSound);
+    let {url: decreaseSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === decreaseSound);
+    let {url: completeSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === completeSound);
+
+    EventQueue.sendEventToOverlays("GAUGE", {
+        label,
+        currentValue,
+        maxValue,
+        subPanel,
+        increaseSoundUrl,
+        decreaseSoundUrl, 
+        completeSoundUrl,
+        init: true
+    });
+}

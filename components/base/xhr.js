@@ -25,6 +25,14 @@ const getBotConfig = async (channel) => {
     return res.data;
 }
 
+const updateGauge = async (channel, updatedGauges) => {
+    let res = await axios.put(`${BOT_CONFIG_API_URL}/bots/${channel}/gauges`, updatedGauges, {
+        headers
+    });
+
+    return res.data;
+}
+
 const getVideo = async (id) => {
     console.log("SEARCHING FOR ID: " + id);
     let result = await axios.get(`${WTD_API_URL}/videos/${id}`, {
@@ -331,5 +339,6 @@ module.exports = {
     createUser,
     chargeAP,
     reviveAvatar,
-    getBotConfig
+    getBotConfig,
+    updateGauge
 }

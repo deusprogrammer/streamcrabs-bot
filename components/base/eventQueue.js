@@ -152,7 +152,7 @@ const connectWs = (botContext) => {
         // If it's just a panel listener requesting initialization, just do it marrrrrrk.
         if (event.type === "PANEL_INIT") {
             for (let plugin of eventContext.botContext.plugins) {
-                plugin.wsInitHook(event);
+                plugin.wsInitHook(event, botContext);
             }
 
             console.log("BOT EVENT: " + JSON.stringify(event, null, 5));
