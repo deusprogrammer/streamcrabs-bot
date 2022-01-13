@@ -13,7 +13,7 @@ const fileWriterPlugin = require('./botPlugins/fileWriter');
 
 const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
-const versionNumber = "5.0b";
+const versionNumber = "5.1b";
 const plugins = [deathCounterPlugin, requestPlugin, cameraObscuraPlugin, cbdPlugin, fileWriterPlugin];
 
 /*
