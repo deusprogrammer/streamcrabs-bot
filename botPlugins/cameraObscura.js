@@ -79,8 +79,11 @@ const performAction = async (type, id, soundId, subPanel, message, botContext) =
             let n = Math.floor((Math.random() * enabledAudio.length));
             audio = enabledAudio[n];
         } else {
-            audio = botContext.botConfig.audioPool.find(audio => audio._id === id);
+            audio = botContext.botConfig.audioPool.find(audio => audio._id === soundId);
         }
+
+        console.log("SOUND ID: " + soundId);
+        console.log(`AUDIO: ${JSON.stringify(audio, null, 5)}`);
 
         let {url, name} = image;
         let {url: soundUrl, volume: soundVolume} = audio;
