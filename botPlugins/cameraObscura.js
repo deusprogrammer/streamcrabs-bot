@@ -68,7 +68,7 @@ const performAction = async (type, id, soundId, subPanel, message, botContext) =
             let n = Math.floor((Math.random() * enabledImage.length));
             image = enabledImage[n];
         } else {
-            image = botContext.botConfig.videoPool.find(video => video._id === id);
+            image = botContext.botConfig.imagePool.find(image => image._id === id);
         }
 
         let audio;

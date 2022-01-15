@@ -290,6 +290,16 @@ const getDynamicAlert = async (id) => {
     return found.data;
 }
 
+const getSubscriptionMeta = async (botConfig) => {
+    let {data: {points, total}} = await axios.get(`https://api.twitch.tv/helix/subscriptions?broadcaster_id=${botConfig.twitchChannelId}`,
+    {headers: {
+        'client-id': process.env.TWITCH_CLIENT_ID,
+        'authorization': `Bearer ${botConfig.accessToken}`
+    }});
+
+    return {total, points};
+}
+
 const refundRedemption = async (rewardId, id, botConfig) => {
     let {data: {data: redemption}} = await axios.patch(`https://api.twitch.tv/helix/channel_points/custom_rewards/redemptions?broadcaster_id=${botConfig.twitchChannelId}&reward_id=${rewardId}&id=${id}`,
     {
@@ -319,6 +329,7 @@ const clearRedemption = async (rewardId, id, botConfig) => {
 module.exports = {
     refundRedemption,
     clearRedemption,
+    getSubscriptionMeta,
     getDynamicAlert,
     giveGold,
     giveItem,
