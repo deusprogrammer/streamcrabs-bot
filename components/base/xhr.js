@@ -291,7 +291,7 @@ const getDynamicAlert = async (id) => {
 }
 
 const getSubscriptionMeta = async (botConfig) => {
-    let {data: {points, total}} = await axios.get(`https://api.twitch.tv/helix/subscriptions?broadcaster_id=${botConfig.twitchChannelId}`,
+    let {data: {total, points}} = await axios.get(`https://api.twitch.tv/helix/subscriptions?broadcaster_id=${botConfig.twitchChannelId}`,
     {headers: {
         'client-id': process.env.TWITCH_CLIENT_ID,
         'authorization': `Bearer ${botConfig.accessToken}`
