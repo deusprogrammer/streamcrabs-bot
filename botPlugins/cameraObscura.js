@@ -382,12 +382,11 @@ exports.subscriptionHook = async ({userName, subPlan}, botContext) => {
 
     // Get all gauges related to subscription tracking
     const subGauges = Object.keys(botContext.botConfig.gauges).filter(key => botContext.botConfig.gauges[key].type === "SUB");
-    console.log("GAUGES: " + JSON.stringify(subGauges, null, 5));
     if (subGauges.length > 0) {
-        const {total} = await Xhr.getSubscriptionMeta(botContext.botConfig);
+        // Refresh token
+        botContext.botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
+        const {total: currentValue} = await Xhr.getSubscriptionMeta(botContext.botConfig);
         for (const subPanel of subGauges) {
-            console.log("SUB PANEL: " + subPanel);
-            console.log("GAUGES: " + JSON.stringify(botContext.botConfig.gauges, null, 5));
             const {label, maxValue, increaseSound, decreaseSound, completeSound} = botContext.botConfig.gauges[subPanel];
 
             let {url: increaseSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === increaseSound);
@@ -396,7 +395,7 @@ exports.subscriptionHook = async ({userName, subPlan}, botContext) => {
 
             EventQueue.sendEventToOverlays("GAUGE", {
                 label,
-                total,
+                currentValue,
                 maxValue,
                 subPanel,
                 increaseSoundUrl,
@@ -581,6 +580,7 @@ exports.wsInitHook = async ({subPanel}, botContext) => {
     let {url: completeSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === completeSound);
 
     if (type === "SUB") {
+        // Refresh token and then get current sub total
         currentValue = (await Xhr.getSubscriptionMeta(botContext.botConfig)).total;
         console.log("SUB: " + currentValue);
     }
