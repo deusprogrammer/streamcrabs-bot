@@ -369,6 +369,36 @@ exports.bitsHook = async ({bits, userName}, botContext) => {
     const {enabled, messageTemplate} = botContext.botConfig.alertConfigs.cheerAlert;
     const alertMessage = messageTemplate.replace("${bits}", bits).replace("${username}", userName);
 
+    // Get all gauges related to subscription tracking
+    const subGauges = Object.keys(botContext.botConfig.gauges).filter(key => botContext.botConfig.gauges[key].type === "CHEER");
+    if (subGauges.length > 0) {
+        // Refresh token
+        botContext.botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
+        for (const subPanel of subGauges) {
+            const {label, currentValue, maxValue, increaseSound, decreaseSound, completeSound} = botContext.botConfig.gauges[subPanel];
+
+            let {url: increaseSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === increaseSound);
+            let {url: decreaseSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === decreaseSound);
+            let {url: completeSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === completeSound);
+
+            EventQueue.sendEventToOverlays("GAUGE", {
+                type: "CHEER",
+                subPanel: "_ALL_GAUGES",
+                gaugeKey: subPanel,
+                label,
+                currentValue: currentValue + bits,
+                maxValue,
+                increaseSoundUrl,
+                decreaseSoundUrl,
+                completeSoundUrl,
+                init: false
+            });
+
+            botContext.botConfig.gauges[subPanel].currentValue = currentValue + bits;
+            await Xhr.updateGauge(TWITCH_EXT_CHANNEL_ID, botContext.botConfig.gauges);
+        }
+    }
+
     if (!enabled) {
         return;
     }
@@ -394,6 +424,7 @@ exports.subscriptionHook = async ({userName, subPlan}, botContext) => {
             let {url: completeSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === completeSound);
 
             EventQueue.sendEventToOverlays("GAUGE", {
+                type: "SUB",
                 label,
                 currentValue,
                 maxValue,
@@ -565,34 +596,52 @@ exports.redemptionHook = async ({rewardId, rewardPrompt, id, rewardTitle, userNa
     }
 }
 
-exports.wsInitHook = async ({subPanel}, botContext) => {
+exports.wsInitHook = async ({subPanel: reqKey}, botContext) => {
     let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
-    let gauge = botConfig.gauges[subPanel];
 
-    if (!gauge) {
-        return;
+    let gauges = [];
+    if (reqKey !== "_ALL_GAUGES") {
+        gauges.push({subPanel: reqKey, gaugeKey, ...botConfig.gauges[gaugeKey]});
+    } else {
+        gauges = Object.keys(botConfig.gauges).map((key) => {
+            let gauge = botConfig.gauges[key];
+
+            return {
+                subPanel: reqKey,
+                gaugeKey: key,
+                ...gauge
+            }
+        });
     }
 
-    let {label, currentValue, maxValue, increaseSound, decreaseSound, completeSound, type} = gauge;
+    for (let gauge of gauges) {
+        if (!gauge) {
+            return;
+        }
 
-    let {url: increaseSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === increaseSound);
-    let {url: decreaseSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === decreaseSound);
-    let {url: completeSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === completeSound);
+        console.log("GAUGE: " + JSON.stringify(gauge, null, 5));
 
-    if (type === "SUB") {
-        // Refresh token and then get current sub total
-        currentValue = (await Xhr.getSubscriptionMeta(botContext.botConfig)).total;
-        console.log("SUB: " + currentValue);
+        let {label, subPanel, gaugeKey, currentValue, maxValue, increaseSound, decreaseSound, completeSound, type} = gauge;
+
+        let {url: increaseSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === increaseSound);
+        let {url: decreaseSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === decreaseSound);
+        let {url: completeSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === completeSound);
+
+        if (type === "SUB") {
+            currentValue = (await Xhr.getSubscriptionMeta(botContext.botConfig)).total;
+            console.log("SUB: " + currentValue);
+        }
+
+        EventQueue.sendEventToOverlays("GAUGE", {
+            label,
+            currentValue,
+            maxValue,
+            subPanel,
+            gaugeKey,
+            increaseSoundUrl,
+            decreaseSoundUrl, 
+            completeSoundUrl,
+            init: true
+        });
     }
-
-    EventQueue.sendEventToOverlays("GAUGE", {
-        label,
-        currentValue,
-        maxValue,
-        subPanel,
-        increaseSoundUrl,
-        decreaseSoundUrl, 
-        completeSoundUrl,
-        init: true
-    });
 }

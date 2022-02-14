@@ -201,6 +201,7 @@ const addCurrency = async (user, amount) => {
 
 const createUser = async (userName, userId) => {
     try {
+        // TODO Add a check to see if user exists first.
         await axios.post(`${PROFILE_API_URL}/users`, {
             username: userName,
             password: Util.randomUuid(),
