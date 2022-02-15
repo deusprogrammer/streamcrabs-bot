@@ -335,7 +335,7 @@ exports.commands = {
             throw "Only a mod can test subs";
         }
 
-        this.subscriptionHook({userName: "test_user", subPlan: "tier 3"}, botContext);
+        this.subscriptionHook({userName: "test_user", subPlan: 3000}, botContext);
     },
     "!test:follow": (twitchContext, botContext) => {
         if (twitchContext.username !== botContext.botConfig.twitchChannel && !twitchContext.mod) {
@@ -408,7 +408,7 @@ exports.bitsHook = async ({bits, userName}, botContext) => {
 
 exports.subscriptionHook = async ({userName, subPlan}, botContext) => {
     const {enabled, messageTemplate} = botContext.botConfig.alertConfigs.subAlert;
-    const alertMessage = messageTemplate.replace("${username}", userName).replace("${subTier}", subPlan);
+    const alertMessage = messageTemplate.replace("${username}", userName).replace("${subTier}", subPlan !== 'prime' ? subPlan / 1000 : 'prime');
 
     // Get all gauges related to subscription tracking
     const subGauges = Object.keys(botContext.botConfig.gauges).filter(key => botContext.botConfig.gauges[key].type === "SUB");
@@ -596,52 +596,54 @@ exports.redemptionHook = async ({rewardId, rewardPrompt, id, rewardTitle, userNa
     }
 }
 
-exports.wsInitHook = async ({subPanel: reqKey}, botContext) => {
+exports.wsInitHook = async ({subPanel: reqKey, name}, botContext) => {
     let botConfig = await Xhr.getBotConfig(TWITCH_EXT_CHANNEL_ID);
 
-    let gauges = [];
-    if (reqKey !== "_ALL_GAUGES") {
-        gauges.push({subPanel: reqKey, gaugeKey, ...botConfig.gauges[gaugeKey]});
-    } else {
-        gauges = Object.keys(botConfig.gauges).map((key) => {
-            let gauge = botConfig.gauges[key];
+    if (name === "GAUGE") {
+        let gauges = [];
+        if (reqKey !== "_ALL_GAUGES") {
+            gauges.push({subPanel: reqKey, gaugeKey, ...botConfig.gauges[gaugeKey]});
+        } else {
+            gauges = Object.keys(botConfig.gauges).map((key) => {
+                let gauge = botConfig.gauges[key];
 
-            return {
-                subPanel: reqKey,
-                gaugeKey: key,
-                ...gauge
+                return {
+                    subPanel: reqKey,
+                    gaugeKey: key,
+                    ...gauge
+                }
+            });
+        }
+
+        for (let gauge of gauges) {
+            if (!gauge) {
+                return;
             }
-        });
-    }
 
-    for (let gauge of gauges) {
-        if (!gauge) {
-            return;
+            console.log("GAUGE: " + JSON.stringify(gauge, null, 5));
+
+            let {label, subPanel, gaugeKey, currentValue, maxValue, increaseSound, decreaseSound, completeSound, type} = gauge;
+
+            let {url: increaseSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === increaseSound);
+            let {url: decreaseSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === decreaseSound);
+            let {url: completeSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === completeSound);
+
+            if (type === "SUB") {
+                currentValue = (await Xhr.getSubscriptionMeta(botContext.botConfig)).total;
+                console.log("SUB: " + currentValue);
+            }
+
+            EventQueue.sendEventToOverlays("GAUGE", {
+                label,
+                currentValue,
+                maxValue,
+                subPanel,
+                gaugeKey,
+                increaseSoundUrl,
+                decreaseSoundUrl, 
+                completeSoundUrl,
+                init: true
+            });
         }
-
-        console.log("GAUGE: " + JSON.stringify(gauge, null, 5));
-
-        let {label, subPanel, gaugeKey, currentValue, maxValue, increaseSound, decreaseSound, completeSound, type} = gauge;
-
-        let {url: increaseSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === increaseSound);
-        let {url: decreaseSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === decreaseSound);
-        let {url: completeSoundUrl} = botContext.botConfig.audioPool.find(audio => audio._id === completeSound);
-
-        if (type === "SUB") {
-            currentValue = (await Xhr.getSubscriptionMeta(botContext.botConfig)).total;
-            console.log("SUB: " + currentValue);
-        }
-
-        EventQueue.sendEventToOverlays("GAUGE", {
-            label,
-            currentValue,
-            maxValue,
-            subPanel,
-            gaugeKey,
-            increaseSoundUrl,
-            decreaseSoundUrl, 
-            completeSoundUrl,
-            init: true
-        });
     }
 }
