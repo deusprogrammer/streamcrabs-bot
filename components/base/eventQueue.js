@@ -71,32 +71,32 @@ const connectHookWs = (botContext) => {
 
                     break;
                 case "CHEER":
-                    // for (plugin of botContext.plugins) {
-                    //     if (plugin.bitsHook) {
-                    //         plugin.bitsHook(event, botContext);
-                    //     }
-                    // }
+                    for (plugin of botContext.plugins) {
+                        if (plugin.bitsHook) {
+                            plugin.bitsHook(event, botContext);
+                        }
+                    }
 
                     console.log("CHEER EVENT: " + JSON.stringify(event, null, 5));
 
                     break;
                 case "SUB":
-                case "SUB_ANNOUNCE":
-                    // for (plugin of botContext.plugins) {
-                    //     if (plugin.subscriptionHook) {
-                    //         plugin.subscriptionHook(event, botContext);
-                    //     }
-                    // }
+                // case "SUB_ANNOUNCE":
+                    for (plugin of botContext.plugins) {
+                        if (plugin.subscriptionHook) {
+                            plugin.subscriptionHook(event, botContext);
+                        }
+                    }
 
                     console.log("SUB EVENT: " + JSON.stringify(event, null, 5));
 
                     break;
                 case "REDEMPTION":
-                    // for (plugin of botContext.plugins) {
-                    //     if (plugin.redemptionHook) {
-                    //         plugin.redemptionHook(event, botContext);
-                    //     }
-                    // }
+                    for (plugin of botContext.plugins) {
+                        if (plugin.redemptionHook) {
+                            plugin.redemptionHook(event, botContext);
+                        }
+                    }
 
                     console.log("REDEMPTION EVENT: " + JSON.stringify(event, null, 5));
 
