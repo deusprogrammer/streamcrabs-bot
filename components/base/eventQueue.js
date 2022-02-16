@@ -81,7 +81,7 @@ const connectHookWs = (botContext) => {
 
                     break;
                 case "SUB":
-                // case "SUB_ANNOUNCE":
+                case "SUB_ANNOUNCE":
                     for (plugin of botContext.plugins) {
                         if (plugin.subscriptionHook) {
                             plugin.subscriptionHook(event, botContext);
