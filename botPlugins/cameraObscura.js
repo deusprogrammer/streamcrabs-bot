@@ -425,10 +425,11 @@ exports.subscriptionHook = async ({userName, subPlan}, botContext) => {
 
             EventQueue.sendEventToOverlays("GAUGE", {
                 type: "SUB",
+                subPanel: "_ALL_GAUGES",
+                gaugeKey: subPanel,
                 label,
                 currentValue,
                 maxValue,
-                subPanel,
                 increaseSoundUrl,
                 decreaseSoundUrl,
                 completeSoundUrl,
@@ -492,9 +493,10 @@ exports.redemptionHook = async ({rewardId, rewardPrompt, id, rewardTitle, userNa
 
                 EventQueue.sendEventToOverlays("GAUGE", {
                     label,
+                    subPanel: "_ALL_GAUGES",
+                    gaugeKey: subPanel,
                     currentValue,
                     maxValue,
-                    subPanel,
                     increaseSoundUrl,
                     decreaseSoundUrl,
                     completeSoundUrl,
