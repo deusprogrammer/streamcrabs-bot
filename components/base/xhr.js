@@ -201,21 +201,27 @@ const addCurrency = async (user, amount) => {
 
 const createUser = async (userName, userId) => {
     try {
-        // TODO Add a check to see if user exists first.
-        await axios.post(`${PROFILE_API_URL}/users`, {
-            username: userName,
-            password: Util.randomUuid(),
-            connected: {
-                twitch: {
-                    userId: userId,
-                    name: userName
-                }
+        try {
+            await axios.get(`${PROFILE_API_URL}/users/${userName}`);
+        } catch (error) {
+            console.log("User doesn't exist, creating user");
+            if (error.response && error.response.status === 404) {
+                await axios.post(`${PROFILE_API_URL}/users`, {
+                    username: userName,
+                    password: Util.randomUuid(),
+                    connected: {
+                        twitch: {
+                            userId: userId,
+                            name: userName
+                        }
+                    }
+                }, {
+                    headers,
+                    maxBodyLength,
+                    maxContentLength
+                });
             }
-        }, {
-            headers,
-            maxBodyLength,
-            maxContentLength
-        });
+        }
     } catch (e) {
         console.log("Failed to create user " + e);
         throw e;
