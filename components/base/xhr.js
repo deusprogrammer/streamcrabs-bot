@@ -204,8 +204,8 @@ const createUser = async (userName, userId) => {
         try {
             await axios.get(`${PROFILE_API_URL}/users/${userName}`);
         } catch (error) {
-            console.log("User doesn't exist, creating user");
             if (error.response && error.response.status === 404) {
+                console.log("User doesn't exist, creating user");
                 await axios.post(`${PROFILE_API_URL}/users`, {
                     username: userName,
                     password: Util.randomUuid(),

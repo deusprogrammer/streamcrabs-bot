@@ -356,7 +356,11 @@ exports.init = async (botContext) => {}
 
 exports.followHook = async ({userName}, botContext) => {
     const {enabled, messageTemplate} = botContext.botConfig.alertConfigs.followAlert;
-    const alertMessage = messageTemplate.replace("${username}", userName);
+
+    let alertMessage = `${userName} just followed!`;
+    if (messageTemplate) {
+        alertMessage = messageTemplate.replace("${username}", userName);
+    }
 
     if (!enabled) {
         return;
@@ -367,7 +371,11 @@ exports.followHook = async ({userName}, botContext) => {
 
 exports.bitsHook = async ({bits, userName}, botContext) => {
     const {enabled, messageTemplate} = botContext.botConfig.alertConfigs.cheerAlert;
-    const alertMessage = messageTemplate.replace("${bits}", bits).replace("${username}", userName);
+    
+    let alertMessage = `${userName} cheered ${bits} bits!`;
+    if (messageTemplate) {
+        alertMessage = messageTemplate.replace("${bits}", bits).replace("${username}", userName);
+    }
 
     // Get all gauges related to subscription tracking
     const subGauges = Object.keys(botContext.botConfig.gauges).filter(key => botContext.botConfig.gauges[key].type === "CHEER");
@@ -408,7 +416,10 @@ exports.bitsHook = async ({bits, userName}, botContext) => {
 
 exports.subscriptionHook = async ({userName, subPlan}, botContext) => {
     const {enabled, messageTemplate} = botContext.botConfig.alertConfigs.subAlert;
-    const alertMessage = messageTemplate.replace("${username}", userName).replace("${subTier}", subPlan !== 'prime' ? subPlan / 1000 : 'prime');
+    let alertMessage = `${userName} subscribed at ${subPlan !== 'prime' ? 'tier ' + subPlan / 1000 : 'prime'}!`;
+    if (messageTemplate) {
+        alertMessage = messageTemplate.replace("${username}", userName).replace("${subTier}", subPlan !== 'prime' ? subPlan / 1000 : 'prime');
+    }
 
     // Get all gauges related to subscription tracking
     const subGauges = Object.keys(botContext.botConfig.gauges).filter(key => botContext.botConfig.gauges[key].type === "SUB");
