@@ -220,10 +220,13 @@ const createUser = async (userName, userId) => {
                     maxBodyLength,
                     maxContentLength
                 });
+            } else {
+                console.error("Failed to retrieve user " + e);
+                throw e;
             }
         }
     } catch (e) {
-        console.log("Failed to create user " + e);
+        console.error("Failed to create user " + e);
         throw e;
     }
 
