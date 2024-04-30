@@ -657,7 +657,11 @@ exports.init = async (botContext) => {
                     if (buff.duration <= 0) {
                         let expandedUsername = username;
                         if (username.startsWith("~")) {
-                            expandedUsername = encounterTable[username.slice(1)]?.name || "Unknown";
+                            expandedUsername = "Unknown";
+                            let monster = encounterTable[username.slice(1)];
+                            if (monster) {
+                                expandedUsername = monster.name || "Unknown";
+                            }
                         }
                         EventQueue.sendInfoToChat(`${expandedUsername}'s ${buff.name} buff has worn off.`);
                     }
