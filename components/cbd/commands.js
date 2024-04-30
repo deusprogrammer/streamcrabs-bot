@@ -5,6 +5,8 @@ const EventQueue = require('../base/eventQueue');
 const TWITCH_EXT_CHANNEL_ID = process.env.TWITCH_EXT_CHANNEL_ID;
 
 const createBuffMap = (username, context) => {
+    console.log("BUFF TABLE: " + JSON.stringify(context.buffTable, null, 5));
+
     let buffs = context.buffTable[username] || [];
     let buffMap = {
         str: 0,

@@ -461,11 +461,17 @@ exports.commands = {
         }
 
         let username = twitchContext.username;
-        let buffs = Commands.createBuffMap(username, pluginContext);
-        if (twitchContext.tokens[1]) {
+        if (twitchContext.tokens[1] && twitchContext.tokens[1].startsWith("~")) {
+            username = twitchContext.tokens[1].slice(1);
+            let monster = encounterTable[username];
+            let buffs = Commands.createBuffMap(`~${username}`, pluginContext);
+            EventQueue.sendInfoToChat(`[${monster.name}] HP: ${monster.hp} -- STR: ${monster.str} (${Util.sign(buffs.str)}) -- DEX: ${monster.dex} (${Util.sign(buffs.dex)}) -- INT: ${monster.int} (${Util.sign(buffs.int)}) -- HIT: ${monster.hit} (${Util.sign(buffs.hit)}) -- AC: ${monster.ac} (${Util.sign(buffs.ac)}) -- Cooldown: ${cooldownTable[username] * 5 || "0"} seconds.`);
+            return;
+        } else if (twitchContext.tokens[1] && !twitchContext.tokens[1].startsWith("~")) {
             username = twitchContext.tokens[1].replace("@", "").toLowerCase();
         }
 
+        let buffs = Commands.createBuffMap(username, pluginContext);
         let user = await Xhr.getUser(username);
         user = Util.expandUser(user, pluginContext);
         EventQueue.sendInfoToChat(`[${user.name}] HP: ${user.hp} -- AP: ${user.ap} -- STR: ${user.str} (${Util.sign(buffs.str)}) -- DEX: ${user.dex} (${Util.sign(buffs.dex)}) -- INT: ${user.int} (${Util.sign(buffs.int)}) -- HIT: ${user.hit} (${Util.sign(buffs.hit)}) -- AC: ${user.totalAC} (${Util.sign(buffs.ac)}) -- Cooldown: ${cooldownTable[username] * 5 || "0"} seconds.`);
@@ -649,7 +655,11 @@ exports.init = async (botContext) => {
                     buff.duration--;
 
                     if (buff.duration <= 0) {
-                        EventQueue.sendInfoToChat(`${username}'s ${buff.name} buff has worn off.`);
+                        let expandedUsername = username;
+                        if (username.startsWith("~")) {
+                            expandedUsername = encounterTable[username.slice(1)]?.name || "Unknown";
+                        }
+                        EventQueue.sendInfoToChat(`${expandedUsername}'s ${buff.name} buff has worn off.`);
                     }
                 });
                 buffTable[username] = buffs.filter(buff => buff.duration > 0);
