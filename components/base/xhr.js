@@ -202,7 +202,9 @@ const addCurrency = async (user, amount) => {
 const createUser = async (userName, userId) => {
     try {
         try {
-            await axios.get(`${PROFILE_API_URL}/users/${userName}`);
+            await axios.get(`${PROFILE_API_URL}/users/${userName}`, {
+                headers
+            });
         } catch (error) {
             if (error.response && error.response.status === 404) {
                 console.log("User doesn't exist, creating user");
